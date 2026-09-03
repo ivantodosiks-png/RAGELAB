@@ -139,55 +139,58 @@ const materials: Record<string, MaterialDef> = {
     roughness: 0.6,
     metalness: 0.05,
     surface: 'concrete',
+    decal: true,
   },
 };
 
 // ── Ground, grass, perimeter ────────────────────────────────────────────────
-box([0, -0.5, 0], [BOUNDS * 2, 1, BOUNDS * 2], 'grass');
+// Kenney tiles sit on y=0 (road slab 0–0.20 m at scale 10). The grass slab
+// tops out below that so the two never share a plane.
+box([0, -0.55, 0], [BOUNDS * 2, 1, BOUNDS * 2], 'grass');
 box([0, 3.4, -BOUNDS], [BOUNDS * 2, 6.8, 1.1], 'brick');
 box([0, 3.4, BOUNDS], [BOUNDS * 2, 6.8, 1.1], 'brick');
 box([-BOUNDS, 3.4, 0], [1.1, 6.8, BOUNDS * 2], 'brick');
 box([BOUNDS, 3.4, 0], [1.1, 6.8, BOUNDS * 2], 'brick');
 
-// Kenney roads sit 0.2 m above grass. Collision matches that surface and is
-// invisible so the painted GLB tiles are the only visible asphalt.
-box([0, 0.1, 0], [90, 0.2, 10.2], 'asphalt', { invisible: true });
-box([0, 0.1, 0], [10.2, 0.2, 80], 'asphalt', { invisible: true });
-box([36, 0.1, 32], [18, 0.2, 16], 'asphalt', { invisible: true });
-box([34, 0.1, -16], [16, 0.2, 14], 'asphalt', { invisible: true });
-box([-30, 0.1, 24], [12, 0.2, 10], 'asphalt', { invisible: true });
+const ROAD_H = 0.2;
+const ROAD_Y = ROAD_H / 2;
 
-// Sidewalks sit just outside the 10 m Kenney tiles.
-for (const z of [-6.6, 6.6]) {
-  box([0, 0.17, z], [90, 0.14, 3.2], 'pavement');
-}
-for (const x of [-6.6, 6.6]) {
-  box([x, 0.17, 0], [3.2, 0.14, 80], 'pavement');
-}
-box([36, 0.17, 23.2], [18, 0.14, 2.2], 'pavement');
-box([34, 0.17, -8.2], [16, 0.14, 2.2], 'pavement');
+// Collision matches the Kenney road walking surface (y = 0.20). Invisible so
+// the painted GLB tiles are the only visible asphalt.
+box([0, ROAD_Y, 0], [90, ROAD_H, 10.2], 'asphalt', { invisible: true });
+box([0, ROAD_Y, 0], [10.2, ROAD_H, 80], 'asphalt', { invisible: true });
+box([35, ROAD_Y, 35], [20.2, ROAD_H, 20.2], 'asphalt', { invisible: true });
+box([30, ROAD_Y, 15], [10.2, ROAD_H, 20], 'asphalt', { invisible: true });
 
-// ── Kenney road tiles (visual) ──────────────────────────────────────────────
+// Corner plazas sit in the grass quadrants, inset from Kenney tile edges
+// (|x| or |z| = 5) and away from the intersection signs at (±8, ±8).
+for (const x of [-12, 12]) {
+  for (const z of [-12, 12]) {
+    box([x, 0.07, z], [6.0, 0.14, 6.0], 'pavement');
+  }
+}
+
+// ── Kenney road tiles (visual) — 10 m grid, no overlapping footprints ───────
 const EW = 90 * DEG;
 place('road-cross', 0, 0, 0);
-for (const tx of [-4, -3, -2, -1, 1, 2, 3, 4]) place('road-straight', tx * TILE, 0, EW);
+for (const tx of [-3, -2, -1, 1, 2, 3]) place('road-straight', tx * TILE, 0, EW);
+place('road-end', -4 * TILE, 0, EW + Math.PI);
+place('road-end', 4 * TILE, 0, EW);
 for (const tz of [-3, -2, -1, 1, 2, 3]) place('road-straight', 0, tz * TILE, 0);
-place('road-end', -4.3 * TILE, 0, EW + Math.PI);
-place('road-end', 4.3 * TILE, 0, EW);
 place('road-end', 0, -4 * TILE, Math.PI);
 place('road-end', 0, 4 * TILE, 0);
-place('road-drive', 30, 12, 0);
-place('road-square', 28, 26, 0);
-place('road-square', 38, 26, 0);
-place('road-square', 28, 36, 0);
-place('road-square', 38, 36, 0);
-place('driveway', 34, -14, 0);
-place('road-side', 20, 10, 0);
+place('road-straight', 30, 10, 0);
+place('road-straight', 30, 20, 0);
+place('road-square', 30, 30, 0);
+place('road-square', 40, 30, 0);
+place('road-square', 30, 40, 0);
+place('road-square', 40, 40, 0);
+place('driveway', 34, -14, 0, 0.02);
 
 for (let i = 0; i < 5; i++) {
-  const x = 28.2 + i * 3.4;
-  box([x, 0.22, 26], [0.08, 0.02, 5.0], 'stall', { noCollide: true });
-  box([x, 0.22, 34.2], [0.08, 0.02, 5.0], 'stall', { noCollide: true });
+  const x = 26.6 + i * 3.4;
+  box([x, 0.214, 30], [0.08, 0.008, 8.4], 'stall', { noCollide: true });
+  box([x, 0.214, 40], [0.08, 0.008, 8.4], 'stall', { noCollide: true });
 }
 
 // ── Buildings (visual + cheap hull) ─────────────────────────────────────────
@@ -212,8 +215,8 @@ hull(-36, 32, 20.2, 16.4, 12.8);
 place('building-l', 36, -32, 90 * DEG);
 hull(36, -32, 13.4, 22.4, 13.1);
 
-place('house-c', 36, 16, -90 * DEG);
-hull(36, 16, 9.7, 10.0, 12.3);
+place('house-c', 42, 12, -90 * DEG);
+hull(42, 12, 9.7, 10.0, 12.3);
 
 place('house-f', -34, -32, 0);
 hull(-34, -32, 13.7, 11.0, 13.5);
@@ -236,6 +239,7 @@ box([40, 1.6, -18], [0.4, 3.2, 7.2], 'concrete');
 box([32.4, 1.6, -21.4], [0.4, 3.2, 3.6], 'concrete');
 box([36.2, 1.6, -22], [7.6, 3.2, 0.4], 'concrete');
 box([36.2, 3.35, -18.6], [8.0, 0.28, 7.6], 'metal');
+box([36.2, 0.05, -19.0], [7.2, 0.1, 5.8], 'concrete');
 
 // ── Shipping containers in the SW alley ─────────────────────────────────────
 box([-24, 1.3, -26], [6.1, 2.6, 2.44], 'metal');
@@ -262,8 +266,8 @@ place('planter', -12, -12, 0);
 place('planter', 10, 40, 15 * DEG);
 place('parasol', -23, 22, 20 * DEG);
 place('parasol', -17, 24, -15 * DEG);
-place('path-stones', -28, 22, 0);
-place('path-long', -22, 20, 90 * DEG);
+place('path-stones', -28, 22, 0, 0.02);
+place('path-long', -22, 20, 90 * DEG, 0.02);
 
 const trees: Array<[number, number, string]> = [
   [-44, 42, 'tree-large'],
@@ -353,8 +357,8 @@ props.push(
   { kind: 'plank', position: [30.4, 0.12, -15.5], rotation: [0, 40 * DEG, 0] },
   { kind: 'ball', position: [-30, 0.36, 20] },
   { kind: 'chair', position: [-20, 0.44, 21] },
-  { kind: 'crate', position: [32, 0.42, 20] },
-  { kind: 'crate', position: [32.9, 0.42, 20.4] },
+  { kind: 'crate', position: [44, 0.42, 22] },
+  { kind: 'crate', position: [44.9, 0.42, 22.4] },
 );
 
 // ── Spawns (sidewalks / lots only — never in driving lanes) ─────────────────
@@ -363,7 +367,7 @@ spawn('player', 8, 10, -20, 'player-northwalk');
 spawn('player', -12, -12, 20, 'player-southwalk');
 spawn('player', 12, -12, 200, 'player-se');
 spawn('player', -26, 18, 90, 'player-park');
-spawn('player', 26, 12, 180, 'player-parking');
+spawn('player', 22, 10, 180, 'player-parking');
 spawn('player', 8, -28, 0, 'player-houses');
 spawn('player', -26, -12, 90, 'player-alley');
 spawn('player', 8, 16, 180, 'player-north');
@@ -376,21 +380,21 @@ spawn('npc', 10, 12, 180, 'npc-walk-b');
 spawn('npc', -12, -10, 0, 'npc-walk-c');
 spawn('npc', 24, 40, 200, 'npc-park');
 spawn('npc', -28, 20, 90, 'npc-plaza');
-spawn('npc', 30, 12, -90, 'npc-house');
+spawn('npc', 22, 14, -90, 'npc-house');
 spawn('npc', -26, -22, 40, 'npc-alley');
 spawn('npc', 10, -28, 0, 'npc-south');
 
-spawn('vehicle', 28.4, 26.2, 0, 'stall-a1');
-spawn('vehicle', 31.8, 26.2, 0, 'stall-a2');
-spawn('vehicle', 35.2, 26.2, 0, 'stall-a3');
-spawn('vehicle', 38.6, 26.2, 0, 'stall-a4');
-spawn('vehicle', 28.4, 34.4, 180, 'stall-b1');
-spawn('vehicle', 31.8, 34.4, 180, 'stall-b2');
-spawn('vehicle', 42, 32, 90, 'lot-east');
+spawn('vehicle', 27.2, 30, 0, 'stall-a1');
+spawn('vehicle', 30.6, 30, 0, 'stall-a2');
+spawn('vehicle', 34, 30, 0, 'stall-a3');
+spawn('vehicle', 37.4, 30, 0, 'stall-a4');
+spawn('vehicle', 27.2, 40, 180, 'stall-b1');
+spawn('vehicle', 30.6, 40, 180, 'stall-b2');
+spawn('vehicle', 42, 35, 90, 'lot-east');
 spawn('vehicle', -32, 0, -90, 'street-west');
 spawn('vehicle', 0, 36, 180, 'street-north');
 spawn('vehicle', 38, -16, -90, 'lot-se');
-spawn('vehicle', -30, 24, 90, 'plaza-lot');
+spawn('vehicle', -30, 20, 90, 'plaza-lot');
 spawn('vehicle', 24, -32, 0, 'south-pad');
 
 spawn('prop', -28, 20, 0, 'prop-plaza');
@@ -401,7 +405,7 @@ spawn('prop', 8, 12, 0, 'prop-corner');
 spawn('prop', -8, -12, 0, 'prop-south');
 
 lights.push(
-  { kind: 'point', position: [0, 6.5, 0], color: 0xffe6c4, intensity: 10, distance: 22, quality: 'high' },
+  { kind: 'point', position: [0, 6.5, 0], color: 0xffe6c4, intensity: 6, distance: 22, quality: 'high' },
   { kind: 'point', position: [-26, 5.2, 22], color: 0xc8e4ff, intensity: 6, distance: 14, quality: 'high' },
   { kind: 'point', position: [36, 4.8, -18], color: 0xffc98a, intensity: 8, distance: 12, quality: 'high' },
 );
@@ -416,15 +420,15 @@ export const HARBORLANE: MapDefinition = {
   bounds: BOUNDS,
   killPlaneY: -12,
   environment: {
-    skyTop: 0x6ea4d8,
-    skyBottom: 0xf3d9b0,
-    sunColor: 0xfff1d0,
-    sunIntensity: 4.35,
+    skyTop: 0x5e93c8,
+    skyBottom: 0xead4ae,
+    sunColor: 0xffe8c4,
+    sunIntensity: 2.35,
     sunDirection: [0.48, 0.74, 0.42],
-    ambientColor: 0xc5d6ea,
-    ambientIntensity: 1.28,
-    fogColor: 0xd9cfc0,
-    fogDensity: 0.0022,
+    ambientColor: 0x9eb4cc,
+    ambientIntensity: 0.58,
+    fogColor: 0xc8c0b4,
+    fogDensity: 0.002,
     ambience: 'yard',
   },
   materials,

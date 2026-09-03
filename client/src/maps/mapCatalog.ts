@@ -1,6 +1,9 @@
 const BASE = import.meta.env.BASE_URL;
 
-/** Kenney City Kit units are 1×1 tiles. Scale 10 → 10 m roads, building-scale streets. */
+/**
+ * Kenney City Kit. Each GLB has its pack colormap embedded (no external
+ * Textures/colormap.png), so Vite/Vercel production serves one file per model.
+ */
 export const CITY_SCALE = 10;
 
 export const CITY_MODELS: Record<string, { file: string; scale?: number }> = {

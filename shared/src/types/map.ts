@@ -39,6 +39,8 @@ export interface MaterialDef {
     | 'pavement';
   /** UV repeat applied to the procedural texture. */
   textureScale?: number;
+  /** Depth-bias this material so it can sit just above another surface. */
+  decal?: boolean;
 }
 
 export interface BoxBrush {

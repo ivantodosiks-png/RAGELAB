@@ -15,7 +15,14 @@ export type ProceduralTextureKind =
   | 'pavement';
 
 const cache = new Map<string, THREE.Texture>();
-const SIZE = 256;
+const pbrCache = new Map<string, ProceduralPbrMaps>();
+const SIZE = 512;
+
+export interface ProceduralPbrMaps {
+  map: THREE.Texture;
+  roughnessMap: THREE.Texture;
+  normalMap: THREE.Texture;
+}
 
 /**
  * Textures are generated on a canvas at startup instead of shipping image
@@ -23,9 +30,29 @@ const SIZE = 256;
  * external files, and every texture is deterministic so it can be cached.
  */
 export function proceduralTexture(kind: ProceduralTextureKind): THREE.Texture {
-  const cached = cache.get(kind);
+  return proceduralPbr(kind).map;
+}
+
+export function proceduralPbr(kind: ProceduralTextureKind): ProceduralPbrMaps {
+  const cached = pbrCache.get(kind);
   if (cached) return cached;
 
+  const albedo = paintAlbedo(kind);
+  const pixels = albedo.getContext('2d')!.getImageData(0, 0, SIZE, SIZE);
+  const roughness = imageDataCanvas(roughnessFromAlbedo(pixels, kind));
+  const normal = imageDataCanvas(normalFromAlbedo(pixels, kind));
+
+  const maps: ProceduralPbrMaps = {
+    map: canvasTexture(albedo, THREE.SRGBColorSpace),
+    roughnessMap: canvasTexture(roughness, THREE.NoColorSpace),
+    normalMap: canvasTexture(normal, THREE.NoColorSpace),
+  };
+  pbrCache.set(kind, maps);
+  cache.set(kind, maps.map);
+  return maps;
+}
+
+function paintAlbedo(kind: ProceduralTextureKind): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
   canvas.height = SIZE;
@@ -67,17 +94,116 @@ export function proceduralTexture(kind: ProceduralTextureKind): THREE.Texture {
       drawPavement(ctx);
       break;
   }
+  return canvas;
+}
 
+function imageDataCanvas(data: ImageData): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = data.width;
+  canvas.height = data.height;
+  canvas.getContext('2d')!.putImageData(data, 0, 0);
+  return canvas;
+}
+
+function canvasTexture(canvas: HTMLCanvasElement, colorSpace: THREE.ColorSpace): THREE.Texture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.colorSpace = colorSpace;
+  texture.anisotropy = 8;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.needsUpdate = true;
-  cache.set(kind, texture);
   return texture;
+}
+
+const ROUGHNESS_BASE: Record<ProceduralTextureKind, number> = {
+  concrete: 210,
+  metal: 90,
+  wood: 200,
+  crate: 205,
+  grid: 175,
+  sand: 235,
+  hazard: 140,
+  asphalt: 225,
+  grass: 242,
+  brick: 215,
+  pavement: 205,
+};
+
+const ROUGHNESS_VARIATION: Record<ProceduralTextureKind, number> = {
+  concrete: 36,
+  metal: 55,
+  wood: 40,
+  crate: 32,
+  grid: 28,
+  sand: 18,
+  hazard: 22,
+  asphalt: 24,
+  grass: 14,
+  brick: 30,
+  pavement: 26,
+};
+
+const NORMAL_STRENGTH: Record<ProceduralTextureKind, number> = {
+  concrete: 1.8,
+  metal: 0.7,
+  wood: 1.6,
+  crate: 1.9,
+  grid: 1.4,
+  sand: 2.2,
+  hazard: 0.9,
+  asphalt: 1.5,
+  grass: 2.6,
+  brick: 3.1,
+  pavement: 1.7,
+};
+
+function roughnessFromAlbedo(src: ImageData, kind: ProceduralTextureKind): ImageData {
+  const out = new ImageData(src.width, src.height);
+  const base = ROUGHNESS_BASE[kind];
+  const amp = ROUGHNESS_VARIATION[kind];
+  for (let i = 0; i < src.data.length; i += 4) {
+    const lum = (src.data[i]! * 0.3 + src.data[i + 1]! * 0.59 + src.data[i + 2]! * 0.11) / 255;
+    const g = clamp255(base + (lum - 0.5) * amp);
+    out.data[i] = g;
+    out.data[i + 1] = g;
+    out.data[i + 2] = g;
+    out.data[i + 3] = 255;
+  }
+  return out;
+}
+
+function normalFromAlbedo(src: ImageData, kind: ProceduralTextureKind): ImageData {
+  const w = src.width;
+  const h = src.height;
+  const strength = NORMAL_STRENGTH[kind];
+  const heightAt = (x: number, y: number): number => {
+    const xx = ((x % w) + w) % w;
+    const yy = ((y % h) + h) % h;
+    const i = (yy * w + xx) * 4;
+    return (src.data[i]! + src.data[i + 1]! + src.data[i + 2]!) / 765;
+  };
+  const out = new ImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = (heightAt(x + 1, y) - heightAt(x - 1, y)) * strength;
+      const dy = (heightAt(x, y + 1) - heightAt(x, y - 1)) * strength;
+      let nx = -dx;
+      let ny = -dy;
+      let nz = 1;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      nx /= len;
+      ny /= len;
+      nz /= len;
+      const i = (y * w + x) * 4;
+      out.data[i] = clamp255((nx * 0.5 + 0.5) * 255);
+      out.data[i + 1] = clamp255((ny * 0.5 + 0.5) * 255);
+      out.data[i + 2] = clamp255((nz * 0.5 + 0.5) * 255);
+      out.data[i + 3] = 255;
+    }
+  }
+  return out;
 }
 
 function noiseFill(
@@ -279,20 +405,11 @@ function drawHazard(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawAsphalt(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [58, 60, 64], 22, 91001);
+  noiseFill(ctx, [48, 50, 54], 26, 91001);
   const rand = mulberry32(44);
-  ctx.strokeStyle = 'rgba(210, 214, 220, 0.22)';
-  ctx.lineWidth = 10;
-  ctx.beginPath();
-  ctx.moveTo(SIZE * 0.48, 0);
-  ctx.lineTo(SIZE * 0.52, SIZE);
-  ctx.stroke();
-  ctx.setLineDash([18, 22]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  for (let i = 0; i < 80; i++) {
-    ctx.fillStyle = `rgba(${(80 + rand() * 40) | 0},${(82 + rand() * 40) | 0},${(86 + rand() * 40) | 0},0.28)`;
-    ctx.fillRect(rand() * SIZE, rand() * SIZE, 2 + rand() * 8, 1 + rand() * 3);
+  for (let i = 0; i < 160; i++) {
+    ctx.fillStyle = `rgba(${(70 + rand() * 50) | 0},${(72 + rand() * 50) | 0},${(76 + rand() * 50) | 0},0.28)`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 2 + rand() * 10, 1 + rand() * 4);
   }
 }
 
@@ -332,12 +449,12 @@ function drawBrick(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawPavement(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [176, 174, 168], 18, 6061);
+  noiseFill(ctx, [168, 164, 156], 20, 6061);
   ctx.strokeStyle = 'rgba(90,88,84,0.55)';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  for (let i = 0; i <= 4; i++) {
-    const p = (i / 4) * SIZE;
+  for (let i = 0; i <= 8; i++) {
+    const p = (i / 8) * SIZE;
     ctx.moveTo(p, 0);
     ctx.lineTo(p, SIZE);
     ctx.moveTo(0, p);
@@ -510,6 +627,18 @@ export function muzzleStarTexture(): THREE.Texture {
 }
 
 export function disposeTextureCache(): void {
-  for (const texture of cache.values()) texture.dispose();
+  const seen = new Set<THREE.Texture>();
+  const drop = (texture?: THREE.Texture): void => {
+    if (!texture || seen.has(texture)) return;
+    seen.add(texture);
+    texture.dispose();
+  };
+  for (const texture of cache.values()) drop(texture);
+  for (const maps of pbrCache.values()) {
+    drop(maps.map);
+    drop(maps.roughnessMap);
+    drop(maps.normalMap);
+  }
   cache.clear();
+  pbrCache.clear();
 }

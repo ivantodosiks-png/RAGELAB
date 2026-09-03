@@ -64,7 +64,8 @@ export class MapDecor {
     const url = cityModelUrl(id);
     try {
       await assetManager.loadGltf(url);
-    } catch {
+    } catch (err) {
+      console.error(`[MapDecor] failed to load ${url}`, err);
       return;
     }
     const gltf = assetManager.peek(url);
@@ -77,7 +78,19 @@ export class MapDecor {
       mesh.frustumCulled = true;
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       for (const mat of mats) {
-        if (mat instanceof THREE.MeshStandardMaterial) mat.envMapIntensity = 1.05;
+        if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+        if (!mat.map) {
+          console.error(`[MapDecor] missing texture on ${url} (${mesh.name || mesh.uuid})`);
+        }
+        // Kenney colormaps are already fully lit albedo. Strong env/metal
+        // reads as blown-out white once the texture is actually loaded.
+        mat.envMapIntensity = 0.2;
+        mat.metalness = 0;
+        mat.roughness = Math.max(0.62, mat.roughness);
+        if (mat.map) {
+          mat.map.colorSpace = THREE.SRGBColorSpace;
+          mat.map.anisotropy = 8;
+        }
       }
     });
 

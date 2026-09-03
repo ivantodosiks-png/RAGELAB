@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { MapDefinition, MaterialDef, PropKind } from '@ragelab/shared';
 import { PROP_ARCHETYPES } from '@ragelab/shared';
-import { proceduralTexture } from '../renderer/textures';
+import { proceduralPbr } from '../renderer/textures';
 
 const DEG = Math.PI / 180;
 
@@ -47,31 +47,39 @@ export class MapMeshBuilder {
 
   private createMaterial(def: MaterialDef): THREE.MeshStandardMaterial {
     const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(def.color).lerp(new THREE.Color(0xffffff), 0.2),
-      roughness: Math.max(0.12, def.roughness - 0.04),
+      color: new THREE.Color(def.color),
+      roughness: def.roughness,
       metalness: def.metalness,
       transparent: def.transparent ?? false,
       opacity: def.opacity ?? 1,
       side: def.transparent ? THREE.DoubleSide : THREE.FrontSide,
+      envMapIntensity: 0.35,
     });
     if (def.emissive !== undefined) {
       material.emissive = new THREE.Color(def.emissive);
       material.emissiveIntensity = def.emissiveIntensity ?? 1;
     }
     if (def.texture) {
-      const texture = proceduralTexture(def.texture);
-      material.map = texture;
-      material.roughnessMap = texture;
-      // Repeat is per-material, so a shared texture object is fine here because
-      // each material owns its own sampler state via a cloned wrapper.
-      const cloned = texture.clone();
-      cloned.needsUpdate = true;
+      const pbr = proceduralPbr(def.texture);
       const scale = def.textureScale ?? 1;
-      cloned.repeat.set(scale, scale);
-      cloned.wrapS = THREE.RepeatWrapping;
-      cloned.wrapT = THREE.RepeatWrapping;
-      material.map = cloned;
-      this.disposables.push(cloned);
+      const cloneMap = (src: THREE.Texture): THREE.Texture => {
+        const cloned = src.clone();
+        cloned.needsUpdate = true;
+        cloned.repeat.set(scale, scale);
+        cloned.wrapS = THREE.RepeatWrapping;
+        cloned.wrapT = THREE.RepeatWrapping;
+        this.disposables.push(cloned);
+        return cloned;
+      };
+      material.map = cloneMap(pbr.map);
+      material.roughnessMap = cloneMap(pbr.roughnessMap);
+      material.normalMap = cloneMap(pbr.normalMap);
+      material.normalScale = new THREE.Vector2(0.55, 0.55);
+    }
+    if (def.decal) {
+      material.polygonOffset = true;
+      material.polygonOffsetFactor = -2;
+      material.polygonOffsetUnits = -2;
     }
     this.disposables.push(material);
     return material;
@@ -143,6 +151,8 @@ export class MapMeshBuilder {
 
     const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
     const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 18, 1);
+    boxGeometry.computeTangents();
+    cylinderGeometry.computeTangents();
     this.disposables.push(boxGeometry, cylinderGeometry);
 
     for (const group of groups.values()) {
@@ -264,18 +274,25 @@ export class MapMeshBuilder {
 /** Geometry for a sandbox prop kind, matching its Rapier collider. */
 export function propGeometry(kind: PropKind): THREE.BufferGeometry {
   const shape = PROP_ARCHETYPES[kind].shape;
+  let geometry: THREE.BufferGeometry;
   switch (shape.type) {
     case 'box': {
       const [hx, hy, hz] = shape.halfExtents;
-      return new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
+      geometry = new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2);
+      break;
     }
     case 'sphere':
-      return new THREE.SphereGeometry(shape.radius, 18, 12);
+      geometry = new THREE.SphereGeometry(shape.radius, 18, 12);
+      break;
     case 'cylinder':
-      return new THREE.CylinderGeometry(shape.radius, shape.radius, shape.halfHeight * 2, 18, 1);
+      geometry = new THREE.CylinderGeometry(shape.radius, shape.radius, shape.halfHeight * 2, 18, 1);
+      break;
     default:
-      return new THREE.BoxGeometry(0.8, 0.8, 0.8);
+      geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+      break;
   }
+  if (shape.type !== 'sphere') geometry.computeTangents();
+  return geometry;
 }
 
 export function propMaterial(kind: PropKind): THREE.MeshStandardMaterial {
@@ -284,19 +301,27 @@ export function propMaterial(kind: PropKind): THREE.MeshStandardMaterial {
     color: def.color,
     roughness: def.roughness,
     metalness: def.metalness,
+    envMapIntensity: 0.4,
   });
   if (def.emissive !== undefined) {
     material.emissive = new THREE.Color(def.emissive);
     material.emissiveIntensity = def.emissiveIntensity ?? 1;
   }
   if (def.texture) {
-    const texture = proceduralTexture(def.texture).clone();
-    texture.needsUpdate = true;
+    const pbr = proceduralPbr(def.texture);
     const scale = def.textureScale ?? 1;
-    texture.repeat.set(scale, scale);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    material.map = texture;
+    const cloneMap = (src: THREE.Texture): THREE.Texture => {
+      const cloned = src.clone();
+      cloned.needsUpdate = true;
+      cloned.repeat.set(scale, scale);
+      cloned.wrapS = THREE.RepeatWrapping;
+      cloned.wrapT = THREE.RepeatWrapping;
+      return cloned;
+    };
+    material.map = cloneMap(pbr.map);
+    material.roughnessMap = cloneMap(pbr.roughnessMap);
+    material.normalMap = cloneMap(pbr.normalMap);
+    material.normalScale = new THREE.Vector2(0.5, 0.5);
   }
   return material;
 }

@@ -36,7 +36,7 @@ export class GameRenderer {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.92;
+    this.renderer.toneMappingExposure = 1.12;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false;
 
@@ -44,10 +44,10 @@ export class GameRenderer {
     this.camera.layers.set(LAYER_WORLD);
     this.viewModelCamera = new THREE.PerspectiveCamera(65, 1, 0.005, 6);
 
-    this.ambient = new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.55);
+    this.ambient = new THREE.HemisphereLight(0xb8cce0, 0x6a6458, 0.62);
     this.scene.add(this.ambient);
 
-    this.sun = new THREE.DirectionalLight(0xfff6e0, 3.2);
+    this.sun = new THREE.DirectionalLight(0xfff1d4, 2.15);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(settings.shadowResolution, settings.shadowResolution);
     this.sun.shadow.camera.near = 1;
@@ -79,9 +79,9 @@ export class GameRenderer {
     const envMap = pmrem.fromScene(room, 0.03).texture;
     room.dispose();
     this.scene.environment = envMap;
-    this.scene.environmentIntensity = 0.85;
+    this.scene.environmentIntensity = 0.38;
     this.viewModelScene.environment = envMap;
-    this.viewModelScene.environmentIntensity = 1.25;
+    this.viewModelScene.environmentIntensity = 0.7;
     pmrem.dispose();
 
     this.sky = this.createSky();
@@ -139,7 +139,7 @@ export class GameRenderer {
     uniforms.sunDirection!.value.set(...env.sunDirection).normalize();
 
     this.sun.color.setHex(env.sunColor);
-    this.sun.intensity = env.sunIntensity * 1.55;
+    this.sun.intensity = env.sunIntensity;
     this.sun.position.set(...env.sunDirection).normalize().multiplyScalar(110);
     const ext = Math.min(96, Math.max(56, map.bounds + 12));
     this.sun.shadow.camera.left = -ext;
@@ -150,7 +150,7 @@ export class GameRenderer {
 
     this.ambient.color.setHex(env.ambientColor);
     this.ambient.groundColor.setHex(env.fogColor);
-    this.ambient.intensity = env.ambientIntensity * 1.75;
+    this.ambient.intensity = env.ambientIntensity;
 
     const fogColor = new THREE.Color(env.fogColor).lerp(new THREE.Color(env.skyBottom), 0.4);
     this.scene.fog = new THREE.FogExp2(fogColor, env.fogDensity * 0.42);
