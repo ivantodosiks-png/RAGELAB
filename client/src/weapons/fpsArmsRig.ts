@@ -4,10 +4,9 @@ import { GLOCK_17_URL, FPS_ARMS_URL, cloneFpsAsset, preloadFpsView } from './fps
 /**
  * Local first-person Glock kit.
  *
- * The J-Toastie arms GLB is a Blender/Unity export (Z-up, huge scale, +X
- * offset). We never parent the gun into that armature — we stand the arms up
- * in camera space and keep the Glock on a fixed WeaponSocket so the muzzle
- * stays on the barrel, not under the HUD name.
+ * Both GLBs are Unity skinned exports (≈50–188 scale, −90° X already on the
+ * nodes). Clone via SkeletonUtils, then uniformly fit the whole tree — never
+ * re-parent the gun into the 188× armature.
  */
 export class FpsPistolRig {
   readonly root = new THREE.Group();
@@ -43,31 +42,29 @@ export class FpsPistolRig {
     prepareViewMesh(armsScene);
     prepareViewMesh(glockScene);
     hideNamed(glockScene, 'Glock19.001');
+    stripSceneOffset(armsScene, 'Armature', 'ArmModel');
 
-    // Stand the authored Z-up / sideways kit up and face camera -Z.
     const armsFit = new THREE.Group();
     armsFit.name = 'fpsArmsFit';
     armsFit.add(armsScene);
-    armsFit.rotation.set(-Math.PI / 2, Math.PI, 0);
     this.arms.add(armsFit);
-    fitObject(armsFit, 0.52);
-    centerObject(armsFit);
-    this.arms.position.set(0.07, -0.3, -0.4);
+    refreshSkins(armsFit);
+    fitByBones(armsFit, 0.36);
+    centerByBones(armsFit);
+    this.arms.position.set(0.05, -0.28, -0.32);
 
     const glockFit = new THREE.Group();
     glockFit.name = 'glockFit';
     glockFit.add(glockScene);
     this.glock.add(glockFit);
-    fitObject(glockFit, 0.2);
-    centerObject(glockFit);
+    refreshSkins(glockFit);
+    fitByBones(glockFit, 0.19);
+    centerByBones(glockFit);
     glockFit.rotation.y = Math.PI;
-    glockFit.position.y -= 0.02;
-    glockFit.position.z += 0.02;
 
-    // Fixed view-space socket: lower-right, barrel toward -Z.
-    this.weaponSocket.position.set(0.11, -0.15, -0.3);
-    this.weaponSocket.rotation.set(0.02, 0.08, 0.04);
-    this.muzzleAnchor.position.set(0, 0.018, -0.11);
+    this.weaponSocket.position.set(0.1, -0.14, -0.28);
+    this.weaponSocket.rotation.set(0.02, 0.06, 0.03);
+    this.muzzleAnchor.position.set(0, 0.016, -0.1);
     this.muzzleAnchor.rotation.set(0, 0, 0);
 
     this.assembled = true;
@@ -117,17 +114,50 @@ function hideNamed(root: THREE.Object3D, name: string): void {
   });
 }
 
-function fitObject(root: THREE.Object3D, targetLength: number): void {
+/** Drop the shared Unity scene translation so mesh + armature stay aligned. */
+function stripSceneOffset(scene: THREE.Object3D, armatureName: string, meshName: string): void {
+  const armature = scene.getObjectByName(armatureName);
+  const mesh = scene.getObjectByName(meshName);
+  if (armature) armature.position.set(0, 0, 0);
+  if (mesh) mesh.position.set(0, 0, 0);
+}
+
+function refreshSkins(root: THREE.Object3D): void {
   root.updateMatrixWorld(true);
-  tmpBox.setFromObject(root);
+  root.traverse((obj) => {
+    const mesh = obj as THREE.SkinnedMesh;
+    if (mesh.isSkinnedMesh) mesh.skeleton.update();
+  });
+}
+
+function expandBoneBox(root: THREE.Object3D, box: THREE.Box3): boolean {
+  let any = false;
+  box.makeEmpty();
+  root.updateMatrixWorld(true);
+  root.traverse((obj) => {
+    if (!(obj as THREE.Bone).isBone) return;
+    obj.getWorldPosition(tmpPos);
+    box.expandByPoint(tmpPos);
+    any = true;
+  });
+  return any;
+}
+
+function fitByBones(root: THREE.Object3D, targetLength: number): void {
+  if (!expandBoneBox(root, tmpBox)) {
+    root.updateMatrixWorld(true);
+    tmpBox.setFromObject(root);
+  }
   tmpBox.getSize(tmpSize);
   const longest = Math.max(tmpSize.x, tmpSize.y, tmpSize.z, 0.001);
   root.scale.multiplyScalar(targetLength / longest);
 }
 
-function centerObject(root: THREE.Object3D): void {
-  root.updateMatrixWorld(true);
-  tmpBox.setFromObject(root);
+function centerByBones(root: THREE.Object3D): void {
+  if (!expandBoneBox(root, tmpBox)) {
+    root.updateMatrixWorld(true);
+    tmpBox.setFromObject(root);
+  }
   tmpBox.getCenter(tmpCenter);
   root.position.sub(tmpCenter);
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 /**
  * Lazy GLB/glTF cache. Each URL is fetched once; callers clone the result.
@@ -31,11 +32,11 @@ export class AssetManager {
     return gltf.scene.clone(true);
   }
 
-  /** Deep-clone a cached scene. Returns null until the URL has loaded. */
+  /** Deep-clone a cached scene, rebinding skeletons so skinned meshes keep their bones. */
   cloneScene(url: string): THREE.Group | null {
     const gltf = this.ready.get(url);
     if (!gltf) return null;
-    const clone = gltf.scene.clone(true);
+    const clone = cloneSkinned(gltf.scene) as THREE.Group;
     clone.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
