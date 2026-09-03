@@ -4,9 +4,9 @@ import { GLOCK_17_URL, FPS_ARMS_URL, cloneFpsAsset, preloadFpsView } from './fps
 /**
  * Local first-person Glock kit.
  *
- * Both GLBs are Unity skinned exports (≈50–188 scale, −90° X already on the
- * nodes). Clone via SkeletonUtils, then uniformly fit the whole tree — never
- * re-parent the gun into the 188× armature.
+ * Both J-Toastie GLBs are untextured FBX→glTF (solid Phong colors only) with
+ * Unity scale on the nodes. Fit the visible bind-pose mesh, not the tiny
+ * bone cluster — otherwise the Glock explodes to half the screen.
  */
 export class FpsPistolRig {
   readonly root = new THREE.Group();
@@ -42,29 +42,29 @@ export class FpsPistolRig {
     prepareViewMesh(armsScene);
     prepareViewMesh(glockScene);
     hideNamed(glockScene, 'Glock19.001');
-    stripSceneOffset(armsScene, 'Armature', 'ArmModel');
+    tuneViewMaterials(armsScene, 'arms');
+    tuneViewMaterials(glockScene, 'glock');
 
     const armsFit = new THREE.Group();
     armsFit.name = 'fpsArmsFit';
     armsFit.add(armsScene);
     this.arms.add(armsFit);
     refreshSkins(armsFit);
-    fitByBones(armsFit, 0.36);
-    centerByBones(armsFit);
-    this.arms.position.set(0.05, -0.28, -0.32);
+    fitByMesh(armsFit, 0.4);
+    centerByMesh(armsFit);
+    this.arms.position.set(0.04, -0.24, -0.34);
 
     const glockFit = new THREE.Group();
     glockFit.name = 'glockFit';
     glockFit.add(glockScene);
     this.glock.add(glockFit);
     refreshSkins(glockFit);
-    fitByBones(glockFit, 0.19);
-    centerByBones(glockFit);
-    glockFit.rotation.y = Math.PI;
+    fitByMesh(glockFit, 0.18);
+    centerByMesh(glockFit);
 
-    this.weaponSocket.position.set(0.1, -0.14, -0.28);
-    this.weaponSocket.rotation.set(0.02, 0.06, 0.03);
-    this.muzzleAnchor.position.set(0, 0.016, -0.1);
+    this.weaponSocket.position.set(0.09, -0.13, -0.26);
+    this.weaponSocket.rotation.set(0.02, 0.04, 0.02);
+    this.muzzleAnchor.position.set(0, 0.014, -0.09);
     this.muzzleAnchor.rotation.set(0, 0, 0);
 
     this.assembled = true;
@@ -94,6 +94,7 @@ const tmpQuat = new THREE.Quaternion();
 const tmpParentQuat = new THREE.Quaternion();
 const tmpMat = new THREE.Matrix4();
 const tmpBox = new THREE.Box3();
+const tmpGeomBox = new THREE.Box3();
 const tmpSize = new THREE.Vector3();
 const tmpCenter = new THREE.Vector3();
 
@@ -114,12 +115,25 @@ function hideNamed(root: THREE.Object3D, name: string): void {
   });
 }
 
-/** Drop the shared Unity scene translation so mesh + armature stay aligned. */
-function stripSceneOffset(scene: THREE.Object3D, armatureName: string, meshName: string): void {
-  const armature = scene.getObjectByName(armatureName);
-  const mesh = scene.getObjectByName(meshName);
-  if (armature) armature.position.set(0, 0, 0);
-  if (mesh) mesh.position.set(0, 0, 0);
+/** These GLBs have no maps — keep the FBX colors from blowing out under view lights. */
+function tuneViewMaterials(root: THREE.Object3D, kind: 'arms' | 'glock'): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const raw of list) {
+      if (!(raw instanceof THREE.MeshStandardMaterial)) continue;
+      raw.metalness = kind === 'glock' ? 0.12 : 0.04;
+      raw.roughness = kind === 'glock' ? Math.max(raw.roughness, 0.55) : Math.max(raw.roughness, 0.7);
+      raw.envMapIntensity = 0.15;
+      if (raw.name === 'White') {
+        raw.color.setRGB(0.72, 0.74, 0.7);
+        raw.metalness = 0;
+        raw.roughness = 0.85;
+      }
+      raw.needsUpdate = true;
+    }
+  });
 }
 
 function refreshSkins(root: THREE.Object3D): void {
@@ -130,34 +144,33 @@ function refreshSkins(root: THREE.Object3D): void {
   });
 }
 
-function expandBoneBox(root: THREE.Object3D, box: THREE.Box3): boolean {
+/** Bind-pose geometry × mesh matrix. Skinned AABB double-counts bone worlds. */
+function expandMeshBox(root: THREE.Object3D, box: THREE.Box3): boolean {
   let any = false;
   box.makeEmpty();
   root.updateMatrixWorld(true);
   root.traverse((obj) => {
-    if (!(obj as THREE.Bone).isBone) return;
-    obj.getWorldPosition(tmpPos);
-    box.expandByPoint(tmpPos);
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
+    const geometry = mesh.geometry;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    if (!geometry.boundingBox) return;
+    tmpGeomBox.copy(geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
+    box.union(tmpGeomBox);
     any = true;
   });
   return any;
 }
 
-function fitByBones(root: THREE.Object3D, targetLength: number): void {
-  if (!expandBoneBox(root, tmpBox)) {
-    root.updateMatrixWorld(true);
-    tmpBox.setFromObject(root);
-  }
+function fitByMesh(root: THREE.Object3D, targetLength: number): void {
+  if (!expandMeshBox(root, tmpBox)) return;
   tmpBox.getSize(tmpSize);
   const longest = Math.max(tmpSize.x, tmpSize.y, tmpSize.z, 0.001);
   root.scale.multiplyScalar(targetLength / longest);
 }
 
-function centerByBones(root: THREE.Object3D): void {
-  if (!expandBoneBox(root, tmpBox)) {
-    root.updateMatrixWorld(true);
-    tmpBox.setFromObject(root);
-  }
+function centerByMesh(root: THREE.Object3D): void {
+  if (!expandMeshBox(root, tmpBox)) return;
   tmpBox.getCenter(tmpCenter);
   root.position.sub(tmpCenter);
 }
