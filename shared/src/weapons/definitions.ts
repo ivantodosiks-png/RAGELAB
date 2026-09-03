@@ -408,7 +408,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       aimMultiplier: 0.38,
       crouchMultiplier: 0.7,
     },
-    audio: { fire: 'pistol', reload: 'pistol_reload', pitch: 0.78, maxDistance: 130 },
+    audio: { fire: 'magnum', reload: 'reload_heavy', pitch: 1.0, maxDistance: 130 },
     visual: {
       color: 0x161412,
       accentColor: 0xd4a44a,

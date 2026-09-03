@@ -19,6 +19,7 @@ export type SoundKey =
   | 'shotgun'
   | 'shotgun_distant'
   | 'sniper'
+  | 'magnum'
   | 'reload_light'
   | 'reload_heavy'
   | 'reload_shell'
@@ -494,6 +495,16 @@ const GUN_PRESETS: Record<string, GunParams> = {
     tailAmount: 0.82,
     drive: 3.8,
     seed: 0x3e45,
+  },
+  magnum: {
+    duration: 1.15,
+    bodyFreq: 88,
+    bodyDecay: 10,
+    noiseAmount: 1.22,
+    crackAmount: 1.3,
+    tailAmount: 0.58,
+    drive: 3.7,
+    seed: 0x50ae,
   },
 };
 

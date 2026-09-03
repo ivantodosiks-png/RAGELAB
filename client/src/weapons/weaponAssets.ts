@@ -6,11 +6,8 @@ import { buildWeaponMesh } from './weaponMeshes';
 
 const BASE = import.meta.env.BASE_URL;
 
-/** Source GLB lives in repo `assets/` — Vite emits one hashed URL. No copy. */
-export const GLOCK_17_URL = new URL(
-  '../../../assets/glock-17/Rigged Glock by J-Toastie - FpMvDqjZFr.glb',
-  import.meta.url,
-).href;
+/** Desert Eagle by AdamKokrito — CC BY 3.0 https://poly.pizza/m/5HnKjrbxUx */
+export const MAGNUM_URL = new URL('../../../assets/hammer/desert-eagle.glb', import.meta.url).href;
 
 export type WeaponModelId = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee' | 'glock' | 'magnum';
 export type SandboxWeaponKind = WeaponModelId;
@@ -36,7 +33,7 @@ export const WEAPON_MODEL_FILES: Partial<Record<WeaponModelId, string>> = {
 };
 
 export function weaponModelUrl(id: string): string | null {
-  if (id === 'glock') return GLOCK_17_URL;
+  if (id === 'magnum') return MAGNUM_URL;
   const file = WEAPON_MODEL_FILES[id as WeaponModelId];
   if (!file) return null;
   return `${BASE}models/weapons/${file}`;
@@ -74,7 +71,10 @@ const tmpCenter = new THREE.Vector3();
  * "more mesh toward -Z" flip inverted SMG/shotgun because the stock is the
  * larger half of the box.
  */
-const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: number; roll?: number }>> = {};
+const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: number; roll?: number }>> = {
+  // FBX2glTF −90° X leaves the barrel on +Z after longest-axis fit.
+  magnum: { yaw: Math.PI },
+};
 
 /** Align the longest axis to Z (view-model / world barrel direction) and fit length. */
 export function fitWeaponModel(root: THREE.Object3D, targetLength: number, ground = false, id?: string): THREE.Vector3 {
@@ -123,13 +123,24 @@ export function prepareWeaponVisual(
     mesh.castShadow = options.shadows !== false;
     mesh.receiveShadow = true;
     mesh.frustumCulled = true;
-    if (options.id !== 'glock') return;
+    if (options.id !== 'glock' && options.id !== 'magnum') return;
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
-      mat.metalness = Math.min(mat.metalness, 0.22);
-      mat.roughness = Math.max(mat.roughness, 0.5);
-      mat.envMapIntensity = 0.35;
+      if (options.id === 'glock') {
+        mat.metalness = Math.min(mat.metalness, 0.22);
+        mat.roughness = Math.max(mat.roughness, 0.5);
+        mat.envMapIntensity = 0.35;
+        continue;
+      }
+      mat.metalness = Math.min(mat.metalness, 0.55);
+      mat.roughness = Math.max(mat.roughness, 0.28);
+      mat.envMapIntensity = 0.55;
+      if (/second/i.test(mat.name)) {
+        mat.color.setHex(0xd4a44a);
+        mat.metalness = 0.78;
+        mat.roughness = 0.3;
+      }
     }
   });
   const size =
@@ -217,7 +228,7 @@ export function loadWeaponModel(id: string): Promise<THREE.Group | null> {
 }
 
 export function preloadWeaponModels(): void {
-  void assetManager.loadGltf(GLOCK_17_URL);
+  void assetManager.loadGltf(MAGNUM_URL);
 }
 
 function cloneWeaponScene(url: string, id: string): THREE.Group | null {
