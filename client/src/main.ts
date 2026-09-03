@@ -4,6 +4,7 @@ import { GAME_SERVER_URL, supabaseConfigured } from './supabase/client';
 import { UiApp, type JoinRequest } from './ui/app';
 import { parseLobbyInvite } from './ui/lobbyInvite';
 import { GameSession } from './core/gameSession';
+import { MenuBackdrop } from './ui/menuBackdrop';
 
 const canvasEl = document.querySelector<HTMLCanvasElement>('#viewport');
 const uiRootEl = document.querySelector<HTMLElement>('#ui-root');
@@ -14,6 +15,18 @@ const uiRoot: HTMLElement = uiRootEl;
 const ui = new UiApp(uiRoot);
 let session: GameSession | null = null;
 let joining = false;
+let backdrop: MenuBackdrop | null = null;
+
+function startMenuWorld(): void {
+  backdrop?.stop();
+  backdrop = new MenuBackdrop(canvas);
+  backdrop.start();
+}
+
+function stopMenuWorld(): void {
+  backdrop?.stop();
+  backdrop = null;
+}
 
 ui.onJoin = (request) => {
   void join(request);
@@ -31,6 +44,7 @@ async function boot(): Promise<void> {
   authService.events.on('changed', () => {
     void ui.refreshAuth();
   });
+  startMenuWorld();
   ui.showMenu();
   const invite = parseLobbyInvite();
   if (invite) {
@@ -46,6 +60,7 @@ async function boot(): Promise<void> {
 async function join(request: JoinRequest): Promise<void> {
   if (joining) return;
   joining = true;
+    stopMenuWorld();
     ui.setConnecting(true, request.offline ? 'Starting offline…' : 'Connecting to game server…');
     try {
       const token = request.offline ? null : await authService.freshAccessToken();
@@ -66,6 +81,7 @@ async function join(request: JoinRequest): Promise<void> {
   } catch (err) {
     ui.setConnecting(false);
     ui.menu.setCreateBusy(false);
+    startMenuWorld();
     ui.showMenu();
     ui.toast(err instanceof Error ? err.message : String(err));
   } finally {
@@ -77,6 +93,7 @@ function leave(): void {
   session?.dispose();
   session = null;
   ui.menu.setCreateBusy(false);
+  startMenuWorld();
   ui.showMenu();
 }
 
@@ -87,5 +104,6 @@ window.addEventListener('beforeunload', () => {
 boot().catch((err) => {
   console.error('[RAGELAB] boot failed', err);
   ui.toast('Failed to start the client');
+  startMenuWorld();
   ui.showMenu();
 });

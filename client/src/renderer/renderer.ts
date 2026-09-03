@@ -273,6 +273,8 @@ export class GameRenderer {
   dispose(): void {
     for (const light of this.dynamicLights) light.dispose();
     this.dynamicLights.length = 0;
+    const gl = this.renderer.getContext();
     this.renderer.dispose();
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 }
