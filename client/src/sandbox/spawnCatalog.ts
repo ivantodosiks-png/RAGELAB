@@ -125,7 +125,7 @@ export const WEAPON_ENTRIES: SpawnEntry[] = SANDBOX_WEAPON_KINDS.map((id) => {
     id: `weapon:${id}`,
     category: 'weapons' as const,
     name,
-    info: 'View only · spawn via Weapon tool',
+    info: 'Cannot spawn with Tool Gun',
     spawnable: false,
     swatch: def?.visual.accentColor ?? fallback.swatch,
     glyph: name.slice(0, 4).toUpperCase(),

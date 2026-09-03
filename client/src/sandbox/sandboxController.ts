@@ -103,6 +103,7 @@ export class SandboxController {
 
   private selected: SandboxNpc | null = null;
   private hovered: SandboxNpc | null = null;
+  lookHint: 'none' | 'npc' | 'prop' | 'weapon' | 'spawn' = 'none';
   private accum = 0;
   private lastPointer = { x: 0, y: 0 };
   private listeners: Array<() => void> = [];
@@ -234,7 +235,6 @@ export class SandboxController {
 
   toggleCursorMode(): boolean {
     this.setCursorMode(!this.cursorMode);
-    if (this.cursorMode && this.tool === 'none') this.setTool('spawn');
     return this.cursorMode;
   }
 
@@ -668,32 +668,34 @@ export class SandboxController {
     const dir = ctx.cursorMode ? this.dirFromNdc(ctx.camera) : ctx.aimDir;
     const origin = lookOrigin;
 
+    let spawnPoint: { x: number; y: number; z: number } | null = null;
     if (this.tool === 'spawn' || this.tool === 'spawnWeapon' || this.showsToolGunGhost()) {
-      const point = this.groundPoint(origin, dir);
-      if (point) {
+      spawnPoint = this.groundPoint(origin, dir);
+      if (spawnPoint) {
         this.marker.visible = this.tool !== 'toolGun';
-        this.marker.position.set(point.x, point.y + 0.02, point.z);
+        this.marker.position.set(spawnPoint.x, spawnPoint.y + 0.02, spawnPoint.z);
       } else {
         this.marker.visible = false;
       }
       const yaw = Math.atan2(-dir.x, -dir.z);
       const ghost = this.showsToolGunGhost() && !this.menuOpen;
-      this.preview.update(ghost ? point : null, yaw, ghost);
+      this.preview.update(ghost ? spawnPoint : null, yaw, ghost);
     } else {
       this.marker.visible = false;
       this.preview.update(null, 0, false);
     }
 
-    const hover = this.pickNpc(ctx.camera, origin, dir);
+    const hover = this.tool === 'none' ? null : this.pickNpc(ctx.camera, origin, dir);
     if (this.hovered !== hover) {
       this.hovered?.setHovered(false);
       hover?.setHovered(true);
       this.hovered = hover ?? null;
     }
+    this.lookHint = this.resolveLookHint(ctx.camera, origin, dir, hover, spawnPoint);
 
     const outlined = this.selected?.active ? this.selected : this.hovered;
     const ringMat = this.inspectRing.material as THREE.MeshBasicMaterial;
-    if (outlined?.active) {
+    if (outlined?.active && this.tool !== 'none') {
       const p = outlined.position;
       this.inspectRing.visible = true;
       this.inspectRing.position.set(p.x, p.y + 0.03, p.z);
@@ -840,6 +842,21 @@ export class SandboxController {
     if (this.tool !== 'toolGun' || this.menuOpen) return false;
     const cat = this.selection.category;
     return cat === 'npc' || cat === 'props' || cat === 'weapons';
+  }
+
+  private resolveLookHint(
+    camera: THREE.Camera,
+    origin: Vec3,
+    dir: Vec3,
+    npc: SandboxNpc | null,
+    spawnPoint: { x: number; y: number; z: number } | null,
+  ): 'none' | 'npc' | 'prop' | 'weapon' | 'spawn' {
+    if (this.menuOpen || this.tool !== 'toolGun') return npc ? 'npc' : 'none';
+    if (npc) return 'npc';
+    if (this.pickWeapon(camera, origin, dir)) return 'weapon';
+    if (this.pickProp(camera, origin, dir)) return 'prop';
+    if (this.selection.spawnable && spawnPoint) return 'spawn';
+    return 'none';
   }
 
   private pickNpc(camera: THREE.Camera, origin: Vec3, dir: Vec3): SandboxNpc | null {

@@ -1,5 +1,8 @@
 import { Button, clamp, wrapAngle, type ControlSettings } from '@ragelab/shared';
 
+/** Local HUD slot for the Tool Gun. Never sent to the server as a weapon index. */
+export const TOOL_GUN_UI_SLOT = 5;
+
 export interface AimState {
   yaw: number;
   pitch: number;
@@ -23,9 +26,16 @@ export class InputController {
   yaw = 0;
   pitch = 0;
 
-  /** Slot the player wants to hold, driven by number keys and the wheel. */
-  weaponSlot = 0;
+  /**
+   * HUD slot 0–5. Slots 0–4 are firearms; slot 5 is the Tool Gun.
+   * `sample().weaponSlot` always reports a firearm index for the network.
+   */
+  uiSlot = 0;
+  firearmSlot = 0;
   loadoutSize = 5;
+  uiSlotCount = TOOL_GUN_UI_SLOT + 1;
+  /** While the spawn menu is open, number keys / wheel must not switch tools. */
+  freezeSlots = false;
 
   /** Latched toggle states for toggle-style sprint/crouch/aim. */
   private toggleSprint = false;
@@ -201,7 +211,12 @@ export class InputController {
         case 'weapon3':
         case 'weapon4':
         case 'weapon5':
-          this.weaponSlot = Number(action.slice(6)) - 1;
+          if (this.freezeSlots) break;
+          this.selectFirearm(Number(action.slice(6)) - 1);
+          break;
+        case 'weapon6':
+          if (this.freezeSlots) break;
+          this.uiSlot = TOOL_GUN_UI_SLOT;
           break;
         default:
           this.uiEdges.add(action);
@@ -228,12 +243,25 @@ export class InputController {
     return this.isDown(action);
   }
 
+  get toolGunEquipped(): boolean {
+    return this.uiSlot === TOOL_GUN_UI_SLOT;
+  }
+
+  private selectFirearm(slot: number): void {
+    const max = Math.max(0, this.loadoutSize - 1);
+    this.firearmSlot = clamp(slot, 0, max);
+    this.uiSlot = this.firearmSlot;
+  }
+
   /** Called once per simulation tick to build the command payload. */
   sample(): { moveX: number; moveZ: number; buttons: number; weaponSlot: number } {
     if (this.wheelDelta !== 0) {
-      const steps = this.wheelDelta > 0 ? 1 : -1;
-      this.weaponSlot =
-        (this.weaponSlot + steps + this.loadoutSize) % Math.max(1, this.loadoutSize);
+      if (!this.freezeSlots) {
+        const steps = this.wheelDelta > 0 ? 1 : -1;
+        const count = Math.max(1, this.uiSlotCount);
+        this.uiSlot = (this.uiSlot + steps + count) % count;
+        if (this.uiSlot < this.loadoutSize) this.firearmSlot = this.uiSlot;
+      }
       this.wheelDelta = 0;
     }
 
@@ -258,9 +286,11 @@ export class InputController {
     if (this.isDown('interact')) buttons |= Button.Interact;
     if (this.isDown('dropProp')) buttons |= Button.Drop;
 
-    this.weaponSlot = clamp(this.weaponSlot, 0, Math.max(0, this.loadoutSize - 1));
+    const maxGun = Math.max(0, this.loadoutSize - 1);
+    this.firearmSlot = clamp(this.firearmSlot, 0, maxGun);
+    this.uiSlot = clamp(this.uiSlot, 0, Math.max(0, this.uiSlotCount - 1));
 
-    return { moveX, moveZ, buttons, weaponSlot: this.weaponSlot };
+    return { moveX, moveZ, buttons, weaponSlot: this.firearmSlot };
   }
 
   /** Clear latched toggles, e.g. on respawn. */
@@ -294,6 +324,7 @@ const GAMEPLAY_KEYS = new Set([
   'Digit3',
   'Digit4',
   'Digit5',
+  'Digit6',
   'F3',
   'KeyB',
 ]);

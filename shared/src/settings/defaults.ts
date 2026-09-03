@@ -20,6 +20,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   weapon3: 'Digit3',
   weapon4: 'Digit4',
   weapon5: 'Digit5',
+  weapon6: 'Digit6',
   nextWeapon: 'WheelUp',
   prevWeapon: 'WheelDown',
   scoreboard: 'Tab',
@@ -47,10 +48,11 @@ export const ACTION_LABELS: Record<string, string> = {
   weapon3: 'Weapon slot 3',
   weapon4: 'Weapon slot 4',
   weapon5: 'Weapon slot 5',
+  weapon6: 'Tool Gun',
   scoreboard: 'Scoreboard',
   chat: 'Chat',
   debug: 'Debug overlay',
-  sandbox: 'Sandbox cursor / panel',
+  sandbox: 'Cursor mode',
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {

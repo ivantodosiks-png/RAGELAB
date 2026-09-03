@@ -93,10 +93,12 @@ export function buildToolGunMesh(disposables: Array<{ dispose(): void }>): THREE
   // Barrel / emitter
   cyl(root, body, 0.016, 0.018, 0.09, 0, 0.018, -0.13, Math.PI / 2, geos);
   cyl(root, dark, 0.02, 0.02, 0.018, 0, 0.018, -0.175, Math.PI / 2, geos);
-  cyl(root, glow, 0.011, 0.008, 0.02, 0, 0.018, -0.188, Math.PI / 2, geos);
+  const muzzle = cyl(root, glow, 0.011, 0.008, 0.02, 0, 0.018, -0.188, Math.PI / 2, geos);
+  muzzle.name = 'muzzleGlow';
   // Side LCD
   box(root, dark, 0.004, 0.032, 0.048, 0.03, 0.034, -0.02, geos);
-  box(root, screen, 0.002, 0.024, 0.038, 0.033, 0.034, -0.02, geos);
+  const lcd = box(root, screen, 0.002, 0.024, 0.038, 0.033, 0.034, -0.02, geos);
+  lcd.name = 'toolGunLcd';
   // Top rail + screws
   box(root, dark, 0.018, 0.008, 0.1, 0, 0.058, -0.02, geos);
   box(root, accent, 0.01, 0.006, 0.01, 0, 0.064, -0.05, geos);
