@@ -720,6 +720,166 @@ input[type='range'] {
   display: grid;
 }
 
+.sandbox-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 268px;
+  max-height: min(78vh, 720px);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  z-index: 8;
+}
+
+.sandbox-panel.cursor-on {
+  border-color: var(--accent);
+}
+
+.sandbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: 0.2em;
+  font-size: 12px;
+}
+
+.sandbox-collapse {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.sandbox-body {
+  overflow: auto;
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sandbox-panel.collapsed .sandbox-body,
+.sandbox-panel.collapsed .sandbox-confirm {
+  display: none;
+}
+
+.sandbox-hint,
+.sandbox-live {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.sandbox-section h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+
+.sandbox-btn {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.sandbox-btn.active,
+.sandbox-btn.primary {
+  border-color: var(--accent);
+  background: rgba(214, 255, 61, 0.12);
+  color: var(--accent);
+}
+
+.sandbox-btn.danger:hover {
+  border-color: var(--rage);
+  color: var(--rage);
+}
+
+.sandbox-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sandbox-field,
+.sandbox-check {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.sandbox-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.sandbox-step {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  gap: 6px;
+}
+
+.sandbox-step input,
+.sandbox-select,
+.sandbox-field input[type='range'] {
+  width: 100%;
+  background: #101412;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  padding: 6px;
+}
+
+.sandbox-step .rl-btn {
+  padding: 0;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.sandbox-inspect {
+  border: 1px solid var(--line);
+  padding: 10px;
+  font-size: 12px;
+}
+
+.sandbox-inspect p {
+  margin: 4px 0;
+}
+
+.sandbox-kicker {
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.sandbox-confirm {
+  padding: 16px 12px;
+}
+
+.sandbox-confirm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 @media (max-width: 860px) {
   .rl-menu {
     grid-template-columns: 1fr;

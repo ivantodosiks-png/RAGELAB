@@ -2,13 +2,16 @@ import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import {
   BULLET_FILTER_GROUPS,
+  Button,
   DEFAULT_LOADOUT,
   EYE_HEIGHT_STAND,
   INTERACT_RANGE,
   MAX_HEALTH,
   MAX_INPUTS_PER_PACKET,
   PlayerFlag,
+  QualityLevel,
   SPEED_WALK,
+  buttonPressed,
   clamp,
   directionFromAngles,
   getArchetype,
@@ -38,6 +41,9 @@ import type { SoundKey } from '../audio/synth';
 import { WeaponController } from '../weapons/weaponController';
 import { settingsStore } from '../settings/settingsStore';
 import type { UiApp } from '../ui/app';
+import { SandboxPanel } from '../ui/sandboxPanel';
+import { SandboxController } from '../sandbox/sandboxController';
+import type { SandboxQuality } from '../sandbox/types';
 import { GAME_SERVER_URL } from '../supabase/client';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
@@ -83,6 +89,8 @@ export class GameSession {
   private effects!: EffectsManager;
   private audio!: AudioEngine;
   private weapon!: WeaponController;
+  private sandbox!: SandboxController;
+  private sandboxPanel!: SandboxPanel;
 
   private localId = 0;
   private loadout: WeaponId[] = [...DEFAULT_LOADOUT];
@@ -155,8 +163,11 @@ export class GameSession {
     this.raf = requestAnimationFrame((t) => this.frame(t));
     window.addEventListener('resize', this.onResize);
     this.canvas.addEventListener('click', this.onCanvasClick);
+    this.canvas.addEventListener('mousemove', this.onPointerMove);
     this.unsubs.push(this.input.onLockChange((locked) => {
-      if (!locked && this.running && !this.ui.hud.chatting) this.setPaused(true);
+      if (!locked && this.running && !this.ui.hud.chatting && !this.sandbox?.cursorMode) {
+        this.setPaused(true);
+      }
     }));
   }
 
@@ -238,6 +249,21 @@ export class GameSession {
     );
     this.renderer.viewModelScene.add(this.weapon.viewModel.root);
 
+    this.sandbox = new SandboxController(rapier, this.map);
+    this.renderer.scene.add(this.sandbox.root);
+    this.sandboxPanel = new SandboxPanel(this.ui.hud.root, this.sandbox);
+    this.sandboxPanel.onSpawnLook = () => this.spawnSandboxFromLook();
+    this.sandboxPanel.onResetNpc = () => this.sandbox.resetNearest(this.cameraVec());
+    this.sandboxPanel.onClearEffects = () => this.effects.clearParticles();
+    this.sandboxPanel.onClearDecals = () => this.effects.clearDecals();
+    this.sandboxPanel.onClearScene = () => {
+      this.sandbox.removeAllNpcs();
+      this.effects.clear();
+    };
+    this.sandboxPanel.onQuality = (q) => this.applySandboxQuality(q);
+    this.effects.setSoftCap(this.sandbox.settings.maxEffects);
+    this.sandbox.onChange(() => this.effects.setSoftCap(this.sandbox.settings.maxEffects));
+
     this.identities.clear();
     for (const id of welcome.players) this.identities.set(id.id, id);
     this.entities.setIdentities(welcome.players);
@@ -315,10 +341,48 @@ export class GameSession {
     this.effects.setViewportHeight(this.canvas.clientHeight || window.innerHeight);
   };
 
-  private readonly onCanvasClick = (): void => {
-    if (!this.running || this.paused || this.ui.hud.chatting) return;
+  private readonly onCanvasClick = (event: MouseEvent): void => {
+    if (!this.running || this.ui.hud.chatting) return;
+    if (this.sandbox?.cursorMode) {
+      this.notePointer(event);
+      directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
+      this.sandbox.handlePrimary(this.cameraVec(), aimDir, this.renderer.camera);
+      return;
+    }
+    if (this.paused) return;
     this.input.requestLock();
   };
+
+  private readonly onPointerMove = (event: MouseEvent): void => {
+    if (!this.sandbox?.cursorMode) return;
+    this.notePointer(event);
+  };
+
+  private notePointer(event: MouseEvent): void {
+    const rect = this.canvas.getBoundingClientRect();
+    this.sandbox.setPointerNdc(event.clientX - rect.left, event.clientY - rect.top, rect.width, rect.height);
+  }
+
+  private cameraVec(): Vec3 {
+    const p = this.renderer.camera.position;
+    return { x: p.x, y: p.y, z: p.z };
+  }
+
+  private spawnSandboxFromLook(): void {
+    directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
+    this.sandbox.spawnAtLookOrFront(this.cameraVec(), aimDir);
+  }
+
+  private applySandboxQuality(quality: SandboxQuality): void {
+    const level =
+      quality === 'low' ? QualityLevel.Low : quality === 'high' ? QualityLevel.High : QualityLevel.Medium;
+    this.effects.applySettings({
+      ...settingsStore.graphics,
+      particles: level,
+      effects: level,
+    });
+    this.effects.setSoftCap(this.sandbox.settings.maxEffects);
+  }
 
   private setPaused(paused: boolean): void {
     this.paused = paused;
@@ -341,6 +405,11 @@ export class GameSession {
       this.fpsAccum = 0;
     }
 
+    if (this.input.consumeEdge('sandbox') && !this.paused) {
+      const cursor = this.sandbox.toggleCursorMode();
+      if (cursor) this.input.releaseLock();
+      else this.input.requestLock();
+    }
     if (this.input.consumeEdge('debug')) {
       settingsStore.patchGraphics({ debugOverlay: !settingsStore.graphics.debugOverlay });
     }
@@ -383,6 +452,10 @@ export class GameSession {
     this.lastYaw = this.input.yaw;
     this.lastPitch = this.input.pitch;
 
+    directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
+    this.weapon.blockFire = this.sandbox.interceptsFire;
+    const fireEdge = buttonPressed(sample.buttons, this.lastButtons, Button.Fire);
+
     this.weapon.update(dt, {
       buttons: sample.buttons,
       previousButtons: this.lastButtons,
@@ -396,8 +469,13 @@ export class GameSession {
     });
     this.lastButtons = sample.buttons;
 
+    if (fireEdge && this.sandbox.interceptsFire) {
+      this.sandbox.handlePrimary(this.cameraVec(), aimDir, this.renderer.camera);
+    }
+
     if (this.weapon.didFire) {
       this.spawnPredictedTracer();
+      this.sandbox.tryShot(muzzlePos, muzzleDir, this.weapon.definition.range);
     }
 
     if (this.local.footstepThisFrame) {
@@ -424,6 +502,20 @@ export class GameSession {
     this.entities.update(this.interp, dt, now, this.renderer.camera.position);
     this.playRemoteFootsteps(dt);
     MapMeshBuilder.animatePickups(this.mapBuilder.root, now / 1000);
+
+    if (!this.paused) {
+      this.sandbox.update({
+        dt,
+        camera: this.renderer.camera,
+        playerPos: predicted.position,
+        crouching: predicted.crouching,
+        interp: this.interp,
+        locked: this.input.isLocked,
+        cursorMode: this.sandbox.cursorMode,
+        aimDir,
+      });
+      this.sandboxPanel.tick();
+    }
 
     this.effects.update(dt, now);
     this.renderer.updateShadowFocus(predicted.position.x, predicted.position.z);
@@ -680,12 +772,15 @@ export class GameSession {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     this.canvas.removeEventListener('click', this.onCanvasClick);
+    this.canvas.removeEventListener('mousemove', this.onPointerMove);
     for (const off of this.unsubs) off();
     this.input?.detach();
     this.input?.releaseLock();
     this.net?.disconnect();
     this.weapon?.dispose();
     this.entities?.dispose();
+    this.sandbox?.dispose();
+    this.sandboxPanel?.root.remove();
     this.effects?.dispose();
     this.mapBuilder?.dispose();
     this.physics?.dispose();

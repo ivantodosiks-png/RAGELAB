@@ -276,6 +276,7 @@ const GAMEPLAY_KEYS = new Set([
   'Digit4',
   'Digit5',
   'F3',
+  'KeyB',
 ]);
 
 function isTypingTarget(target: EventTarget | null): boolean {

@@ -96,6 +96,10 @@ export class EffectsManager {
     this.budget = PARTICLE_BUDGETS[settings.particles] ?? this.budget;
   }
 
+  setSoftCap(maxLive: number): void {
+    this.particles.setSoftCap(maxLive);
+  }
+
   setViewportHeight(height: number): void {
     this.particles.setPixelScale(height);
   }
@@ -476,6 +480,14 @@ export class EffectsManager {
       flash.light.visible = false;
       flash.life = 0;
     }
+  }
+
+  clearParticles(): void {
+    this.particles.clear();
+  }
+
+  clearDecals(): void {
+    this.decals.clear();
   }
 
   dispose(): void {

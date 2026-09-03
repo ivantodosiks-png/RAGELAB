@@ -57,11 +57,13 @@ export class ParticlePool {
   private readonly material: THREE.ShaderMaterial;
   private cursor = 0;
   private liveCount = 0;
+  private softCap: number;
 
   private readonly tmpColor = new THREE.Color();
 
   constructor(capacity: number) {
     this.capacity = capacity;
+    this.softCap = capacity;
     this.positions = new Float32Array(capacity * 3);
     this.colors = new Float32Array(capacity * 3);
     this.sizes = new Float32Array(capacity);
@@ -131,6 +133,20 @@ export class ParticlePool {
     this.points.name = 'particles';
   }
 
+  private stealSlot(): number {
+    for (let n = 0; n < this.capacity; n++) {
+      const i = (this.cursor + n) % this.capacity;
+      if (this.life[i]! > 0) {
+        this.cursor = (i + 1) % this.capacity;
+        this.liveCount -= 1;
+        return i;
+      }
+    }
+    const fallback = this.cursor;
+    this.cursor = (this.cursor + 1) % this.capacity;
+    return fallback;
+  }
+
   get active(): number {
     return this.liveCount;
   }
@@ -139,14 +155,17 @@ export class ParticlePool {
     this.material.uniforms.pixelScale!.value = height * 0.55;
   }
 
+  setSoftCap(maxLive: number): void {
+    this.softCap = Math.max(1, Math.min(this.capacity, Math.round(maxLive)));
+  }
+
   spawn(p: ParticleSpawn): void {
-    let index = this.free.pop();
-    if (index === undefined) {
-      // Pool exhausted: steal a slot round-robin so the newest effect still
-      // reads on screen instead of silently vanishing.
-      index = this.cursor;
-      this.cursor = (this.cursor + 1) % this.capacity;
-      this.liveCount -= 1;
+    let index: number | undefined;
+    if (this.liveCount >= this.softCap) {
+      index = this.stealSlot();
+    } else {
+      index = this.free.pop();
+      if (index === undefined) index = this.stealSlot();
     }
 
     const i3 = index * 3;

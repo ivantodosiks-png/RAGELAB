@@ -26,6 +26,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   chat: 'KeyT',
   menu: 'Escape',
   debug: 'F3',
+  sandbox: 'KeyB',
 };
 
 export const ACTION_LABELS: Record<string, string> = {
@@ -49,6 +50,7 @@ export const ACTION_LABELS: Record<string, string> = {
   scoreboard: 'Scoreboard',
   chat: 'Chat',
   debug: 'Debug overlay',
+  sandbox: 'Sandbox cursor / panel',
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {

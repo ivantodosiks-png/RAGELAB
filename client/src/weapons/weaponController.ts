@@ -68,6 +68,8 @@ export class WeaponController {
 
   /** Set for the frame a predicted shot actually fired. */
   didFire = false;
+  /** Sandbox tools steal the trigger so we do not shoot while placing NPCs. */
+  blockFire = false;
 
   private readonly worldPos = new THREE.Vector3();
   private readonly worldDir = new THREE.Vector3();
@@ -171,7 +173,7 @@ export class WeaponController {
     this.viewModel.setAiming(aiming);
     this.camera.setAimFov(aiming ? this.def.aimFovMultiplier : 1);
 
-    if (ctx.alive && !ctx.carrying) {
+    if (ctx.alive && !ctx.carrying && !this.blockFire) {
       this.handleReloadInput(ctx, nowMs);
       this.handleFireInput(ctx, nowMs);
     }
