@@ -70,6 +70,8 @@ export interface ServerConfig {
   publicWsUrl: string;
   /** Open a Cloudflare quick tunnel so friends can join from any internet. */
   publicTunnel: boolean;
+  /** Emails that are granted admin on login (comma-separated in RAGELAB_ADMIN_EMAILS). */
+  adminEmails: string[];
   supabase: {
     url: string;
     serviceRoleKey: string;
@@ -91,6 +93,10 @@ function inferredPublicWsUrl(): string {
 }
 
 const publicWsUrl = inferredPublicWsUrl();
+const adminEmails = str('RAGELAB_ADMIN_EMAILS', '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
 export const config: ServerConfig = {
   host: str('GAME_SERVER_HOST', '0.0.0.0'),
@@ -114,6 +120,7 @@ export const config: ServerConfig = {
   logLevel: (str('LOG_LEVEL', 'info') as ServerConfig['logLevel']) ?? 'info',
   publicWsUrl,
   publicTunnel: bool('GAME_SERVER_PUBLIC_TUNNEL', !publicWsUrl),
+  adminEmails,
   supabase: {
     url: supabaseUrl,
     serviceRoleKey,
@@ -139,6 +146,7 @@ export function describeConfig(): Record<string, unknown> {
     persist: config.persist,
     publicWsUrl: config.publicWsUrl || '(local only)',
     publicTunnel: config.publicTunnel,
+    adminEmails: config.adminEmails.length,
     supabase: {
       url: config.supabase.url ? new URL(config.supabase.url).host : '(not configured)',
       serviceRoleKey: config.supabase.serviceRoleKey ? 'present' : 'missing',

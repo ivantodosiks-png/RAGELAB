@@ -17,7 +17,7 @@ import {
 import { config } from '../config';
 import { log } from '../logger';
 import { verifyAccessToken } from '../auth/verify';
-import { loadProfile } from '../persistence/profiles';
+import { grantAdminIfListed, loadProfile } from '../persistence/profiles';
 import { sanitizeChat, sanitizeUsername } from '../validation/antiCheat';
 import type { RoomManager } from '../rooms/roomManager';
 import { Connection, ConnectionState } from './connection';
@@ -185,6 +185,7 @@ export class Gateway {
         connection.rejectUnauthorized('invalid or expired session');
         return;
       }
+      await grantAdminIfListed(user.userId, user.email);
       const profile = await loadProfile(user.userId);
       if (!profile) {
         connection.rejectUnauthorized('profile not found for this account');

@@ -132,6 +132,30 @@ try {
   if (pending === 0) console.log('Database is up to date.');
   else if (statusOnly) console.log(`${pending} migration(s) pending.`);
   else console.log(`Applied ${pending} migration(s).`);
+
+  if (!statusOnly) {
+    const emails = (process.env.RAGELAB_ADMIN_EMAILS || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (emails.length > 0) {
+      try {
+        let granted = 0;
+        for (const email of emails) {
+          const result = await client.query(
+            `insert into public.staff (profile_id)
+             select id from auth.users where lower(email) = $1
+             on conflict (profile_id) do nothing`,
+            [email],
+          );
+          granted += result.rowCount ?? 0;
+        }
+        console.log(`Admin grants from RAGELAB_ADMIN_EMAILS: ${granted} new, ${emails.length} listed.`);
+      } catch (err) {
+        console.warn('Could not grant admins from RAGELAB_ADMIN_EMAILS:', err.message);
+      }
+    }
+  }
 } catch (err) {
   console.error('\nMigration failed:', err.message);
   process.exitCode = 1;

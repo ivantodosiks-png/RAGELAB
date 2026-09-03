@@ -1,4 +1,5 @@
 import { log } from '../logger';
+import { config } from '../config';
 import { serviceClient } from '../auth/supabase';
 
 export interface LoadedProfile {
@@ -54,4 +55,13 @@ export async function loadProfile(userId: string): Promise<LoadedProfile | null>
     banned,
     banReason,
   };
+}
+
+export async function grantAdminIfListed(userId: string, email: string | null): Promise<void> {
+  if (!email || config.adminEmails.length === 0) return;
+  if (!config.adminEmails.includes(email.trim().toLowerCase())) return;
+  const client = serviceClient();
+  if (!client) return;
+  const { error } = await client.from('staff').upsert({ profile_id: userId, role: 'admin' }, { onConflict: 'profile_id' });
+  if (error) log.warn('failed to grant admin', { userId, message: error.message });
 }

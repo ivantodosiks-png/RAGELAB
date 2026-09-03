@@ -16,6 +16,21 @@ export interface FullProfile {
   settings: unknown;
   inventory: InventoryEntry[];
   cosmetics: CosmeticItem[];
+  isAdmin: boolean;
+  ban: { reason: string; createdAt: string } | null;
+}
+
+export interface AdminUserRow {
+  id: string;
+  username: string;
+  email: string | null;
+  createdAt: string;
+  level: number;
+  kills: number;
+  deaths: number;
+  banned: boolean;
+  banReason: string | null;
+  isAdmin: boolean;
 }
 
 export interface WeaponStatRow {
@@ -33,12 +48,14 @@ export class ProfileService {
     if (!supabaseConfigured()) return null;
     const db = supabase();
 
-    const [profileRes, statsRes, settingsRes, inventoryRes, cosmeticsRes] = await Promise.all([
+    const [profileRes, statsRes, settingsRes, inventoryRes, cosmeticsRes, adminRes, banRes] = await Promise.all([
       db.from('profiles').select('*').eq('id', userId).maybeSingle(),
       db.from('player_stats').select('*').eq('profile_id', userId).maybeSingle(),
       db.from('player_settings').select('settings').eq('profile_id', userId).maybeSingle(),
       db.from('player_inventory').select('item_id, equipped, acquired_at').eq('profile_id', userId),
       db.from('cosmetic_items').select('*').order('unlock_level', { ascending: true }),
+      db.rpc('admin_bootstrap'),
+      db.rpc('my_active_ban'),
     ]);
 
     if (profileRes.error || !profileRes.data) return null;
@@ -86,6 +103,10 @@ export class ProfileService {
         acquiredAt: entry.acquired_at,
       })),
       cosmetics,
+      isAdmin: adminRes.data === true,
+      ban: banRes.data && banRes.data.length > 0
+        ? { reason: banRes.data[0]!.reason, createdAt: banRes.data[0]!.created_at }
+        : null,
     };
   }
 
@@ -217,6 +238,45 @@ export class ProfileService {
       .insert({ reporter_id: reporterId, target_id: targetId, reason });
     if (error) return { ok: false, message: error.message };
     return { ok: true };
+  }
+
+  async listUsers(): Promise<AdminUserRow[]> {
+    if (!supabaseConfigured()) return [];
+    const { data, error } = await supabase().rpc('admin_list_users');
+    if (error || !data) return [];
+    return data.map((row) => ({
+      id: row.profile_id,
+      username: row.username,
+      email: row.email,
+      createdAt: row.created_at,
+      level: row.level,
+      kills: row.kills,
+      deaths: row.deaths,
+      banned: row.banned,
+      banReason: row.ban_reason,
+      isAdmin: row.is_admin,
+    }));
+  }
+
+  async banUser(profileId: string, reason: string): Promise<{ ok: boolean; message?: string }> {
+    if (!supabaseConfigured()) return { ok: false, message: 'Supabase is not configured' };
+    const { error } = await supabase().rpc('admin_ban', { p_profile_id: profileId, p_reason: reason });
+    if (error) return { ok: false, message: error.message };
+    return { ok: true };
+  }
+
+  async unbanUser(profileId: string): Promise<{ ok: boolean; message?: string }> {
+    if (!supabaseConfigured()) return { ok: false, message: 'Supabase is not configured' };
+    const { error } = await supabase().rpc('admin_unban', { p_profile_id: profileId });
+    if (error) return { ok: false, message: error.message };
+    return { ok: true };
+  }
+
+  async myActiveBan(): Promise<{ reason: string; createdAt: string } | null> {
+    if (!supabaseConfigured()) return null;
+    const { data, error } = await supabase().rpc('my_active_ban');
+    if (error || !data || data.length === 0) return null;
+    return { reason: data[0]!.reason, createdAt: data[0]!.created_at };
   }
 }
 

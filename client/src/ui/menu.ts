@@ -8,11 +8,11 @@ import {
   type RoomSummary,
   type UserSettings,
 } from '@ragelab/shared';
-import type { FullProfile, WeaponStatRow } from '../supabase/profileService';
+import type { FullProfile, WeaponStatRow, AdminUserRow } from '../supabase/profileService';
 import type { LeaderboardEntry } from '../../../supabase/types/database';
 import { formatCode, el, clear } from './dom';
 
-export type MenuScreen = 'play' | 'servers' | 'profile' | 'settings' | 'controls' | 'auth';
+export type MenuScreen = 'play' | 'servers' | 'profile' | 'settings' | 'controls' | 'auth' | 'admin';
 
 export interface MenuCallbacks {
   play: (opts: {
@@ -36,6 +36,9 @@ export interface MenuCallbacks {
   applyQuality: (quality: QualityLevelId) => void;
   setBinding: (action: string, code: string) => void;
   equipCosmetic: (itemId: string) => void;
+  listUsers: () => Promise<AdminUserRow[]>;
+  banUser: (profileId: string, reason: string) => Promise<string | null>;
+  unbanUser: (profileId: string) => Promise<string | null>;
   quit: () => void;
 }
 
@@ -52,10 +55,16 @@ export class MainMenu {
   username = 'Guest';
   supabaseReady = false;
   pendingJoinCode = '';
+  isAdmin = false;
   profile: FullProfile | null = null;
   weaponStats: WeaponStatRow[] = [];
   leaderboard: LeaderboardEntry[] = [];
   settings!: UserSettings;
+  private readonly adminBtn: HTMLButtonElement;
+  private adminUsers: AdminUserRow[] = [];
+  private adminQuery = '';
+  private pendingBanId: string | null = null;
+  private adminNotice = '';
 
   constructor(
     host: HTMLElement,
@@ -87,6 +96,11 @@ export class MainMenu {
     authBtn.addEventListener('click', () => this.show('auth'));
     nav.append(authBtn);
     this.navButtons.set('auth', authBtn);
+    this.adminBtn = el('button', '', 'Admin');
+    this.adminBtn.hidden = true;
+    this.adminBtn.addEventListener('click', () => this.show('admin'));
+    nav.append(this.adminBtn);
+    this.navButtons.set('admin', this.adminBtn);
     const quit = el('button', 'danger', 'Quit');
     quit.addEventListener('click', () => this.callbacks.quit());
     nav.append(quit);
@@ -116,9 +130,16 @@ export class MainMenu {
       : supabaseReady
         ? 'guest session · sign in to keep stats'
         : 'guest session · supabase not configured';
-    if (this.screen === 'auth' || this.screen === 'profile' || this.screen === 'play') {
+    if (!signedIn) this.setAdmin(false);
+    if (this.screen === 'auth' || this.screen === 'profile' || this.screen === 'play' || this.screen === 'admin') {
       this.render();
     }
+  }
+
+  setAdmin(isAdmin: boolean): void {
+    this.isAdmin = isAdmin;
+    this.adminBtn.hidden = !isAdmin;
+    if (!isAdmin && this.screen === 'admin') this.show('play');
   }
 
   show(screen: MenuScreen): void {
@@ -147,6 +168,9 @@ export class MainMenu {
         break;
       case 'auth':
         this.renderAuth();
+        break;
+      case 'admin':
+        void this.renderAdmin();
         break;
     }
   }
@@ -292,6 +316,131 @@ export class MainMenu {
     } catch (err) {
       listHost.textContent = `Could not reach the game server: ${String(err)}`;
     }
+  }
+
+  private async renderAdmin(): Promise<void> {
+    this.panel.append(el('h2', '', 'Admin'));
+    this.panel.append(
+      el('p', 'lead', 'Registered accounts. Ban writes a reason the player sees on the website. Unban restores access immediately.'),
+    );
+    if (!this.isAdmin) {
+      this.panel.append(el('p', 'rl-error', 'Admin access required.'));
+      return;
+    }
+
+    const tools = el('div', 'rl-admin-tools');
+    const search = inputField('Search', this.adminQuery);
+    const searchInput = search.input as HTMLInputElement;
+    searchInput.placeholder = 'username or email';
+    searchInput.addEventListener('input', () => {
+      this.adminQuery = searchInput.value;
+      this.fillAdminTable(tableHost);
+    });
+    const refresh = el('button', 'rl-btn', 'Refresh');
+    refresh.addEventListener('click', () => void this.reloadAdminUsers());
+    tools.append(search.wrap, refresh);
+    this.panel.append(tools);
+
+    if (this.adminNotice) this.panel.append(el('div', 'rl-error', this.adminNotice));
+
+    const tableHost = el('div', 'rl-admin-table');
+    tableHost.textContent = 'Loading players…';
+    this.panel.append(tableHost);
+
+    if (this.adminUsers.length === 0) {
+      await this.reloadAdminUsers(false);
+      if (this.screen !== 'admin') return;
+      clear(tableHost);
+    }
+    this.fillAdminTable(tableHost);
+  }
+
+  private async reloadAdminUsers(rerender = true): Promise<void> {
+    this.adminNotice = '';
+    try {
+      this.adminUsers = await this.callbacks.listUsers();
+    } catch (err) {
+      this.adminNotice = err instanceof Error ? err.message : String(err);
+      this.adminUsers = [];
+    }
+    if (rerender && this.screen === 'admin') this.render();
+  }
+
+  private fillAdminTable(host: HTMLElement): void {
+    clear(host);
+    const needle = this.adminQuery.trim().toLowerCase();
+    const rows = this.adminUsers.filter((user) => {
+      if (!needle) return true;
+      return (
+        user.username.toLowerCase().includes(needle) ||
+        (user.email ?? '').toLowerCase().includes(needle)
+      );
+    });
+    if (rows.length === 0) {
+      host.textContent = this.adminUsers.length === 0 ? 'No registered players yet.' : 'No players match that search.';
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'rl-table';
+    table.innerHTML =
+      '<thead><tr><th>Player</th><th>Email</th><th>Joined</th><th>Lv</th><th>K/D</th><th>Status</th><th></th></tr></thead>';
+    const body = document.createElement('tbody');
+    for (const user of rows) {
+      const tr = document.createElement('tr');
+      if (user.banned) tr.classList.add('banned');
+      const status = user.isAdmin ? 'Admin' : user.banned ? 'Banned' : 'Active';
+      tr.innerHTML = `<td>${escapeHtml(user.username)}</td>
+        <td>${escapeHtml(user.email ?? '—')}</td>
+        <td>${escapeHtml(user.createdAt.slice(0, 10))}</td>
+        <td>${user.level}</td>
+        <td>${user.kills}/${user.deaths}</td>
+        <td>${escapeHtml(status)}</td>`;
+      const td = document.createElement('td');
+      if (user.isAdmin) {
+        td.append(el('span', 'rl-muted', '—'));
+      } else if (user.banned) {
+        const unban = el('button', 'rl-btn', 'Unban');
+        unban.addEventListener('click', async () => {
+          this.adminNotice = (await this.callbacks.unbanUser(user.id)) ?? '';
+          this.pendingBanId = null;
+          await this.reloadAdminUsers();
+        });
+        td.append(unban);
+        if (user.banReason) td.append(el('div', 'rl-ban-reason', user.banReason));
+      } else if (this.pendingBanId === user.id) {
+        const wrap = el('div', 'rl-ban-form');
+        const reason = document.createElement('textarea');
+        reason.className = 'rl-input';
+        reason.rows = 3;
+        reason.maxLength = 280;
+        reason.placeholder = 'Ban reason (shown to the player)';
+        const confirm = el('button', 'rl-btn danger', 'Confirm ban');
+        confirm.addEventListener('click', async () => {
+          this.adminNotice = (await this.callbacks.banUser(user.id, reason.value.trim())) ?? '';
+          this.pendingBanId = null;
+          await this.reloadAdminUsers();
+        });
+        const cancel = el('button', 'rl-btn', 'Cancel');
+        cancel.addEventListener('click', () => {
+          this.pendingBanId = null;
+          this.fillAdminTable(host);
+        });
+        wrap.append(reason, confirm, cancel);
+        td.append(wrap);
+      } else {
+        const ban = el('button', 'rl-btn danger', 'Ban');
+        ban.addEventListener('click', () => {
+          this.pendingBanId = user.id;
+          this.fillAdminTable(host);
+        });
+        td.append(ban);
+      }
+      tr.append(td);
+      body.append(tr);
+    }
+    table.append(body);
+    host.append(table);
   }
 
   private renderProfile(): void {

@@ -38,6 +38,25 @@ export interface Database {
         Relationships: [];
       };
 
+      staff: {
+        Row: {
+          profile_id: string;
+          role: string;
+          created_at: string;
+        };
+        Insert: { profile_id: string; role?: string };
+        Update: { role?: string };
+        Relationships: [
+          {
+            foreignKeyName: 'staff_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: true;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+
       player_stats: {
         Row: {
           profile_id: string;
@@ -403,6 +422,29 @@ export interface Database {
         Returns: undefined;
       };
       is_banned: { Args: { p_profile_id: string }; Returns: boolean };
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      admin_bootstrap: { Args: Record<PropertyKey, never>; Returns: boolean };
+      my_active_ban: {
+        Args: Record<PropertyKey, never>;
+        Returns: Array<{ reason: string; created_at: string; expires_at: string | null }>;
+      };
+      admin_list_users: {
+        Args: Record<PropertyKey, never>;
+        Returns: Array<{
+          profile_id: string;
+          username: string;
+          email: string | null;
+          created_at: string;
+          level: number;
+          kills: number;
+          deaths: number;
+          banned: boolean;
+          ban_reason: string | null;
+          is_admin: boolean;
+        }>;
+      };
+      admin_ban: { Args: { p_profile_id: string; p_reason: string }; Returns: undefined };
+      admin_unban: { Args: { p_profile_id: string }; Returns: undefined };
       leaderboard: {
         Args: { p_limit?: number };
         Returns: Array<{

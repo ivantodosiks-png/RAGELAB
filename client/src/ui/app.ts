@@ -33,6 +33,9 @@ export class UiApp {
   readonly hud: Hud;
   readonly connecting: HTMLElement;
   private readonly overlay: HTMLElement;
+  private readonly banScreen: HTMLElement;
+  private readonly banReason: HTMLElement;
+  private banned = false;
 
   onJoin: ((request: JoinRequest) => void) | null = null;
   onLeaveMatch: (() => void) | null = null;
@@ -56,6 +59,15 @@ export class UiApp {
         const user = authService.current.user;
         if (user) void profileService.equipCosmetic(user.id, itemId);
       },
+      listUsers: () => profileService.listUsers(),
+      banUser: async (profileId, reason) => {
+        const result = await profileService.banUser(profileId, reason);
+        return result.ok ? null : result.message ?? 'Ban failed';
+      },
+      unbanUser: async (profileId) => {
+        const result = await profileService.unbanUser(profileId);
+        return result.ok ? null : result.message ?? 'Unban failed';
+      },
       quit: () => {
         document.documentElement.innerHTML =
           '<body style="background:#090b0d;color:#8b9786;font-family:sans-serif;display:grid;place-items:center;height:100vh;margin:0"><p>You left RAGELAB. Close this tab, or refresh to return.</p></body>';
@@ -74,9 +86,33 @@ export class UiApp {
 
     this.overlay = el('div', 'toast');
     root.append(this.overlay);
+
+    this.banScreen = el('div', 'ban-screen');
+    this.banScreen.hidden = true;
+    const banCard = el('div', 'ban-card');
+    banCard.append(el('p', 'ban-kicker', 'RAGELAB'));
+    banCard.append(el('h1', '', 'You were banned'));
+    this.banReason = el('p', 'ban-reason', '');
+    banCard.append(this.banReason);
+    const signOut = el('button', 'rl-btn', 'Sign out');
+    signOut.addEventListener('click', () => void authService.signOut());
+    banCard.append(signOut);
+    this.banScreen.append(banCard);
+    root.append(this.banScreen);
+
+    window.setInterval(() => {
+      if (authService.current.status === 'signedIn') void this.refreshBan();
+    }, 20_000);
   }
 
   showMenu(): void {
+    if (this.banned) {
+      this.banScreen.hidden = false;
+      this.menu.setVisible(false);
+      this.hud.setVisible(false);
+      this.setConnecting(false);
+      return;
+    }
     this.menu.setVisible(true);
     this.hud.setVisible(false);
     this.hud.setPaused(false);
@@ -120,22 +156,67 @@ export class UiApp {
         this.menu.profile = full;
         this.menu.username = full.profile.username;
         this.menu.setAuth(true, full.profile.username, true);
+        this.menu.setAdmin(full.isAdmin && !full.ban);
         settingsStore.hydrateFromRemote(full.settings);
         settingsStore.attachRemote((settings) => {
           void profileService.saveSettings(state.user!.id, settings);
         });
+        if (full.ban) {
+          this.showBan(full.ban.reason);
+          this.onLeaveMatch?.();
+          return;
+        }
+      } else {
+        this.menu.setAdmin(false);
       }
+      this.hideBan();
       this.menu.weaponStats = await profileService.loadWeaponStats(state.user.id);
       this.menu.leaderboard = await profileService.leaderboard();
     } else {
       this.menu.profile = null;
+      this.menu.setAdmin(false);
+      this.hideBan();
+      this.menu.setVisible(true);
     }
+  }
+
+  private async refreshBan(): Promise<void> {
+    if (authService.current.status !== 'signedIn') return;
+    const ban = await profileService.myActiveBan();
+    if (ban) {
+      this.showBan(ban.reason);
+      this.onLeaveMatch?.();
+    } else if (this.banned) {
+      this.hideBan();
+      this.showMenu();
+    }
+  }
+
+  private showBan(reason: string): void {
+    this.banned = true;
+    this.banReason.textContent = reason.trim() || 'No reason given.';
+    this.banScreen.hidden = false;
+    this.menu.setVisible(false);
+    this.hud.setVisible(false);
+    this.setConnecting(false);
+  }
+
+  private hideBan(): void {
+    this.banned = false;
+    this.banScreen.hidden = true;
+  }
+
+  private blockedByBan(): boolean {
+    if (!this.banned) return false;
+    this.showBan(this.banReason.textContent || 'No reason given.');
+    return true;
   }
 
   private async signIn(email: string, password: string): Promise<string | null> {
     const result = await authService.signIn(email, password);
     if (!result.ok) return result.message ?? 'Sign in failed';
     await this.refreshAuth();
+    if (this.banned) return null;
     this.menu.show('play');
     return null;
   }
@@ -145,6 +226,7 @@ export class UiApp {
     if (!result.ok) return result.message ?? 'Sign up failed';
     if (result.needsConfirmation) return 'Check your email to confirm the account, then sign in.';
     await this.refreshAuth();
+    if (this.banned) return null;
     this.menu.show('play');
     return null;
   }
@@ -237,6 +319,7 @@ export class UiApp {
     password?: string;
     wsUrl?: string;
   }): Promise<void> {
+    if (this.blockedByBan()) return;
     if (opts.roomCode) {
       await this.joinByCode({ username: opts.username, code: opts.roomCode, mapId: opts.mapId, wsUrl: opts.wsUrl });
       return;
@@ -281,6 +364,7 @@ export class UiApp {
     mapId?: string;
     wsUrl?: string;
   }): Promise<void> {
+    if (this.blockedByBan()) return;
     const code = normalizeLobbyCode(opts.code);
     if (!isLobbyCode(code)) {
       this.toast('Enter a 6-character lobby code.');
@@ -323,6 +407,7 @@ export class UiApp {
     maxPlayers: number;
     password: string;
   }): Promise<void> {
+    if (this.blockedByBan()) return;
     const local = await this.localServerReachable();
     if (!local && !this.canCreateOnConfiguredServer()) {
       this.toast('No public game server is configured. Run the game on one PC to host, then share the lobby code.');
