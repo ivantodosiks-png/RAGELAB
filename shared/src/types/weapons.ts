@@ -111,6 +111,8 @@ export interface WeaponDefinition {
   aimMoveSpeedMultiplier: number;
   aimFovMultiplier: number;
   aimTimeMs: number;
+  /** Full optical scope overlay while RMB is held. */
+  scoped?: boolean;
   /** Time to raise the weapon after a switch. */
   equipMs: number;
   recoil: RecoilProfile;

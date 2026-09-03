@@ -710,6 +710,9 @@ export class GameSession {
       carrying: this.local.carrying,
       cameraPosition: this.renderer.camera.position,
     });
+    if (this.weapon.definition.scoped && this.weapon.aimBlend > 0.55) {
+      this.weapon.viewModel.setVisible(false);
+    }
     this.toolGunView.setVisible(toolGun && this.local.alive && !this.local.carrying);
     this.toolGunView.update(dt, predicted.speed / SPEED_WALK, predicted.grounded, predicted.crouching);
     this.lastButtons = localButtons;
@@ -1011,6 +1014,7 @@ export class GameSession {
               ? 'Weapon'
               : 'Prop';
       this.ui.hud.setToolGun(true, kind, this.sandbox.selection.spawnable);
+      this.ui.hud.setScope(0, 'none');
       this.ui.hud.setCrosshairMotion(
         speedRatio,
         this.sandbox.lookHint === 'npc' || this.sandbox.lookHint === 'prop' || this.sandbox.lookHint === 'weapon',
@@ -1029,11 +1033,17 @@ export class GameSession {
       );
       this.ui.hud.setToolGun(false, 'NPC', true);
       this.ui.hud.setCrosshairMotion(speedRatio, false, false);
+      this.ui.hud.setScope(this.local.alive ? this.weapon.aimBlend : 0, def.scoped ? 'optic' : 'ads');
     }
     this.ui.hud.setNet(this.fps, this.offline ? 0 : (this.net?.rttMs ?? 0), settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
+    const scopedOut = !this.sandbox.toolGunActive && Boolean(def.scoped) && this.weapon.aimBlend > 0.55;
     this.ui.hud.setCrosshairVisible(
-      this.local.alive && !this.paused && !this.ui.hud.weaponWheelOpen && !this.spawnMenu?.isOpen,
+      this.local.alive &&
+        !this.paused &&
+        !this.ui.hud.weaponWheelOpen &&
+        !this.spawnMenu?.isOpen &&
+        !scopedOut,
     );
     this.ui.hud.setScoreboard(this.scoreRows(), this.input.isActionHeld('scoreboard') && !this.ui.hud.chatting);
     this.ui.hud.setDebug(

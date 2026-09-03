@@ -42,7 +42,7 @@ export class GameRenderer {
 
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 0.08, settings.renderDistance);
     this.camera.layers.set(LAYER_WORLD);
-    this.viewModelCamera = new THREE.PerspectiveCamera(65, 1, 0.005, 6);
+    this.viewModelCamera = new THREE.PerspectiveCamera(52, 1, 0.005, 6);
 
     this.ambient = new THREE.HemisphereLight(0xb8cce0, 0x6a6458, 0.62);
     this.scene.add(this.ambient);

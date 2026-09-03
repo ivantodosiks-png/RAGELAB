@@ -74,6 +74,7 @@ export class WeaponViewModel {
     this.hipPosition.set(...def.visual.hipPosition);
     this.aimPosition.set(...def.visual.aimPosition);
     this.holder.position.copy(this.hipPosition);
+    this.model.scale.setScalar(1.28);
 
     this.equipDurationSec = def.equipMs / 1000;
     this.equipProgress = 0;

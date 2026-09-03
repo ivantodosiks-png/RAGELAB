@@ -75,6 +75,7 @@ export class Hud {
   private readonly wheelCursor: HTMLElement;
   private readonly vitals: HTMLElement;
   private readonly lobbyChip: HTMLButtonElement;
+  private readonly scope: HTMLElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -114,6 +115,10 @@ export class Hud {
     this.hairW = el('i', 'ch-tick w');
     this.crosshair.append(this.hairN, this.hairE, this.hairS, this.hairW);
 
+    this.scope = el('div', 'scope');
+    this.scope.innerHTML =
+      '<div class="scope-shade"></div><div class="scope-lens"><i class="sr-ring"></i><i class="sr-h"></i><i class="sr-v"></i><i class="sr-dot"></i><i class="sr-hash n"></i><i class="sr-hash e"></i><i class="sr-hash s"></i><i class="sr-hash w"></i></div>';
+
     this.toolGunHud = el('div', 'toolgun-hud');
     this.toolGunHud.append(el('div', 'toolgun-title', 'Tool Gun'));
     this.toolGunSelected = el('div', 'toolgun-selected', 'NPC');
@@ -130,14 +135,16 @@ export class Hud {
     this.dirHit.append(el('i'));
 
     this.vitals = el('div', 'hud-vitals');
+    const hpKicker = el('div', 'vital-kicker', 'Vitals');
     const hpLabel = el('div', 'vital-meta');
     hpLabel.append(el('span', '', 'Health'), (this.healthText = el('span', '', '100')));
     const hpBar = el('div', 'bar');
     this.healthFill = el('span');
     hpBar.append(this.healthFill);
-    this.vitals.append(hpLabel, hpBar);
+    this.vitals.append(hpKicker, hpLabel, hpBar);
 
     this.ammoPanel = el('div', 'hud-weapon');
+    const ammoKicker = el('div', 'vital-kicker', 'Weapon');
     this.ammoName = el('div', 'name', '—');
     this.ammoBig = el('div', 'ammo', '0');
     const magRow = el('div', 'vital-meta');
@@ -145,7 +152,7 @@ export class Hud {
     const magBar = el('div', 'bar ammo');
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);
-    this.ammoPanel.append(this.ammoName, this.ammoBig, magRow, magBar);
+    this.ammoPanel.append(ammoKicker, this.ammoName, this.ammoBig, magRow, magBar);
 
     this.weaponBar = el('div', 'weapon-bar');
     for (let i = 0; i < WHEEL_SLOTS; i++) {
@@ -214,6 +221,7 @@ export class Hud {
     this.root.append(
       this.hurt,
       this.dirHit,
+      this.scope,
       this.crosshair,
       this.toolGunHud,
       this.hitmarker,
@@ -373,6 +381,15 @@ export class Hud {
 
   setCrosshairVisible(visible: boolean): void {
     this.crosshair.classList.toggle('is-hidden', !visible);
+  }
+
+  setScope(amount: number, kind: 'none' | 'optic' | 'ads'): void {
+    const t = Math.max(0, Math.min(1, amount));
+    this.scope.style.setProperty('--scope', t.toFixed(3));
+    this.scope.classList.toggle('on', kind !== 'none' && t > 0.04);
+    this.scope.classList.toggle('optic', kind === 'optic');
+    this.scope.classList.toggle('ads', kind === 'ads');
+    this.crosshair.classList.toggle('ads', kind === 'ads' && t > 0.4);
   }
 
   openWeaponWheel(activeSlot: number): void {
