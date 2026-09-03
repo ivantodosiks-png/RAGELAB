@@ -278,49 +278,15 @@ export class MainMenu {
 
   private async renderServers(): Promise<void> {
     this.panel.append(el('h2', '', 'Servers'));
-    this.panel.append(
-      el(
-        'p',
-        'lead',
-        'Список живых лобби. Создать новое может только администратор. Игроки заходят по коду.',
-      ),
-    );
+    this.panel.append(el('p', 'lead', 'Живые лобби. Зайти можно кнопкой Join или кодом на вкладке Play.'));
     const listHost = el('div');
     listHost.textContent = 'Loading rooms…';
     this.panel.append(listHost);
 
-    const create = el('div', 'rl-card');
-    create.append(el('h3', '', 'Create room'));
-    const form = el('div', 'rl-form');
-    const name = inputField('Name', 'Rage Yard');
-    const map = selectField('Map', MAP_IDS, DEFAULT_MAP_ID);
-    const max = inputField('Max players', '16');
-    (max.input as HTMLInputElement).type = 'number';
-    const password = inputField('Password (optional)', '');
-    (password.input as HTMLInputElement).type = 'password';
-    const goWrap = el('div', 'rl-create-wrap');
-    if (!this.isAdmin) goWrap.dataset.tip = 'Только для администратора';
-    const go = el('button', 'rl-btn primary rl-create-lobby', 'Создать лобби');
-    go.disabled = !this.isAdmin || this.createBusy;
-    if (!this.isAdmin) go.classList.add('is-locked');
-    go.addEventListener('click', () => {
-      if (!this.isAdmin || this.createBusy) return;
-      this.callbacks.createRoom({
-        name: (name.input as HTMLInputElement).value.trim() || 'RAGELAB',
-        mapId: (map.input as HTMLSelectElement).value,
-        maxPlayers: Number((max.input as HTMLInputElement).value) || 16,
-        password: (password.input as HTMLInputElement).value,
-      });
-    });
-    goWrap.append(go);
-    form.append(name.wrap, map.wrap, max.wrap, password.wrap, goWrap);
-    create.append(form);
-    this.panel.append(create);
-
     try {
       const rooms = await this.callbacks.refreshServers();
       if (rooms.length === 0) {
-        listHost.textContent = 'No rooms listed. Create a lobby as admin, or join with a code.';
+        listHost.textContent = 'Нет живых лобби. Админ создаёт лобби на вкладке Play.';
         return;
       }
       const table = document.createElement('table');
