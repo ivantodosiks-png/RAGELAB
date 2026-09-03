@@ -1,32 +1,25 @@
 import * as THREE from 'three';
 import { GLOCK_17_URL, FPS_ARMS_URL, cloneFpsAsset, preloadFpsView } from './fpsAssets';
 
-/** View-space grip: on the look axis (−Z), lower third of the frame. */
-const GRIP = new THREE.Vector3(0.035, -0.095, -0.28);
-const LOOK = new THREE.Vector3(0, 0, -1);
-const UP = new THREE.Vector3(0, 1, 0);
-
-const LEFT_FINGERS: Array<[string, number]> = [
-  ['DoubleFingersBeginning', 0.7],
-  ['DoubleFingers.L', 0.95],
-  ['DoubleFingersTip.L', 0.55],
-  ['IndexBeginning.L', 0.65],
-  ['Index.L', 0.9],
-  ['IndexTip.L', 0.5],
-];
-
-const RIGHT_FINGERS: Array<[string, number]> = [
-  ['DoubleFingersBeginning.001', 0.7],
-  ['DoubleFingers.R.001', 0.95],
-  ['DoubleFingersTip.R.001', 0.55],
-  ['IndexBeginning.R.001', 0.65],
-  ['Index.R.001', 0.9],
-  ['IndexTip.R.001', 0.5],
+const FINGER_BONES = [
+  'DoubleFingersBeginning',
+  'DoubleFingers.L',
+  'DoubleFingersTip.L',
+  'IndexBeginning.L',
+  'Index.L',
+  'IndexTip.L',
+  'DoubleFingersBeginning.001',
+  'DoubleFingers.R.001',
+  'DoubleFingersTip.R.001',
+  'IndexBeginning.R.001',
+  'Index.R.001',
+  'IndexTip.R.001',
 ];
 
 /**
- * Local first-person Glock kit: small gun on the look axis, hands IK'd to the
- * grip, fingers curled around it. GLBs have no image textures.
+ * FPS Glock kit. The mesh already faces −Z (camera look). Bone-based "barrel
+ * align" flipped it toward the face — we do not do that. The gun sits in the
+ * palms; fingers curl on the same local axis on both hands.
  */
 export class FpsPistolRig {
   readonly root = new THREE.Group();
@@ -35,7 +28,6 @@ export class FpsPistolRig {
 
   private readonly arms = new THREE.Group();
   private readonly glock = new THREE.Group();
-  private barrelBone: THREE.Object3D | null = null;
   private assembled = false;
 
   constructor() {
@@ -72,53 +64,48 @@ export class FpsPistolRig {
     armsFit.rotation.y = Math.PI / 2;
     this.arms.add(armsFit);
     refreshSkins(armsFit);
-    fitByMesh(armsFit, 0.32);
+    fitByMesh(armsFit, 0.3);
     centerByMesh(armsFit);
-    this.arms.position.set(0.02, -0.16, -0.22);
+    this.arms.position.set(0.02, -0.14, -0.24);
+
+    const left = this.arms.getObjectByName('Hand.L');
+    const right = this.arms.getObjectByName('Hand.R.001');
+    if (left) left.rotateOnWorldAxis(WORLD_Y, 0.55);
+    if (right) right.rotateOnWorldAxis(WORLD_Y, -0.55);
+    const leftLower = this.arms.getObjectByName('LowerArm.L');
+    const rightLower = this.arms.getObjectByName('LowerArm.R.001');
+    if (leftLower) leftLower.rotateOnWorldAxis(WORLD_Y, 0.35);
+    if (rightLower) rightLower.rotateOnWorldAxis(WORLD_Y, -0.35);
+    for (const name of FINGER_BONES) {
+      const bone = this.arms.getObjectByName(name);
+      if (bone) bone.rotateX(0.9);
+    }
+    curlThumb(this.arms.getObjectByName('ThumbBeginning.L'));
+    curlThumb(this.arms.getObjectByName('Thumb.L'));
+    curlThumb(this.arms.getObjectByName('ThumbTip.L'));
+    curlThumb(this.arms.getObjectByName('ThumbBeginning.R.001'));
+    curlThumb(this.arms.getObjectByName('Thumb.R.001'));
+    curlThumb(this.arms.getObjectByName('ThumbTip.R.001'));
+    refreshSkins(this.arms);
 
     const glockFit = new THREE.Group();
     glockFit.name = 'glockFit';
     glockFit.add(glockScene);
     this.glock.add(glockFit);
     refreshSkins(glockFit);
-    alignBarrelToLook(glockFit);
-    fitByMesh(glockFit, 0.086);
+    // Authored mesh −90° X already puts the muzzle on −Z. Do not yaw 180.
+    fitByMesh(glockFit, 0.08);
     centerOnNamed(glockFit, 'Magazine');
 
-    this.barrelBone = this.glock.getObjectByName('Barrel') ?? null;
-    this.weaponSocket.position.copy(GRIP);
-    this.weaponSocket.rotation.set(0.05, 0.04, 0.02);
-
     this.root.updateMatrixWorld(true);
-    const left = this.arms.getObjectByName('Hand.L');
-    const right = this.arms.getObjectByName('Hand.R.001');
-    const gripWorld = GRIP.clone();
-    this.root.localToWorld(gripWorld);
-    if (right) {
-      pullHandTo(right, tmpRight.copy(gripWorld).add(tmpOff.set(0.012, -0.008, 0.016)));
-    }
-    if (left) {
-      pullHandTo(left, tmpLeft.copy(gripWorld).add(tmpOff.set(-0.028, -0.004, 0.01)));
-    }
-    curlFingers(this.arms, LEFT_FINGERS, 1);
-    curlFingers(this.arms, RIGHT_FINGERS, -1);
-    curlThumb(this.arms.getObjectByName('ThumbBeginning.L'), 1);
-    curlThumb(this.arms.getObjectByName('Thumb.L'), 1);
-    curlThumb(this.arms.getObjectByName('ThumbTip.L'), 1);
-    curlThumb(this.arms.getObjectByName('ThumbBeginning.R.001'), -1);
-    curlThumb(this.arms.getObjectByName('Thumb.R.001'), -1);
-    curlThumb(this.arms.getObjectByName('ThumbTip.R.001'), -1);
-    refreshSkins(this.arms);
-
-    this.placeMuzzleOnBarrel();
+    this.placeGunInPalms(left, right);
+    this.placeMuzzleAtFront();
     this.assembled = true;
     return true;
   }
 
   syncMuzzle(muzzlePoint: THREE.Object3D): void {
-    if (!this.assembled) return;
-    this.placeMuzzleOnBarrel();
-    if (!muzzlePoint.parent) return;
+    if (!this.assembled || !muzzlePoint.parent) return;
     this.muzzleAnchor.updateWorldMatrix(true, false);
     this.muzzleAnchor.getWorldPosition(tmpPos);
     this.muzzleAnchor.getWorldQuaternion(tmpQuat);
@@ -131,33 +118,44 @@ export class FpsPistolRig {
   dispose(): void {
     this.root.removeFromParent();
     this.root.clear();
-    this.barrelBone = null;
     this.assembled = false;
   }
 
-  private placeMuzzleOnBarrel(): void {
-    const barrel = this.barrelBone;
-    if (!barrel) {
-      this.muzzleAnchor.position.set(0, 0.01, -0.055);
+  private placeGunInPalms(left: THREE.Object3D | undefined, right: THREE.Object3D | undefined): void {
+    if (!left || !right) {
+      this.weaponSocket.position.set(0.06, -0.12, -0.26);
+      this.weaponSocket.rotation.set(0.08, 0.05, 0.03);
       return;
     }
-    barrel.getWorldPosition(tmpPos);
+    left.getWorldPosition(tmpLeft);
+    right.getWorldPosition(tmpRight);
+    tmpGrip.lerpVectors(tmpLeft, tmpRight, 0.7);
+    this.root.worldToLocal(tmpGrip);
+    tmpGrip.y += 0.018;
+    tmpGrip.z += 0.012;
+    this.weaponSocket.position.copy(tmpGrip);
+    this.weaponSocket.rotation.set(0.1, 0.06, 0.04);
+  }
+
+  private placeMuzzleAtFront(): void {
+    if (!expandMeshBox(this.glock, tmpBox)) {
+      this.muzzleAnchor.position.set(0, 0.012, -0.05);
+      return;
+    }
+    tmpPos.set((tmpBox.min.x + tmpBox.max.x) * 0.5, tmpBox.max.y * 0.55 + tmpBox.min.y * 0.45, tmpBox.min.z);
     this.weaponSocket.worldToLocal(tmpPos);
     this.muzzleAnchor.position.copy(tmpPos);
     this.muzzleAnchor.rotation.set(0, 0, 0);
   }
 }
 
+const WORLD_Y = new THREE.Vector3(0, 1, 0);
 const tmpPos = new THREE.Vector3();
+const tmpGrip = new THREE.Vector3();
 const tmpLeft = new THREE.Vector3();
 const tmpRight = new THREE.Vector3();
-const tmpOff = new THREE.Vector3();
-const tmpA = new THREE.Vector3();
-const tmpB = new THREE.Vector3();
-const tmpAxis = new THREE.Vector3();
 const tmpQuat = new THREE.Quaternion();
 const tmpParentQuat = new THREE.Quaternion();
-const tmpAlign = new THREE.Quaternion();
 const tmpMat = new THREE.Matrix4();
 const tmpBox = new THREE.Box3();
 const tmpGeomBox = new THREE.Box3();
@@ -248,74 +246,8 @@ function centerOnNamed(root: THREE.Object3D, name: string): void {
   root.position.sub(tmpPos);
 }
 
-/** Barrel − slide is muzzle direction; twist so magazine hangs down. */
-function alignBarrelToLook(root: THREE.Object3D): void {
-  const barrel = root.getObjectByName('Barrel');
-  const slide = root.getObjectByName('Slide');
-  const mag = root.getObjectByName('Magazine');
-  root.updateMatrixWorld(true);
-  if (!barrel || !slide) {
-    root.rotation.y = Math.PI;
-    return;
-  }
-  barrel.getWorldPosition(tmpA);
-  slide.getWorldPosition(tmpB);
-  const forward = tmpA.sub(tmpB);
-  if (forward.lengthSq() < 1e-8) {
-    root.rotation.y = Math.PI;
-    return;
-  }
-  forward.normalize();
-  root.quaternion.premultiply(tmpAlign.setFromUnitVectors(forward, LOOK));
-  root.updateMatrixWorld(true);
-  if (!mag) return;
-  mag.getWorldPosition(tmpA);
-  slide.getWorldPosition(tmpB);
-  const gunUp = tmpB.sub(tmpA);
-  gunUp.projectOnPlane(LOOK);
-  if (gunUp.lengthSq() < 1e-8) return;
-  gunUp.normalize();
-  const desired = UP.clone().projectOnPlane(LOOK);
-  if (desired.lengthSq() < 1e-8) return;
-  desired.normalize();
-  root.quaternion.premultiply(tmpAlign.setFromUnitVectors(gunUp, desired));
-}
-
-function pullHandTo(hand: THREE.Object3D, target: THREE.Vector3): void {
-  let bone: THREE.Object3D | null = hand.parent;
-  for (let iter = 0; iter < 5 && bone; iter += 1) {
-    const lower = bone;
-    const upper = lower.parent;
-    for (const joint of [lower, upper]) {
-      if (!joint || joint.name === 'Armature' || joint.name === 'RootNode') continue;
-      joint.updateWorldMatrix(true, false);
-      hand.updateWorldMatrix(true, false);
-      joint.getWorldPosition(tmpA);
-      hand.getWorldPosition(tmpB);
-      const toHand = tmpB.sub(tmpA);
-      const toTarget = tmpPos.copy(target).sub(tmpA);
-      if (toHand.lengthSq() < 1e-8 || toTarget.lengthSq() < 1e-8) continue;
-      tmpAxis.crossVectors(toHand, toTarget);
-      if (tmpAxis.lengthSq() < 1e-10) continue;
-      tmpAxis.normalize();
-      const angle = Math.min(0.55, toHand.angleTo(toTarget));
-      joint.rotateOnWorldAxis(tmpAxis, angle);
-      joint.updateMatrixWorld(true);
-    }
-    bone = upper && upper.name !== 'Armature' ? upper.parent : null;
-  }
-}
-
-function curlFingers(root: THREE.Object3D, chain: Array<[string, number]>, sign: number): void {
-  for (const [name, amount] of chain) {
-    const bone = root.getObjectByName(name);
-    if (bone) bone.rotateX(amount * sign);
-  }
-}
-
-function curlThumb(bone: THREE.Object3D | undefined, sign: number): void {
+function curlThumb(bone: THREE.Object3D | undefined): void {
   if (!bone) return;
-  bone.rotateY(-0.55 * sign);
-  bone.rotateX(0.7 * sign);
-  bone.rotateZ(0.25 * sign);
+  bone.rotateX(0.85);
+  bone.rotateY(-0.45);
 }
