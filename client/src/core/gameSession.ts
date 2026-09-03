@@ -753,9 +753,16 @@ export class GameSession {
       this.audio.play(footstepSound(surface), { volume: 0.78, variation: 0.02 });
       this.effects.footstepDust(predicted.position, surface);
     }
-    if (this.local.jumpedThisFrame) this.audio.play('jump', { volume: 0.45, variation: 0.05 });
-    if (this.local.landedThisFrame) {
-      this.audio.play('land', { volume: clamp(this.local.landingSpeed / 16, 0.25, 1), variation: 0.04 });
+    if (this.local.jumpedThisFrame) {
+      this.audio.play(footstepSound(), { volume: 0.42, variation: 0.02 });
+    }
+    // Sprint / crate steps briefly unground the capsule; the old synth `land`
+    // thud was firing on every one of those. Only real drops get a landing.
+    if (this.local.landedThisFrame && this.local.landingSpeed >= 5) {
+      this.audio.play(footstepSound(), {
+        volume: clamp(this.local.landingSpeed / 12, 0.55, 1),
+        variation: 0.02,
+      });
       this.camera.onLanded(this.local.landingSpeed);
     }
 
@@ -951,10 +958,12 @@ export class GameSession {
         this.mapBuilder.setPickupVisible(event.id, true);
         break;
       case 'jump':
-        if (!local) this.audio.playAt('jump', vec(event.pos), 0.4, 30);
+        if (!local) this.audio.playAt(footstepSound(), vec(event.pos), 0.4, 30, 0.02);
         break;
       case 'land':
-        if (!local) this.audio.playAt('land', vec(event.pos), clamp(event.v / 16, 0.2, 1), 40);
+        if (!local && event.v >= 5) {
+          this.audio.playAt(footstepSound(), vec(event.pos), clamp(event.v / 12, 0.4, 1), 40, 0.02);
+        }
         break;
       case 'chat':
         this.ui.hud.addChat(event.name, event.msg);

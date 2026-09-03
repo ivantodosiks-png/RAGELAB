@@ -63,7 +63,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerColor: 0xffd48a,
       shellEjection: true,
       hipPosition: [0.19, -0.24, -0.38],
-      aimPosition: [0.0, -0.09, -0.3],
+      aimPosition: [0.0, -0.125, -0.3],
     },
   },
 
