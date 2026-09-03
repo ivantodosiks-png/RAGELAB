@@ -80,9 +80,21 @@ export interface ServerConfig {
   };
 }
 
+function inferredPublicWsUrl(): string {
+  const explicit = str('GAME_SERVER_PUBLIC_WS_URL', '');
+  if (explicit) return explicit;
+  const railway = str('RAILWAY_PUBLIC_DOMAIN', '');
+  if (railway) return `wss://${railway}`;
+  const fly = str('FLY_APP_NAME', '');
+  if (fly) return `wss://${fly}.fly.dev`;
+  return '';
+}
+
+const publicWsUrl = inferredPublicWsUrl();
+
 export const config: ServerConfig = {
   host: str('GAME_SERVER_HOST', '0.0.0.0'),
-  port: num('GAME_SERVER_PORT', 8080),
+  port: Number(process.env.PORT) > 0 ? Number(process.env.PORT) : num('GAME_SERVER_PORT', 8080),
   name: str('GAME_SERVER_NAME', `RAGELAB · ${hostname()}`).slice(0, 48),
   region: str('GAME_SERVER_REGION', 'local'),
   instanceId: str('GAME_SERVER_ID', randomBytes(4).toString('hex')),
@@ -100,8 +112,8 @@ export const config: ServerConfig = {
   allowGuests: bool('GAME_SERVER_ALLOW_GUESTS', true),
   persist: bool('GAME_SERVER_PERSIST', true),
   logLevel: (str('LOG_LEVEL', 'info') as ServerConfig['logLevel']) ?? 'info',
-  publicWsUrl: str('GAME_SERVER_PUBLIC_WS_URL', ''),
-  publicTunnel: bool('GAME_SERVER_PUBLIC_TUNNEL', true),
+  publicWsUrl,
+  publicTunnel: bool('GAME_SERVER_PUBLIC_TUNNEL', !publicWsUrl),
   supabase: {
     url: supabaseUrl,
     serviceRoleKey,

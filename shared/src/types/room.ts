@@ -23,6 +23,8 @@ export interface RoomSummary {
    * network join here instead of their own localhost.
    */
   wsUrl?: string;
+  /** Shareable 6-character lobby code. */
+  joinCode?: string;
 }
 
 export interface RoomConfig {

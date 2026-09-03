@@ -197,6 +197,7 @@ export interface Database {
           has_password: boolean;
           tick_ms: number;
           ws_url: string | null;
+          join_code: string | null;
           created_at: string;
           heartbeat_at: string;
         };
@@ -211,6 +212,7 @@ export interface Database {
           has_password?: boolean;
           tick_ms?: number;
           ws_url?: string | null;
+          join_code?: string | null;
           heartbeat_at?: string;
         };
         Update: {
@@ -223,6 +225,7 @@ export interface Database {
           has_password?: boolean;
           tick_ms?: number;
           ws_url?: string | null;
+          join_code?: string | null;
           heartbeat_at?: string;
         };
         Relationships: [];
@@ -414,6 +417,10 @@ export interface Database {
       };
       active_servers: {
         Args: { p_stale_seconds?: number };
+        Returns: Database['public']['Tables']['game_servers']['Row'][];
+      };
+      find_lobby: {
+        Args: { p_code: string };
         Returns: Database['public']['Tables']['game_servers']['Row'][];
       };
       grant_default_cosmetics: { Args: { p_profile_id: string }; Returns: undefined };

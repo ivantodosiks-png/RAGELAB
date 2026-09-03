@@ -1,5 +1,6 @@
 import { el } from './dom';
 import { TOOL_GUN_UI_SLOT } from '../player/inputController';
+import { copyText, lobbyInviteUrl } from './lobbyInvite';
 
 export interface HudScoreRow {
   id: number;
@@ -73,6 +74,7 @@ export class Hud {
   private readonly wheelCenterIcon: HTMLElement;
   private readonly wheelCursor: HTMLElement;
   private readonly vitals: HTMLElement;
+  private readonly lobbyChip: HTMLButtonElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -90,6 +92,9 @@ export class Hud {
   private lastToolGun = '';
   private lastCross = '';
   private lastWheel = '';
+  private lastLobby = '';
+  private lobbyCode = '';
+  private lobbyWsUrl: string | undefined;
   private slotPopTimer = 0;
   private loadoutKey = '';
   private loadout: HudSlotInfo[] = [];
@@ -173,6 +178,13 @@ export class Hud {
 
     this.net = el('div', 'hud-net', '');
     this.net.hidden = true;
+    this.lobbyChip = el('button', 'lobby-chip');
+    this.lobbyChip.type = 'button';
+    this.lobbyChip.hidden = true;
+    this.lobbyChip.title = 'Copy invite link';
+    this.lobbyChip.addEventListener('click', () => {
+      void this.copyLobbyInvite();
+    });
     this.interact = el('div', 'interact');
     this.interactKey = el('kbd', '', 'E');
     this.interactAction = el('span', '', '');
@@ -213,6 +225,7 @@ export class Hud {
       this.chatLog,
       this.chatBox,
       this.net,
+      this.lobbyChip,
       this.interact,
       this.debug,
       this.toast,
@@ -416,6 +429,24 @@ export class Hud {
     this.lastNet = text;
     this.net.hidden = false;
     this.net.textContent = text;
+  }
+
+  setLobbyInvite(code: string | null, wsUrl?: string | null): void {
+    const next = code ?? '';
+    const key = `${next}|${wsUrl ?? ''}`;
+    if (key === this.lastLobby) return;
+    this.lastLobby = key;
+    this.lobbyCode = next;
+    this.lobbyWsUrl = wsUrl || undefined;
+    this.lobbyChip.hidden = next.length === 0;
+    this.lobbyChip.textContent = next ? `LOBBY ${next}` : '';
+  }
+
+  private async copyLobbyInvite(): Promise<void> {
+    if (!this.lobbyCode) return;
+    const url = lobbyInviteUrl(this.lobbyCode, this.lobbyWsUrl);
+    const ok = await copyText(url);
+    this.showToast(ok ? `Copied ${this.lobbyCode}` : this.lobbyCode);
   }
 
   setInteract(label: string | null): void {

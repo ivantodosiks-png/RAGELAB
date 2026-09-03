@@ -43,8 +43,9 @@ export function supabase(): AppSupabaseClient {
  * The Vite bundle defaults to localhost, which only works on the host PC.
  * Friends opening the page via a LAN IP would otherwise hit *their* localhost
  * (WebSocket close 1006, endless Reconnecting). In `vite` / `vite preview` we
- * proxy through the same origin so they only need the client port. In a static
- * production build we rewrite loopback hosts to the page hostname.
+ * proxy through the same origin so they only need the client port. A static
+ * production host (Vercel) is not the game server, so loopback URLs stay as
+ * compiled — friends join by lobby code using the host's public `ws_url`.
  */
 export const GAME_SERVER_URL = resolveGameServerUrl(__GAME_SERVER_URL__, 'ws');
 export const GAME_SERVER_HTTP_URL = resolveGameServerUrl(__GAME_SERVER_HTTP_URL__, 'http');
@@ -80,12 +81,34 @@ function resolveGameServerUrl(configured: string, kind: 'ws' | 'http'): string {
 
   try {
     const parsed = new URL(configured);
+    // A static production host (Vercel) is not the game server. Keep the
+    // compiled URL so join-by-code can use Supabase ws_url instead.
     if (isLoopbackHost(parsed.hostname) && !isLoopbackHost(window.location.hostname)) {
-      parsed.hostname = window.location.hostname;
-      return parsed.toString();
+      return configured;
     }
   } catch {
     /* keep the compiled URL */
   }
   return configured;
+}
+
+export function isPublicGameServerUrl(url: string): boolean {
+  try {
+    return !isLoopbackHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** False on a static site whose bundle still points at localhost. */
+export function shouldQueryConfiguredGameHttp(): boolean {
+  if (__GAME_SERVER_DEV_PROXY__) return true;
+  if (typeof window === 'undefined') return true;
+  try {
+    const host = new URL(GAME_SERVER_HTTP_URL).hostname;
+    if (isLoopbackHost(host) && !isLoopbackHost(window.location.hostname)) return false;
+    return true;
+  } catch {
+    return true;
+  }
 }

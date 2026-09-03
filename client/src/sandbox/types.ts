@@ -57,7 +57,7 @@ export function defaultSandboxSettings(): SandboxSettings {
     maxNpcs: NPC_MAX_BY_QUALITY.medium,
     maxEffects: EFFECTS_MAX_BY_QUALITY.medium,
     maxWeapons: 32,
-    maxProps: 48,
+    maxProps: 80,
     weaponKind: 'pistol',
     quality: 'medium',
   };

@@ -67,6 +67,7 @@ export interface SessionStart {
   username: string;
   token?: string;
   roomId?: string;
+  roomCode?: string;
   mapId?: string;
   password?: string;
   wsUrl?: string;
@@ -159,6 +160,7 @@ export class GameSession {
       token: start.token,
       username: start.username,
       roomId: start.roomId,
+      roomCode: start.roomCode,
       password: start.password,
       mapId: start.mapId,
       create: start.create
@@ -330,7 +332,16 @@ export class GameSession {
     }
 
     this.ui.showGame();
-    this.ui.hud.showToast(`${welcome.room.name} · ${this.map.name}`);
+    this.ui.hud.setLobbyInvite(welcome.room.joinCode ?? null, welcome.room.wsUrl);
+    if (welcome.room.joinCode) {
+      this.ui.hud.showToast(
+        welcome.room.host
+          ? `Lobby ${welcome.room.joinCode} — click the code to copy invite`
+          : `Lobby ${welcome.room.joinCode}`,
+      );
+    } else {
+      this.ui.hud.showToast(`${welcome.room.name} · ${this.map.name}`);
+    }
   }
 
   private onWelcomeLive(welcome: WelcomePayload): void {
@@ -585,6 +596,8 @@ export class GameSession {
     }
     if (interactEdge && !this.paused && !this.ui.hud.chatting) {
       this.sandbox.inspectLookTarget();
+      const interacted = this.sandbox.interactLookProp(aimDir);
+      if (interacted?.sound) this.audio.play(propInteractSound(interacted.sound), { volume: 0.55, variation: 0.04 });
     }
 
     if (this.weapon.didFire) {
@@ -834,11 +847,11 @@ export class GameSession {
       const kind =
         this.sandbox.selection.category === 'npc'
           ? 'NPC'
-          : this.sandbox.selection.category === 'props'
-            ? 'Prop'
-            : this.sandbox.selection.category === 'tools'
-              ? 'Tool'
-              : 'Weapon';
+          : this.sandbox.selection.category === 'tools'
+            ? 'Tool'
+            : this.sandbox.selection.category === 'weapons'
+              ? 'Weapon'
+              : 'Prop';
       this.ui.hud.setToolGun(true, kind, this.sandbox.selection.spawnable);
       this.ui.hud.setCrosshairMotion(
         speedRatio,
@@ -930,6 +943,8 @@ export class GameSession {
       if (!def || !getArchetype(def.kind).carryable) continue;
       if (inFront(origin, aimDir, prop.position, INTERACT_RANGE)) return 'E  pick up';
     }
+    const propPrompt = this.sandbox.lookPropPrompt();
+    if (propPrompt) return propPrompt;
     return null;
   }
 
@@ -975,6 +990,7 @@ export class GameSession {
     this.mapDecor = null;
     this.physics?.dispose();
     this.audio?.dispose();
+    this.ui.hud.setLobbyInvite(null);
     this.renderer?.dispose();
   }
 }
@@ -1000,4 +1016,13 @@ function eventHasPlayer(event: GameEvent): boolean {
 function eventPlayer(event: GameEvent): number | null {
   if ('p' in event && typeof (event as { p?: number }).p === 'number') return (event as { p: number }).p;
   return null;
+}
+
+function propInteractSound(
+  sound: 'duck' | 'radio' | 'whoopee' | 'cluck' | 'switch' | 'door' | 'squeak',
+): SoundKey {
+  if (sound === 'door') return 'door';
+  if (sound === 'switch' || sound === 'radio') return 'switch';
+  if (sound === 'whoopee') return 'pickup';
+  return 'ui_click';
 }

@@ -50,6 +50,7 @@ export interface ConnectOptions {
   token?: string;
   username?: string;
   roomId?: string;
+  roomCode?: string;
   password?: string;
   mapId?: string;
   mode?: HelloPayload['mode'];
@@ -141,6 +142,7 @@ export class NetClient {
         token: options.token,
         username: options.username,
         roomId: options.roomId,
+        roomCode: options.roomCode,
         password: options.password,
         mapId: options.mapId,
         mode: options.mode,

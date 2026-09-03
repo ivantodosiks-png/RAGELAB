@@ -9,6 +9,8 @@ export * from './types/room';
 export * from './types/events';
 export * from './types/profile';
 
+export * from './lobby';
+
 export * from './protocol/opcodes';
 export * from './protocol/bytes';
 export * from './protocol/messages';

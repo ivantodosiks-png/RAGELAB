@@ -1,15 +1,22 @@
-import { GAME_SERVER_HTTP_URL, supabaseConfigured } from '../supabase/client';
+import {
+  GAME_SERVER_HTTP_URL,
+  GAME_SERVER_URL,
+  isPublicGameServerUrl,
+  shouldQueryConfiguredGameHttp,
+  supabaseConfigured,
+} from '../supabase/client';
 import { authService } from '../supabase/auth';
 import { profileService, type FullProfile } from '../supabase/profileService';
 import { settingsStore } from '../settings/settingsStore';
 import { Hud } from './hud';
 import { MainMenu } from './menu';
-import type { QualityLevelId, RoomSummary } from '@ragelab/shared';
+import { isLobbyCode, normalizeLobbyCode, type QualityLevelId, type RoomSummary } from '@ragelab/shared';
 import { el } from './dom';
 
 export interface JoinRequest {
   username: string;
   roomId?: string;
+  roomCode?: string;
   mapId?: string;
   password?: string;
   wsUrl?: string;
@@ -34,6 +41,7 @@ export class UiApp {
     this.menu = new MainMenu(root, {
       play: (opts) => void this.joinFromPlay(opts),
       createRoom: (opts) => void this.hostNewRoom(opts),
+      joinByCode: (opts) => void this.joinByCode(opts),
       refreshServers: () => this.fetchRooms(),
       signIn: (email, password) => this.signIn(email, password),
       signUp: (email, password, username) => this.signUp(email, password, username),
@@ -91,6 +99,15 @@ export class UiApp {
     this.overlay.textContent = text;
     this.overlay.classList.add('show');
     window.setTimeout(() => this.overlay.classList.remove('show'), 2400);
+  }
+
+  joinInvite(invite: { code: string; wsUrl?: string }): Promise<void> {
+    this.menu.pendingJoinCode = invite.code;
+    return this.joinByCode({
+      username: this.menu.username,
+      code: invite.code,
+      wsUrl: invite.wsUrl,
+    });
   }
 
   async refreshAuth(): Promise<void> {
@@ -168,6 +185,7 @@ export class UiApp {
   }
 
   private async fetchLocalRooms(): Promise<{ rooms: RoomSummary[]; wsUrl: string | null }> {
+    if (!shouldQueryConfiguredGameHttp()) return { rooms: [], wsUrl: null };
     try {
       const res = await fetch(`${GAME_SERVER_HTTP_URL}/rooms`, {
         signal: AbortSignal.timeout(2500),
@@ -181,6 +199,7 @@ export class UiApp {
   }
 
   private async localServerReachable(): Promise<boolean> {
+    if (!shouldQueryConfiguredGameHttp()) return false;
     try {
       const res = await fetch(`${GAME_SERVER_HTTP_URL}/health`, {
         signal: AbortSignal.timeout(2500),
@@ -191,13 +210,37 @@ export class UiApp {
     }
   }
 
+  private canCreateOnConfiguredServer(): boolean {
+    return isPublicGameServerUrl(GAME_SERVER_URL);
+  }
+
+  private async fetchLobbyByCode(code: string): Promise<RoomSummary | null> {
+    if (!shouldQueryConfiguredGameHttp()) return null;
+    try {
+      const res = await fetch(`${GAME_SERVER_HTTP_URL}/lobby/${encodeURIComponent(code)}`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { room?: RoomSummary; wsUrl?: string | null };
+      if (!body.room) return null;
+      return { ...body.room, wsUrl: body.wsUrl || body.room.wsUrl };
+    } catch {
+      return null;
+    }
+  }
+
   private async joinFromPlay(opts: {
     username: string;
     roomId?: string;
+    roomCode?: string;
     mapId?: string;
     password?: string;
     wsUrl?: string;
   }): Promise<void> {
+    if (opts.roomCode) {
+      await this.joinByCode({ username: opts.username, code: opts.roomCode, mapId: opts.mapId, wsUrl: opts.wsUrl });
+      return;
+    }
     if (opts.roomId) {
       this.onJoin?.(opts);
       return;
@@ -218,17 +261,60 @@ export class UiApp {
       this.onJoin?.({
         ...opts,
         roomId: hosted.id,
+        roomCode: hosted.joinCode,
         wsUrl: hosted.wsUrl,
       });
       return;
     }
 
-    if (await this.localServerReachable()) {
+    if (await this.localServerReachable() || this.canCreateOnConfiguredServer()) {
       this.onJoin?.(opts);
       return;
     }
 
-    this.toast('No hosted servers online. Run npm run dev to host, then wait for friends to Join.');
+    this.toast('No live lobby found. Create one, or ask the host for a 6-letter code.');
+  }
+
+  private async joinByCode(opts: {
+    username: string;
+    code: string;
+    mapId?: string;
+    wsUrl?: string;
+  }): Promise<void> {
+    const code = normalizeLobbyCode(opts.code);
+    if (!isLobbyCode(code)) {
+      this.toast('Enter a 6-character lobby code.');
+      return;
+    }
+
+    const listed = (await this.fetchLobbyByCode(code)) ?? (await profileService.findLobby(code));
+    if (listed) {
+      this.onJoin?.({
+        username: opts.username,
+        roomId: listed.id,
+        roomCode: listed.joinCode ?? code,
+        mapId: opts.mapId ?? listed.mapId,
+        wsUrl: opts.wsUrl || listed.wsUrl,
+      });
+      return;
+    }
+
+    if (opts.wsUrl) {
+      this.onJoin?.({
+        username: opts.username,
+        roomCode: code,
+        mapId: opts.mapId,
+        wsUrl: opts.wsUrl,
+      });
+      return;
+    }
+
+    if ((await this.localServerReachable()) || this.canCreateOnConfiguredServer()) {
+      this.onJoin?.({ username: opts.username, roomCode: code, mapId: opts.mapId });
+      return;
+    }
+
+    this.toast('Lobby not found. The host may be offline, or the code is wrong.');
   }
 
   private async hostNewRoom(opts: {
@@ -237,8 +323,9 @@ export class UiApp {
     maxPlayers: number;
     password: string;
   }): Promise<void> {
-    if (!(await this.localServerReachable())) {
-      this.toast('Start the game with npm run dev on this PC to host a server.');
+    const local = await this.localServerReachable();
+    if (!local && !this.canCreateOnConfiguredServer()) {
+      this.toast('No public game server is configured. Run the game on one PC to host, then share the lobby code.');
       return;
     }
     this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });

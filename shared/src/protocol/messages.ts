@@ -12,6 +12,8 @@ export interface HelloPayload {
   username?: string;
   /** Join this room; when omitted the server auto-matches. */
   roomId?: string;
+  /** Join by shareable lobby code (alternative to roomId). */
+  roomCode?: string;
   password?: string;
   /** Used when auto-matching or creating a room. */
   mapId?: string;
@@ -41,13 +43,17 @@ export interface WelcomePayload {
   playerId: PlayerId;
   /** Authenticated profile, or null for guests. */
   profile: { id: string; username: string; avatarUrl: string | null } | null;
-  room: {
-    id: string;
-    name: string;
-    mapId: string;
-    mode: GameModeId;
-    maxPlayers: number;
-  };
+      room: {
+        id: string;
+        name: string;
+        mapId: string;
+        mode: GameModeId;
+        maxPlayers: number;
+        joinCode?: string;
+        host?: boolean;
+        /** Public websocket for invite links (tunnel or dedicated host). */
+        wsUrl?: string;
+      };
   tickRate: number;
   snapshotRate: number;
   serverTimeMs: number;

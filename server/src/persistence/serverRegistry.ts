@@ -11,6 +11,7 @@ import { serviceClient } from '../auth/supabase';
 export class ServerRegistry {
   private known = new Set<string>();
   private failures = 0;
+  private omitJoinCode = false;
 
   private get enabled(): boolean {
     return config.persist && serviceClient() !== null;
@@ -29,29 +30,47 @@ export class ServerRegistry {
       return;
     }
 
-    const rows = rooms.map((room) => ({
-      id: this.rowId(room.id),
-      name: room.name,
-      region: config.region,
-      map_id: room.mapId,
-      mode: room.mode,
-      player_count: room.playerCount,
-      max_players: room.maxPlayers,
-      has_password: room.hasPassword,
-      tick_ms: room.tickMs,
-      ws_url: publicUrl,
-      heartbeat_at: new Date().toISOString(),
-    }));
+    const rows = rooms.map((room) => {
+      const row: Record<string, unknown> = {
+        id: this.rowId(room.id),
+        name: room.name,
+        region: config.region,
+        map_id: room.mapId,
+        mode: room.mode,
+        player_count: room.playerCount,
+        max_players: room.maxPlayers,
+        has_password: room.hasPassword,
+        tick_ms: room.tickMs,
+        ws_url: publicUrl,
+        heartbeat_at: new Date().toISOString(),
+      };
+      if (!this.omitJoinCode) row.join_code = room.joinCode ?? null;
+      return row;
+    });
 
     try {
       if (rows.length > 0) {
-        const { error } = await client.from('game_servers').upsert(rows, { onConflict: 'id' });
-        if (error) throw new Error(error.message);
-        for (const row of rows) this.known.add(row.id);
+        const { error } = await client.from('game_servers').upsert(rows as never, { onConflict: 'id' });
+        if (error) {
+          if (!this.omitJoinCode && /join_code/i.test(error.message)) {
+            this.omitJoinCode = true;
+            log.warn('game_servers.join_code missing — apply supabase/migrations/0003_lobby_codes.sql');
+            const stripped = rows.map((row) => {
+              const copy = { ...row };
+              delete copy.join_code;
+              return copy;
+            });
+            const { error: retry } = await client.from('game_servers').upsert(stripped as never, { onConflict: 'id' });
+            if (retry) throw new Error(retry.message);
+          } else {
+            throw new Error(error.message);
+          }
+        }
+        for (const row of rows) this.known.add(String(row.id));
       }
 
       // Remove rows for rooms that no longer exist.
-      const live = new Set(rows.map((r) => r.id));
+      const live = new Set(rows.map((r) => String(r.id)));
       const stale = [...this.known].filter((id) => !live.has(id));
       if (stale.length > 0) {
         const { error } = await client.from('game_servers').delete().in('id', stale);

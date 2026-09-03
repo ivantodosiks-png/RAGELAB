@@ -2,6 +2,8 @@ import {
   ACTION_LABELS,
   DEFAULT_MAP_ID,
   MAP_IDS,
+  isLobbyCode,
+  normalizeLobbyCode,
   type QualityLevelId,
   type RoomSummary,
   type UserSettings,
@@ -16,11 +18,13 @@ export interface MenuCallbacks {
   play: (opts: {
     username: string;
     roomId?: string;
+    roomCode?: string;
     mapId?: string;
     password?: string;
     wsUrl?: string;
   }) => void;
   createRoom: (opts: { name: string; mapId: string; maxPlayers: number; password: string }) => void;
+  joinByCode: (opts: { username: string; code: string; mapId?: string; wsUrl?: string }) => void;
   refreshServers: () => Promise<RoomSummary[]>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, username: string) => Promise<string | null>;
@@ -47,6 +51,7 @@ export class MainMenu {
   signedIn = false;
   username = 'Guest';
   supabaseReady = false;
+  pendingJoinCode = '';
   profile: FullProfile | null = null;
   weaponStats: WeaponStatRow[] = [];
   leaderboard: LeaderboardEntry[] = [];
@@ -147,19 +152,62 @@ export class MainMenu {
   }
 
   private renderPlay(): void {
-    this.panel.append(el('h2', '', 'Drop in'));
+    this.panel.append(el('h2', '', 'Play'));
     this.panel.append(
       el(
         'p',
         'lead',
-        'Host a match from this PC (any internet) or join a live host. When the host leaves, the session ends for everyone.',
+        'Create a lobby, share the 6-letter code or invite link. Friends open this website, enter the code, and play — no install. When the host leaves, the session ends.',
       ),
     );
     const form = el('div', 'rl-form');
     const name = inputField('Callsign', this.signedIn ? this.username : this.guestName, !this.signedIn);
     const map = selectField('Map', MAP_IDS, DEFAULT_MAP_ID);
     const err = el('div', 'rl-error');
-    const play = el('button', 'rl-btn primary', 'Play');
+
+    const create = el('button', 'rl-btn primary', 'Create lobby');
+    create.addEventListener('click', () => {
+      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
+      if (!this.signedIn) this.guestName = username || this.guestName;
+      this.username = username || this.guestName;
+      this.callbacks.createRoom({
+        name: `${this.username}'s lobby`.slice(0, 48),
+        mapId: (map.input as HTMLSelectElement).value,
+        maxPlayers: 16,
+        password: '',
+      });
+    });
+
+    const code = inputField('Join with code', this.pendingJoinCode);
+    const codeInput = code.input as HTMLInputElement;
+    codeInput.maxLength = 6;
+    codeInput.autocomplete = 'off';
+    codeInput.placeholder = 'ABC123';
+    codeInput.style.textTransform = 'uppercase';
+    codeInput.addEventListener('input', () => {
+      const next = normalizeLobbyCode(codeInput.value);
+      this.pendingJoinCode = next;
+      if (codeInput.value !== next) codeInput.value = next;
+    });
+
+    const join = el('button', 'rl-btn', 'Join lobby');
+    join.addEventListener('click', () => {
+      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
+      if (!this.signedIn) this.guestName = username || this.guestName;
+      const value = normalizeLobbyCode(codeInput.value || this.pendingJoinCode);
+      if (!isLobbyCode(value)) {
+        err.textContent = 'Enter the 6-character code from the host.';
+        return;
+      }
+      err.textContent = '';
+      this.callbacks.joinByCode({
+        username: username || this.guestName,
+        code: value,
+        mapId: (map.input as HTMLSelectElement).value,
+      });
+    });
+
+    const play = el('button', 'rl-btn', 'Quick play');
     play.addEventListener('click', () => {
       const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
       if (!this.signedIn) this.guestName = username || this.guestName;
@@ -168,7 +216,8 @@ export class MainMenu {
         mapId: (map.input as HTMLSelectElement).value,
       });
     });
-    form.append(name.wrap, map.wrap, err, play);
+
+    form.append(name.wrap, map.wrap, err, create, code.wrap, join, play);
     this.panel.append(form);
   }
 
@@ -178,7 +227,7 @@ export class MainMenu {
       el(
         'p',
         'lead',
-        'Create a room on this PC to host. Friends join from this list over the internet. If you leave, everyone is kicked.',
+        'Create a lobby on a running game server, then share the code. Friends join from this website. If you leave, everyone is kicked.',
       ),
     );
     const listHost = el('div');
@@ -194,7 +243,7 @@ export class MainMenu {
     (max.input as HTMLInputElement).type = 'number';
     const password = inputField('Password (optional)', '');
     (password.input as HTMLInputElement).type = 'password';
-    const go = el('button', 'rl-btn primary', 'Host & join');
+    const go = el('button', 'rl-btn primary', 'Create lobby');
     go.addEventListener('click', () => {
       this.callbacks.createRoom({
         name: (name.input as HTMLInputElement).value.trim() || 'RAGELAB',
@@ -215,12 +264,12 @@ export class MainMenu {
       }
       const table = document.createElement('table');
       table.className = 'rl-table';
-      table.innerHTML = `<thead><tr><th>Name</th><th>Map</th><th>Players</th><th>Mode</th><th></th></tr></thead>`;
+      table.innerHTML = `<thead><tr><th>Name</th><th>Map</th><th>Code</th><th>Players</th><th></th></tr></thead>`;
       const body = document.createElement('tbody');
       for (const room of rooms) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(room.name)}</td><td>${escapeHtml(room.mapId)}</td>
-          <td>${room.playerCount}/${room.maxPlayers}</td><td>${room.mode}</td>`;
+          <td>${escapeHtml(room.joinCode ?? '—')}</td><td>${room.playerCount}/${room.maxPlayers}</td>`;
         const td = document.createElement('td');
         const btn = el('button', 'rl-btn', room.hasPassword ? 'Join…' : 'Join');
         btn.addEventListener('click', () => {
@@ -228,6 +277,7 @@ export class MainMenu {
           this.callbacks.play({
             username: this.signedIn ? this.username : this.guestName,
             roomId: room.id,
+            roomCode: room.joinCode,
             password: password || undefined,
             wsUrl: room.wsUrl,
           });

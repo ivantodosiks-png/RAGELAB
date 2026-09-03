@@ -222,6 +222,7 @@ export class Gateway {
 
     const result = this.rooms.findOrCreateRoom({
       roomId: payload.roomId,
+      roomCode: payload.roomCode,
       password: payload.password,
       mapId: payload.mapId,
       mode: payload.mode,

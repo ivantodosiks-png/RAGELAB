@@ -4,7 +4,10 @@ import {
   DEFAULT_MAP_ID,
   GameMode,
   MIN_PLAYERS_PER_ROOM,
+  isLobbyCode,
   isMapId,
+  normalizeLobbyCode,
+  randomLobbyCode,
   type RoomConfig,
   type RoomSummary,
 } from '@ragelab/shared';
@@ -59,13 +62,30 @@ export class RoomManager {
       timeLimitMs: Math.max(0, Math.min(partial.timeLimitMs ?? 0, 3_600_000)),
     };
 
-    const room = new Room(id, roomConfig, this.rapier);
+    const room = new Room(id, roomConfig, this.rapier, this.allocateJoinCode());
     this.rooms.set(id, room);
     return room;
   }
 
   getRoom(id: string): Room | undefined {
     return this.rooms.get(id);
+  }
+
+  getRoomByCode(raw: string): Room | undefined {
+    const code = normalizeLobbyCode(raw);
+    if (!isLobbyCode(code)) return undefined;
+    for (const room of this.rooms.values()) {
+      if (room.joinCode === code) return room;
+    }
+    return undefined;
+  }
+
+  private allocateJoinCode(): string {
+    for (let i = 0; i < 24; i++) {
+      const code = randomLobbyCode();
+      if (!this.getRoomByCode(code)) return code;
+    }
+    return randomLobbyCode();
   }
 
   listRooms(): RoomSummary[] {
@@ -75,10 +95,20 @@ export class RoomManager {
   /** Join an explicit room, or the emptiest joinable one, creating if needed. */
   findOrCreateRoom(options: {
     roomId?: string;
+    roomCode?: string;
     password?: string;
     mapId?: string;
     mode?: RoomConfig['mode'];
   }): { room: Room } | { error: 'room_not_found' | 'room_full' | 'bad_password' } {
+    if (options.roomCode) {
+      const room = this.getRoomByCode(options.roomCode);
+      if (!room) return { error: 'room_not_found' };
+      if (room.config.password && room.config.password !== options.password) {
+        return { error: 'bad_password' };
+      }
+      if (room.isFull) return { error: 'room_full' };
+      return { room };
+    }
     if (options.roomId) {
       const room = this.rooms.get(options.roomId);
       if (!room) return { error: 'room_not_found' };

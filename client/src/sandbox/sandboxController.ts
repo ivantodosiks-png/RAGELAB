@@ -23,7 +23,7 @@ import { doorTransform, doorWidthAxis } from '../physics/clientWorld';
 import type { SnapshotInterpolator } from '../networking/snapshotInterpolator';
 import { SandboxNpc, type NpcUserData } from './sandboxNpc';
 import { SandboxWeapon, type WeaponUserData } from './sandboxWeapon';
-import { SandboxProp, type PropUserData } from './sandboxProp';
+import { SandboxProp, type PropInteractResult, type PropUserData } from './sandboxProp';
 import { SharedNpcAssets } from './npcModel';
 import { preloadNpcHumanoid } from './npcGltf';
 import { SANDBOX_WEAPON_KINDS, type SandboxWeaponKind } from '../weapons/weaponAssets';
@@ -33,6 +33,8 @@ import type { BrainWorld } from '../ai/npcBrain';
 import {
   DEFAULT_SPAWN_ENTRY,
   NPC_MENU_ENABLED,
+  interactPromptFor,
+  isPropCategory,
   npcRagdollOnSpawn,
   propKindFromEntry,
   toolFromEntry,
@@ -122,9 +124,11 @@ export class SandboxController {
   onBloodContact:
     | ((x: number, y: number, z: number, nx: number, ny: number, nz: number) => void)
     | null = null;
+  onPropBump: ((kind: string, x: number, y: number, z: number, speed: number) => void) | null = null;
 
   private selected: SandboxNpc | null = null;
   private hovered: SandboxNpc | null = null;
+  private lookProp: SandboxProp | null = null;
   lookHint: 'none' | 'npc' | 'prop' | 'weapon' | 'spawn' = 'none';
   private accum = 0;
   private lastPointer = { x: 0, y: 0 };
@@ -267,7 +271,7 @@ export class SandboxController {
     this.settings.maxNpcs = clampInt(this.settings.maxNpcs, 1, 64);
     this.settings.maxEffects = clampInt(this.settings.maxEffects, 20, 800);
     this.settings.maxWeapons = clampInt(this.settings.maxWeapons ?? 32, 1, 64);
-    this.settings.maxProps = clampInt(this.settings.maxProps ?? 48, 1, 80);
+    this.settings.maxProps = clampInt(this.settings.maxProps ?? 80, 1, 160);
     if (this.settings.autoCleanup) this.enforceCap();
     this.emit();
   }
@@ -322,7 +326,7 @@ export class SandboxController {
       }
       return true;
     }
-    if (entry.category === 'props') {
+    if (isPropCategory(entry.category)) {
       const kind = propKindFromEntry(entry.id);
       if (kind) this.spawnPropAt(point, yaw, kind);
     }
@@ -530,6 +534,7 @@ export class SandboxController {
 
   removeProp(prop: SandboxProp): void {
     if (this.heldProp === prop) this.heldProp = null;
+    if (this.lookProp === prop) this.lookProp = null;
     prop.despawn();
     const index = this.liveProps.indexOf(prop);
     if (index >= 0) this.liveProps.splice(index, 1);
@@ -555,6 +560,21 @@ export class SandboxController {
     this.heldProp = prop;
     prop.hold();
     this.emit();
+  }
+
+  private pulseMagnet(source: SandboxProp): void {
+    const t = source.translation;
+    for (const other of this.liveProps) {
+      if (other === source || !other.active) continue;
+      const p = other.translation;
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const dz = t.z - p.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist < 0.25 || dist > 5.8) continue;
+      const pull = 22 / dist;
+      other.applyImpulse({ x: dx / dist, y: dy / dist + 0.15, z: dz / dist }, pull);
+    }
   }
 
   private throwHeld(dir: Vec3): void {
@@ -590,6 +610,7 @@ export class SandboxController {
       this.propPool.push(prop);
       this.root.add(prop.root);
       prop.onImpact = (x, y, z, nx, ny, nz, speed) => this.onImpact?.(x, y, z, nx, ny, nz, speed);
+      prop.onBump = (kind, x, y, z, speed) => this.onPropBump?.(kind, x, y, z, speed);
     }
     this.liveProps.push(prop);
     return prop;
@@ -757,6 +778,7 @@ export class SandboxController {
       hover?.setHovered(true);
       this.hovered = hover ?? null;
     }
+    this.lookProp = this.pickProp(ctx.camera, origin, dir);
     this.lookHint = this.resolveLookHint(ctx.camera, origin, dir, hover, spawnPoint);
 
     if (this.selected && !this.selected.active) this.selected = null;
@@ -770,6 +792,20 @@ export class SandboxController {
     if (!this.hovered?.active) return false;
     this.select(this.hovered);
     return true;
+  }
+
+  interactLookProp(dir: Vec3): PropInteractResult | null {
+    const prop = this.lookProp;
+    if (!prop?.active) return null;
+    const result = prop.interact(dir);
+    if (result.magnet) this.pulseMagnet(prop);
+    this.emit();
+    return result;
+  }
+
+  lookPropPrompt(): string | null {
+    if (!this.lookProp?.active) return null;
+    return interactPromptFor(this.lookProp.kind);
   }
 
   dispose(): void {
@@ -985,7 +1021,7 @@ export class SandboxController {
   private showsToolGunGhost(): boolean {
     if (this.tool !== 'toolGun' || this.menuOpen) return false;
     const cat = this.selection.category;
-    return cat === 'npc' || cat === 'props' || cat === 'weapons';
+    return cat === 'npc' || isPropCategory(cat) || cat === 'weapons';
   }
 
   private resolveLookHint(

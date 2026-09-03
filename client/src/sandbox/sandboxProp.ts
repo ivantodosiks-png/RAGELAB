@@ -1,22 +1,17 @@
 import * as THREE from 'three';
 import { SANDBOX_PROP_GROUPS, colliderDescForProp, getArchetype, type PropKind } from '@ragelab/shared';
 import type RAPIER from '@dimforge/rapier3d-compat';
-import { propGeometry, propMaterial } from '../maps/mapMeshBuilder';
+import { createPropVisual, setPropPowered } from './propVisuals';
 
 export interface PropUserData {
   kind: 'sandboxProp';
   propId: number;
 }
 
-const geoCache = new Map<PropKind, THREE.BufferGeometry>();
-
-function sharedGeo(kind: PropKind): THREE.BufferGeometry {
-  let geo = geoCache.get(kind);
-  if (!geo) {
-    geo = propGeometry(kind);
-    geoCache.set(kind, geo);
-  }
-  return geo;
+export interface PropInteractResult {
+  sound?: 'duck' | 'radio' | 'whoopee' | 'cluck' | 'switch' | 'door' | 'squeak';
+  foam?: boolean;
+  magnet?: boolean;
 }
 
 function halfY(kind: PropKind): number {
@@ -37,16 +32,17 @@ export class SandboxProp {
 
   private body!: RAPIER.RigidBody;
   private collider!: RAPIER.Collider;
-  private mesh: THREE.Mesh;
+  private visual: THREE.Group | null = null;
   private alive = false;
   held = false;
+  powered = false;
   private lastSpeed = 0;
   private readonly rapier: typeof RAPIER;
   private readonly world: RAPIER.World;
-  private readonly matByKind = new Map<PropKind, THREE.MeshStandardMaterial>();
 
   onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
     null;
+  onBump: ((kind: PropKind, x: number, y: number, z: number, speed: number) => void) | null = null;
 
   constructor(rapier: typeof RAPIER, world: RAPIER.World) {
     this.id = nextId++;
@@ -54,12 +50,6 @@ export class SandboxProp {
     this.world = world;
     this.root.name = 'sandboxProp';
     this.root.visible = false;
-
-    const mat = this.materialFor('crate');
-    this.mesh = new THREE.Mesh(sharedGeo('crate'), mat);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
-    this.root.add(this.mesh);
 
     this.body = world.createRigidBody(
       rapier.RigidBodyDesc.dynamic().setCcdEnabled(true).setCanSleep(true).setLinearDamping(0.06).setAngularDamping(0.2),
@@ -107,13 +97,16 @@ export class SandboxProp {
     this.kind = kind;
     this.alive = true;
     this.held = false;
+    this.powered = false;
     this.spawnedAt = performance.now();
     this.root.visible = true;
+    this.mountVisual(kind);
 
-    this.mesh.geometry = sharedGeo(kind);
-    this.mesh.material = this.materialFor(kind);
-
+    const a = getArchetype(kind);
     this.rebuildCollider(kind);
+    this.body.setLinearDamping(a.linearDamping);
+    this.body.setAngularDamping(a.angularDamping);
+    this.body.setGravityScale(kind === 'balloons' ? -0.18 : 1, true);
     const hy = halfY(kind);
     this.body.setEnabled(true);
     this.collider.setEnabled(true);
@@ -124,17 +117,21 @@ export class SandboxProp {
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     this.body.wakeUp();
     this.lastSpeed = 0;
+    if (this.visual) setPropPowered(this.visual, false);
   }
 
   despawn(): void {
     if (!this.alive) return;
     this.alive = false;
     this.held = false;
+    this.powered = false;
     this.root.visible = false;
+    this.body.setGravityScale(1, true);
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     this.body.setEnabled(false);
     this.collider.setEnabled(false);
+    if (this.visual) setPropPowered(this.visual, false);
   }
 
   hold(): void {
@@ -167,6 +164,68 @@ export class SandboxProp {
     this.body.wakeUp();
   }
 
+  interact(dir: { x: number; y: number; z: number }): PropInteractResult {
+    if (!this.alive || this.held) return {};
+    switch (this.kind) {
+      case 'tv':
+      case 'computer':
+      case 'desk_lamp':
+      case 'radio':
+        this.powered = !this.powered;
+        if (this.visual) setPropPowered(this.visual, this.powered);
+        return { sound: this.kind === 'radio' ? 'radio' : 'switch' };
+      case 'loose_door':
+        this.body.applyTorqueImpulse({ x: 0, y: dir.x > 0 ? 6 : -6, z: 0 }, true);
+        this.body.wakeUp();
+        return { sound: 'door' };
+      case 'extinguisher':
+        this.body.applyImpulse({ x: -dir.x * 4, y: 2, z: -dir.z * 4 }, true);
+        this.body.wakeUp();
+        return { sound: 'squeak', foam: true };
+      case 'magnet':
+        return { sound: 'switch', magnet: true };
+      case 'chair':
+      case 'trash_bin':
+        this.body.applyImpulse({ x: dir.x * 7, y: 5, z: dir.z * 7 }, true);
+        this.body.applyTorqueImpulse({ x: (Math.random() - 0.5) * 4, y: 2, z: (Math.random() - 0.5) * 4 }, true);
+        this.body.wakeUp();
+        return { sound: 'squeak' };
+      case 'ball':
+      case 'beach_ball':
+      case 'bowling_ball':
+        this.body.applyImpulse({ x: dir.x * 14, y: 3, z: dir.z * 14 }, true);
+        this.body.wakeUp();
+        return {};
+      case 'wheel':
+      case 'shopping_cart':
+      case 'scooter':
+      case 'hockey_puck':
+        this.body.applyImpulse({ x: dir.x * 11, y: 1.2, z: dir.z * 11 }, true);
+        this.body.wakeUp();
+        return {};
+      case 'broom':
+      case 'toothbrush':
+      case 'ladder':
+        this.body.applyTorqueImpulse({ x: 0, y: 5, z: 2 }, true);
+        this.body.wakeUp();
+        return {};
+      case 'duck':
+        return { sound: 'duck' };
+      case 'chicken':
+        return { sound: 'cluck' };
+      case 'whoopee':
+        return { sound: 'whoopee' };
+      case 'balloons':
+        this.body.applyImpulse({ x: dir.x * 2, y: 4, z: dir.z * 2 }, true);
+        this.body.wakeUp();
+        return { sound: 'squeak' };
+      default:
+        this.body.applyImpulse({ x: dir.x * 5, y: 2.4, z: dir.z * 5 }, true);
+        this.body.wakeUp();
+        return {};
+    }
+  }
+
   update(): void {
     if (!this.alive) return;
     const t = this.body.translation();
@@ -176,15 +235,30 @@ export class SandboxProp {
     const speed = this.speed;
     const drop = this.lastSpeed - speed;
     this.lastSpeed = speed;
-    if (drop > 7 && this.onImpact) this.onImpact(t.x, t.y, t.z, 0, 1, 0, drop);
+    const funny = this.kind === 'duck' || this.kind === 'chicken' || this.kind === 'whoopee' || this.kind === 'soda_cup';
+    if (drop > (funny ? 2.1 : 7)) {
+      this.onImpact?.(t.x, t.y, t.z, 0, 1, 0, drop);
+      if (funny) this.onBump?.(this.kind, t.x, t.y, t.z, drop);
+    }
   }
 
   dispose(): void {
     this.despawn();
     if (this.body.isValid()) this.world.removeRigidBody(this.body);
-    for (const mat of this.matByKind.values()) mat.dispose();
-    this.matByKind.clear();
+    this.clearVisual();
     this.root.removeFromParent();
+  }
+
+  private mountVisual(kind: PropKind): void {
+    this.clearVisual();
+    this.visual = createPropVisual(kind);
+    this.root.add(this.visual);
+  }
+
+  private clearVisual(): void {
+    if (!this.visual) return;
+    this.visual.removeFromParent();
+    this.visual = null;
   }
 
   private rebuildCollider(kind: PropKind): void {
@@ -200,14 +274,5 @@ export class SandboxProp {
       this.body,
     );
     this.collider.setEnabled(enabled);
-  }
-
-  private materialFor(kind: PropKind): THREE.MeshStandardMaterial {
-    let mat = this.matByKind.get(kind);
-    if (!mat) {
-      mat = propMaterial(kind);
-      this.matByKind.set(kind, mat);
-    }
-    return mat;
   }
 }

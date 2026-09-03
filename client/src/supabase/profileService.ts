@@ -6,6 +6,7 @@ import type {
   RoomSummary,
   UserSettings,
 } from '@ragelab/shared';
+import { isLobbyCode, normalizeLobbyCode } from '@ragelab/shared';
 import type { LeaderboardEntry } from '../../../supabase/types/database';
 import { supabase, supabaseConfigured } from './client';
 
@@ -154,8 +155,42 @@ export class ProfileService {
     if (!supabaseConfigured()) return [];
     const { data, error } = await supabase().rpc('active_servers', { p_stale_seconds: 45 });
     if (error || !data) return [];
-    return data.map((row) => ({
-      // The registry prefixes rows with the instance id; the room id is the suffix.
+    return data.map((row) => this.rowToRoom(row));
+  }
+
+  /** Resolve a shareable lobby code to a live room + public websocket. */
+  async findLobby(code: string): Promise<RoomSummary | null> {
+    if (!supabaseConfigured()) return null;
+    const normalized = normalizeLobbyCode(code);
+    if (!isLobbyCode(normalized)) return null;
+
+    const { data, error } = await supabase().rpc('find_lobby', { p_code: normalized });
+    if (!error && data && data.length > 0) return this.rowToRoom(data[0]!);
+
+    const fallback = await supabase()
+      .from('game_servers')
+      .select('*')
+      .eq('join_code', normalized)
+      .maybeSingle();
+    if (fallback.error || !fallback.data) return null;
+    return this.rowToRoom(fallback.data);
+  }
+
+  private rowToRoom(row: {
+    id: string;
+    name: string;
+    map_id: string;
+    mode: string;
+    player_count: number;
+    max_players: number;
+    has_password: boolean;
+    region: string;
+    tick_ms: number;
+    created_at: string;
+    ws_url: string | null;
+    join_code: string | null;
+  }): RoomSummary {
+    return {
       id: row.id.includes(':') ? row.id.slice(row.id.indexOf(':') + 1) : row.id,
       name: row.name,
       mapId: row.map_id,
@@ -167,7 +202,8 @@ export class ProfileService {
       tickMs: row.tick_ms,
       createdAt: new Date(row.created_at).getTime(),
       wsUrl: row.ws_url || undefined,
-    }));
+      joinCode: row.join_code || undefined,
+    };
   }
 
   async reportPlayer(

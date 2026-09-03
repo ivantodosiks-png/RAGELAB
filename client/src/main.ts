@@ -2,6 +2,7 @@ import './ui/styles.css';
 import { authService } from './supabase/auth';
 import { GAME_SERVER_URL, supabaseConfigured } from './supabase/client';
 import { UiApp, type JoinRequest } from './ui/app';
+import { parseLobbyInvite } from './ui/lobbyInvite';
 import { GameSession } from './core/gameSession';
 
 const canvasEl = document.querySelector<HTMLCanvasElement>('#viewport');
@@ -28,6 +29,12 @@ async function boot(): Promise<void> {
     void ui.refreshAuth();
   });
   ui.showMenu();
+  const invite = parseLobbyInvite();
+  if (invite) {
+    ui.menu.pendingJoinCode = invite.code;
+    ui.menu.show('play');
+    void ui.joinInvite(invite);
+  }
   console.info(
     `[RAGELAB] client ready · server ${GAME_SERVER_URL} · supabase ${supabaseConfigured() ? 'on' : 'off'}`,
   );
@@ -46,6 +53,7 @@ async function join(request: JoinRequest): Promise<void> {
       mapId: request.mapId,
       password: request.password,
       wsUrl: request.wsUrl,
+      roomCode: request.roomCode,
       create: request.create,
     });
     session?.dispose();

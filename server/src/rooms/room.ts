@@ -104,6 +104,7 @@ const scratchEye: Vec3 = { x: 0, y: 0, z: 0 };
 
 export class Room {
   readonly id: string;
+  readonly joinCode: string;
   readonly config: RoomConfig;
   readonly map: MapDefinition;
   readonly world: GameWorld;
@@ -130,9 +131,10 @@ export class Room {
   private readonly eventSink: EventSink;
   private readonly combat: CombatContext;
 
-  constructor(id: string, roomConfig: RoomConfig, rapier: typeof RAPIER) {
+  constructor(id: string, roomConfig: RoomConfig, rapier: typeof RAPIER, joinCode: string) {
     this.id = id;
     this.config = roomConfig;
+    this.joinCode = joinCode;
     this.rapier = rapier;
     this.map = getMap(roomConfig.mapId);
     this.world = new GameWorld(rapier, this.map);
@@ -160,6 +162,7 @@ export class Room {
 
     log.info('room created', {
       room: this.id,
+      code: this.joinCode,
       map: this.map.id,
       mode: roomConfig.mode,
       maxPlayers: roomConfig.maxPlayers,
@@ -197,6 +200,7 @@ export class Room {
       tickMs: Math.round(this.tickDurationMs * 100) / 100,
       createdAt: this.createdAt,
       wsUrl: config.publicWsUrl || undefined,
+      joinCode: this.joinCode,
     };
   }
 
@@ -270,6 +274,9 @@ export class Room {
         mapId: this.map.id,
         mode: this.config.mode,
         maxPlayers: this.config.maxPlayers,
+        joinCode: this.joinCode,
+        host: this.hostPlayerId === id,
+        wsUrl: config.publicWsUrl || undefined,
       },
       tickRate: config.tickRate,
       snapshotRate: config.snapshotRate,

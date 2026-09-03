@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { MAP_IDS, PROTOCOL_VERSION, WEAPON_IDS } from '@ragelab/shared';
+import { MAP_IDS, PROTOCOL_VERSION, WEAPON_IDS, isLobbyCode, normalizeLobbyCode } from '@ragelab/shared';
 import { config, describeConfig } from './config';
 import { log } from './logger';
 import { Gateway } from './net/gateway';
@@ -112,6 +112,21 @@ function handleHttp(
 
   if (url.pathname === '/rooms') {
     json(res, 200, { rooms: rooms.listRooms(), wsUrl: config.publicWsUrl || null });
+    return;
+  }
+
+  if (url.pathname.startsWith('/lobby/')) {
+    const code = normalizeLobbyCode(decodeURIComponent(url.pathname.slice('/lobby/'.length)));
+    if (!isLobbyCode(code)) {
+      json(res, 400, { error: 'bad_code' });
+      return;
+    }
+    const room = rooms.getRoomByCode(code);
+    if (!room) {
+      json(res, 404, { error: 'room_not_found' });
+      return;
+    }
+    json(res, 200, { room: room.summary(), wsUrl: config.publicWsUrl || null });
     return;
   }
 
