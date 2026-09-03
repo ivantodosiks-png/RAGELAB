@@ -10,7 +10,7 @@ const DEG = Math.PI / 180;
 export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
   pistol: {
     id: 'pistol',
-    name: 'RL-9 Sidearm',
+    name: 'Glock 17',
     slot: 1,
     fireMode: FireMode.Single,
     burstCount: 1,
@@ -33,15 +33,15 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     limbMultiplier: 0.45,
     moveSpeedMultiplier: 1.0,
     aimMoveSpeedMultiplier: 0.62,
-    aimFovMultiplier: 0.82,
-    aimTimeMs: 140,
-    equipMs: 320,
+    aimFovMultiplier: 0.78,
+    aimTimeMs: 155,
+    equipMs: 360,
     recoil: {
-      vertical: 0.9 * DEG,
-      horizontal: 0.35 * DEG,
-      recovery: 9,
-      cameraPunch: 0.55,
-      viewKick: 0.026,
+      vertical: 0.72 * DEG,
+      horizontal: 0.22 * DEG,
+      recovery: 11,
+      cameraPunch: 0.38,
+      viewKick: 0.018,
     },
     spread: {
       base: 0.35 * DEG,
@@ -62,8 +62,8 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.018,
       tracerColor: 0xffd48a,
       shellEjection: true,
-      hipPosition: [0.19, -0.24, -0.38],
-      aimPosition: [0.0, -0.118, -0.3],
+      hipPosition: [0.045, -0.14, 0.02],
+      aimPosition: [0.0, -0.035, 0.07],
     },
   },
 

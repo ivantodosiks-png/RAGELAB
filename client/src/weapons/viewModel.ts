@@ -3,6 +3,8 @@ import { clamp, lerp, type Vec3, type WeaponDefinition } from '@ragelab/shared';
 import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
 import { buildWeaponMesh, ejectOffsetFor, muzzleOffsetFor } from './weaponMeshes';
 import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual, weaponModelUrl } from './weaponAssets';
+import { FpsPistolRig } from './fpsArmsRig';
+import { preloadFpsView } from './fpsAssets';
 
 /**
  * First-person weapon model.
@@ -24,6 +26,8 @@ export class WeaponViewModel {
   private def: WeaponDefinition | null = null;
   private readonly disposables: Array<{ dispose(): void }> = [];
   private magRestY = 0;
+  private fpsRig: FpsPistolRig | null = null;
+  private fpsToken = 0;
 
   /** 0 = hip, 1 = fully aimed. */
   private aimBlend = 0;
@@ -63,21 +67,26 @@ export class WeaponViewModel {
     this.def = def;
     this.disposeModel();
 
+    this.hipPosition.set(...def.visual.hipPosition);
+    this.aimPosition.set(...def.visual.aimPosition);
+    this.holder.position.copy(this.hipPosition);
+    this.equipDurationSec = def.equipMs / 1000;
+    this.equipProgress = 0;
+    this.reloadProgress = 0;
+
+    if (def.id === 'pistol') {
+      this.muzzlePoint.position.set(0, 0.02, -0.12);
+      this.ejectPoint.position.set(0.02, 0.03, 0.0);
+      this.attachFpsPistol(def);
+      return;
+    }
+
     const built = buildWeaponMesh(def, this.disposables);
     this.model.add(built.root);
     this.magRestY = built.magRestY;
     this.attachGltf(def);
-
     this.muzzlePoint.position.set(...muzzleOffsetFor(def));
     this.ejectPoint.position.set(...ejectOffsetFor(def));
-
-    this.hipPosition.set(...def.visual.hipPosition);
-    this.aimPosition.set(...def.visual.aimPosition);
-    this.holder.position.copy(this.hipPosition);
-
-    this.equipDurationSec = def.equipMs / 1000;
-    this.equipProgress = 0;
-    this.reloadProgress = 0;
   }
 
   triggerFlash(scale: number): void {
@@ -140,10 +149,12 @@ export class WeaponViewModel {
     }
 
     // Weapon bob, damped hard while aiming so sights stay usable.
-    const bobScale = (1 - this.aimBlend * 0.85) * (grounded ? 1 : 0.25);
-    this.bobPhase += dt * (7 + speedRatio * 5);
-    const bobX = Math.sin(this.bobPhase) * 0.012 * speedRatio * bobScale;
-    const bobY = Math.abs(Math.cos(this.bobPhase)) * 0.01 * speedRatio * bobScale;
+    const fps = this.fpsRig !== null;
+    const gait = speedRatio < 0.12 ? 0.18 : speedRatio > 0.95 ? 1.28 : 0.88;
+    const bobScale = (1 - this.aimBlend * 0.88) * (grounded ? 1 : 0.22) * (fps ? gait : 1);
+    this.bobPhase += dt * (6.4 + speedRatio * (fps ? 4.2 : 5));
+    const bobX = Math.sin(this.bobPhase) * (fps ? 0.008 : 0.012) * speedRatio * bobScale;
+    const bobY = Math.abs(Math.cos(this.bobPhase)) * (fps ? 0.007 : 0.01) * speedRatio * bobScale;
 
     // Position: blend hip -> aim, then layer bob, sway, recoil and animations.
     const target = this.holder.position;
@@ -170,14 +181,13 @@ export class WeaponViewModel {
       this.holder.rotation.x += dip * 0.55;
       this.holder.rotation.z += dip * 0.22;
 
-      const magazine = this.model.getObjectByName('magazine');
-      if (magazine) {
-        // Magazine drops out in the first half, new one slides in during the second.
+      const magazine = this.model.getObjectByName('magazine') ?? this.model.getObjectByName('Magazine');
+      if (magazine && !this.fpsRig) {
         const magPhase = p < 0.45 ? p / 0.45 : p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4;
         magazine.position.y = this.magRestY - magPhase * 0.14;
         magazine.visible = !(p > 0.45 && p < 0.6);
       }
-    } else {
+    } else if (!this.fpsRig) {
       const magazine = this.model.getObjectByName('magazine');
       if (magazine) {
         magazine.position.y = this.magRestY;
@@ -185,8 +195,10 @@ export class WeaponViewModel {
       }
     }
 
-    this.recoilPivot.rotation.x = this.recoilPitch;
-    this.model.rotation.y = this.swayOffset.x * 2.2;
+    this.recoilPivot.rotation.x = this.recoilPitch + this.swayOffset.y * (fps ? 0.55 : 0);
+    this.recoilPivot.rotation.z = fps ? -this.swayOffset.x * 0.45 : 0;
+    this.model.rotation.y = this.swayOffset.x * (fps ? 1.4 : 2.2);
+    this.fpsRig?.syncMuzzle(this.muzzlePoint);
     this.flash.update(dt);
   }
 
@@ -221,11 +233,35 @@ export class WeaponViewModel {
   }
 
   private disposeModel(): void {
+    this.fpsToken += 1;
+    this.fpsRig?.dispose();
+    this.fpsRig = null;
     for (const item of this.disposables) item.dispose();
     this.disposables.length = 0;
     this.model.clear();
     this.model.add(this.muzzlePoint);
     this.model.add(this.ejectPoint);
+  }
+
+  private attachFpsPistol(def: WeaponDefinition): void {
+    const token = this.fpsToken;
+    const rig = new FpsPistolRig();
+    void preloadFpsView()
+      .then(() => rig.assemble())
+      .then((ok) => {
+        if (!ok || this.def?.id !== def.id || token !== this.fpsToken) {
+          rig.dispose();
+          return;
+        }
+        this.fpsRig = rig;
+        this.model.add(rig.root);
+        rig.syncMuzzle(this.muzzlePoint);
+        const mag = rig.root.getObjectByName('Magazine');
+        if (mag) {
+          mag.name = 'magazine';
+          this.magRestY = mag.position.y;
+        }
+      });
   }
 
   private attachGltf(def: WeaponDefinition): void {

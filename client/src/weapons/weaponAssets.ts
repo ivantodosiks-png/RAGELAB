@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { assetManager } from '../assets/assetManager';
+import { GLOCK_17_URL } from './fpsAssets';
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -18,6 +19,7 @@ export const WEAPON_MODEL_FILES: Record<WeaponModelId, string> = {
 };
 
 export function weaponModelUrl(id: string): string | null {
+  if (id === 'pistol') return GLOCK_17_URL;
   const file = WEAPON_MODEL_FILES[id as WeaponModelId];
   if (!file) return null;
   return `${BASE}models/weapons/${file}`;
