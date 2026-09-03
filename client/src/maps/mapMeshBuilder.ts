@@ -105,6 +105,7 @@ export class MapMeshBuilder {
     const scale = new THREE.Vector3();
 
     for (const brush of this.map.brushes) {
+      if ('invisible' in brush && brush.invisible) continue;
       const matrix = new THREE.Matrix4();
       switch (brush.kind) {
         case 'box': {

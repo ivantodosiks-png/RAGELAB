@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { QualityLevel, type GraphicsSettings, type MapDefinition } from '@ragelab/shared';
+import { LAYER_WORLD } from './layers';
 
 /**
  * Owns the WebGL renderer, scene, camera and environment. Quality settings are
@@ -39,7 +40,8 @@ export class GameRenderer {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false;
 
-    this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 0.06, settings.renderDistance);
+    this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 0.08, settings.renderDistance);
+    this.camera.layers.set(LAYER_WORLD);
     this.viewModelCamera = new THREE.PerspectiveCamera(65, 1, 0.005, 6);
 
     this.ambient = new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.55);
@@ -139,6 +141,12 @@ export class GameRenderer {
     this.sun.color.setHex(env.sunColor);
     this.sun.intensity = env.sunIntensity * 1.55;
     this.sun.position.set(...env.sunDirection).normalize().multiplyScalar(110);
+    const ext = Math.min(96, Math.max(56, map.bounds + 12));
+    this.sun.shadow.camera.left = -ext;
+    this.sun.shadow.camera.right = ext;
+    this.sun.shadow.camera.top = ext;
+    this.sun.shadow.camera.bottom = -ext;
+    this.sun.shadow.camera.updateProjectionMatrix();
 
     this.ambient.color.setHex(env.ambientColor);
     this.ambient.groundColor.setHex(env.fogColor);

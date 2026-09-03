@@ -9,7 +9,7 @@ const BASE = import.meta.env.BASE_URL;
 export const SOLDIER_URL = `${BASE}models/characters/soldier.glb`;
 export const HUMANOID_URL = `${BASE}models/npc/humanoid.glb`;
 
-export type CharacterKind = 'soldier' | 'humanoid';
+export type CharacterKind = 'soldier';
 export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall';
 
 const BONE_ALIASES: Record<NpcPartId, string[]> = {
@@ -32,12 +32,12 @@ const BONE_ALIASES: Record<NpcPartId, string[]> = {
 
 const CLOTHING = [0xffffff, 0xc9d6c2, 0xd4c4a8, 0x9bb7c9, 0xc9a4a4, 0xb7c99b, 0xd0c8e0];
 
-export function characterUrl(kind: CharacterKind): string {
-  return kind === 'soldier' ? SOLDIER_URL : HUMANOID_URL;
+export function characterUrl(_kind: CharacterKind): string {
+  return SOLDIER_URL;
 }
 
-export function randomCharacterKind(rng: () => number): CharacterKind {
-  return rng() < 0.78 ? 'soldier' : 'humanoid';
+export function randomCharacterKind(_rng: () => number): CharacterKind {
+  return 'soldier';
 }
 
 export async function preloadCharacter(kind: CharacterKind = 'soldier'): Promise<GLTF | null> {
@@ -73,8 +73,9 @@ export class SkinnedCharacter {
     if (!gltf) return;
 
     const cloned = cloneSkinned(gltf.scene) as THREE.Group;
-    if (kind === 'soldier') cloned.rotation.y = Math.PI;
-    fitHeight(cloned, kind === 'soldier' ? 1.78 : 1.72);
+    // Mixamo bind faces +Z; the game treats -Z as forward (same as the camera).
+    cloned.rotation.y = Math.PI;
+    fitHeight(cloned, 1.78 * (look.heightScale ?? 1));
     this.root.add(cloned);
 
     cloned.traverse((obj) => {
@@ -90,8 +91,9 @@ export class SkinnedCharacter {
           if (next instanceof THREE.MeshStandardMaterial) {
             const visor = /visor/i.test(next.name) || /visor/i.test(mesh.name);
             if (!visor) {
-              next.color.lerp(new THREE.Color(look.gltfTint), 0.38);
-              next.color.lerp(new THREE.Color(look.shirt), 0.18);
+              next.color.lerp(new THREE.Color(look.gltfTint), 0.55);
+              next.color.lerp(new THREE.Color(look.shirt), 0.22);
+              next.roughness = Math.min(0.95, next.roughness + 0.04);
             }
             next.envMapIntensity = 1.05;
             next.emissive.setHex(0x000000);
@@ -150,18 +152,31 @@ export class SkinnedCharacter {
     }
   }
 
-  play(clip: LocoClip, fade = 0.18): void {
+  play(clip: LocoClip, fade = 0.18, timeScale = 1): void {
     if (!this.mixer) return;
     const mapped = clip === 'jump' || clip === 'fall' ? 'idle' : clip;
-    if (this.current === clip) return;
-    const next = this.actions.get(mapped) ?? this.actions.get('idle');
+    if (this.current === clip) {
+      const running = this.actionFor(mapped);
+      if (running) running.timeScale = clip === 'jump' || clip === 'fall' ? 0.35 : timeScale;
+      return;
+    }
+    const next = this.actionFor(mapped) ?? this.actionFor('idle');
     if (!next) return;
-    const prev = this.current === 'none' ? null : this.actions.get(this.current === 'jump' || this.current === 'fall' ? 'idle' : this.current);
+    const prevKey = this.current === 'none' ? null : this.current === 'jump' || this.current === 'fall' ? 'idle' : this.current;
+    const prev = prevKey ? this.actionFor(prevKey) : null;
     next.reset().setEffectiveWeight(1).fadeIn(fade).play();
-    if (mapped === 'idle') next.timeScale = clip === 'jump' || clip === 'fall' ? 0.35 : 1;
-    else next.timeScale = 1;
+    next.timeScale = mapped === 'idle' && (clip === 'jump' || clip === 'fall') ? 0.35 : timeScale;
     prev?.fadeOut(fade);
     this.current = clip;
+  }
+
+  private actionFor(name: string): THREE.AnimationAction | undefined {
+    const exact = this.actions.get(name);
+    if (exact) return exact;
+    for (const [key, action] of this.actions) {
+      if (key.includes(name) && !key.includes('tpose')) return action;
+    }
+    return undefined;
   }
 
   stop(): void {

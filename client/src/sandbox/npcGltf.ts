@@ -35,8 +35,8 @@ export async function preloadNpcHumanoid(): Promise<unknown> {
 }
 
 export function instantiateNpcHumanoid(look: NpcLook, kind?: CharacterKind): NpcGltfInstance | null {
-  const use = kind ?? (peekCharacter('soldier') ? 'soldier' : peekCharacter('humanoid') ? 'humanoid' : null);
-  if (!use) return null;
+  const use: CharacterKind = kind ?? 'soldier';
+  if (!peekCharacter(use)) return null;
   const character = instantiateCharacter(use, look);
   if (!character) return null;
   return { character, kind: use };

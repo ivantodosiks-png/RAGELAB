@@ -12,6 +12,7 @@ import {
 import { ParticlePool } from './particlePool';
 import { DecalPool } from './decalPool';
 import { TracerPool } from './tracerPool';
+import { BodyBloodPool } from './bodyBlood';
 import { muzzleStarTexture } from '../renderer/textures';
 
 interface SurfaceLook {
@@ -43,6 +44,7 @@ export class EffectsManager {
   private readonly particles: ParticlePool;
   private readonly decals: DecalPool;
   private readonly tracers: TracerPool;
+  private readonly bodyBlood: BodyBloodPool;
 
   private settings: GraphicsSettings;
   private budget = PARTICLE_BUDGETS[QualityLevel.High]!;
@@ -64,6 +66,7 @@ export class EffectsManager {
     this.particles = new ParticlePool(this.budget.max);
     this.decals = new DecalPool(this.budget.decals);
     this.tracers = new TracerPool(64);
+    this.bodyBlood = new BodyBloodPool(Math.max(16, Math.floor(this.budget.decals / 2)));
 
     this.root.add(this.particles.points, this.decals.root, this.tracers.root);
     this.buildMuzzleFlashes();
@@ -195,7 +198,7 @@ export class EffectsManager {
     this.decals.spawn(look.decal, position, normal, 0.14 + strength * 0.1, nowMs);
   }
 
-  bloodEffect(position: Vec3, normal: Vec3, nowMs: number, scale = 1): void {
+  bloodEffect(position: Vec3, normal: Vec3, nowMs: number, scale = 1, surface = true): void {
     const count = Math.max(2, Math.round(8 * this.effectsScale * scale));
     for (let i = 0; i < count; i++) {
       const dir = scatter(normal, 1.1);
@@ -216,13 +219,24 @@ export class EffectsManager {
         drag: 1.1,
       });
     }
-    this.decals.spawn('blood', position, normal, 0.28 + 0.18 * scale, nowMs);
+    if (surface) this.decals.spawn('blood', position, normal, 0.28 + 0.18 * scale, nowMs);
   }
 
-  npcHitEffect(position: Vec3, normal: Vec3, nowMs: number, zone: string, killed: boolean): void {
+  npcHitEffect(
+    position: Vec3,
+    normal: Vec3,
+    nowMs: number,
+    zone: string,
+    killed: boolean,
+    attach?: THREE.Object3D | null,
+  ): void {
     const head = zone === 'head';
     const scale = killed ? (head ? 1.45 : 1.15) : head ? 0.9 : 0.55;
-    this.bloodEffect(position, normal, nowMs, scale);
+    this.bloodEffect(position, normal, nowMs, scale, !attach);
+    if (attach) {
+      this.tmpVec.set(position.x, position.y, position.z);
+      this.bodyBlood.spawn(attach, this.tmpVec, 0.16 + 0.1 * scale, nowMs);
+    }
     const sparks = killed ? 4 : 2;
     for (let i = 0; i < sparks; i++) {
       const dir = scatter(normal, 0.55);
@@ -578,6 +592,7 @@ export class EffectsManager {
   update(dt: number, nowMs: number): void {
     this.particles.update(dt);
     this.decals.update(nowMs);
+    this.bodyBlood.update(nowMs);
     this.tracers.update(dt);
 
     for (const flash of this.muzzleFlashes) {
@@ -592,13 +607,12 @@ export class EffectsManager {
       material.opacity = Math.min(1, flash.life * 14);
       flash.light.intensity *= 0.72;
     }
-
-    void this.tmpVec;
   }
 
   clear(): void {
     this.particles.clear();
     this.decals.clear();
+    this.bodyBlood.clear();
     this.tracers.clear();
     for (const flash of this.muzzleFlashes) {
       flash.sprite.visible = false;
@@ -618,6 +632,7 @@ export class EffectsManager {
   dispose(): void {
     this.particles.dispose();
     this.decals.dispose();
+    this.bodyBlood.dispose();
     this.tracers.dispose();
     for (const flash of this.muzzleFlashes) {
       (flash.sprite.material as THREE.SpriteMaterial).dispose();

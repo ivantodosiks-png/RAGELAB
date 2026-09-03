@@ -28,6 +28,8 @@ import { SharedNpcAssets } from './npcModel';
 import { preloadNpcHumanoid } from './npcGltf';
 import { SANDBOX_WEAPON_KINDS, type SandboxWeaponKind } from '../weapons/weaponAssets';
 import { SpawnPreview } from './spawnPreview';
+import { NavGrid } from '../ai/navGrid';
+import type { BrainWorld } from '../ai/npcBrain';
 import {
   DEFAULT_SPAWN_ENTRY,
   npcRagdollOnSpawn,
@@ -105,7 +107,17 @@ export class SandboxController {
   onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
     null;
   onNpcHit:
-    | ((x: number, y: number, z: number, nx: number, ny: number, nz: number, zone: string, killed: boolean) => void)
+    | ((
+        x: number,
+        y: number,
+        z: number,
+        nx: number,
+        ny: number,
+        nz: number,
+        zone: string,
+        killed: boolean,
+        attach: THREE.Object3D | null,
+      ) => void)
     | null = null;
 
   private selected: SandboxNpc | null = null;
@@ -114,10 +126,14 @@ export class SandboxController {
   private accum = 0;
   private lastPointer = { x: 0, y: 0 };
   private listeners: Array<() => void> = [];
+  private readonly nav: NavGrid;
+  private readonly noises: Array<{ x: number; z: number; at: number }> = [];
+  private thinkFrame = 0;
 
   constructor(rapier: typeof RAPIER, map: MapDefinition) {
     this.rapier = rapier;
     this.map = map;
+    this.nav = new NavGrid(map);
     this.root.name = 'sandbox';
 
     this.world = new rapier.World({ x: 0, y: GRAVITY, z: 0 });
@@ -205,7 +221,7 @@ export class SandboxController {
     if (!this.selected?.active) return null;
     return {
       id: this.selected.id,
-      state: this.selected.npcState,
+      state: `${this.selected.npcState}/${this.selected.behavior}`,
       mass: this.selected.massKg,
       speed: this.selected.speed,
     };
@@ -213,6 +229,12 @@ export class SandboxController {
 
   get interceptsFire(): boolean {
     return this.tool !== 'none';
+  }
+
+  notifyNoise(x: number, z: number): void {
+    const at = performance.now() / 1000;
+    this.noises.push({ x, z, at });
+    if (this.noises.length > 12) this.noises.shift();
   }
 
   setTool(tool: SandboxTool): void {
@@ -393,11 +415,17 @@ export class SandboxController {
     const part = (data.part === 'locator' ? 'torso' : data.part) as NpcPartId;
     const zone = npcZoneForPart(part);
     const distance = hit.timeOfImpact;
+    const hitPoint = {
+      x: origin.x + dir.x * distance,
+      y: origin.y + dir.y * distance,
+      z: origin.z + dir.z * distance,
+    };
     const damage = weapon ? npcHitDamage(weapon, zone, distance) : 34;
     const killed = !npc.dead && npc.health - damage <= 0;
     const impulse =
       (weapon?.impactImpulse ?? 3.5) * (killed || npc.dead ? RAGDOLL.deathImpulse / 3.2 : 0.55);
-    npc.applyHit(dir, part, damage, impulse);
+    npc.applyHit(dir, part, damage, impulse, hitPoint);
+    this.notifyNoise(hitPoint.x, hitPoint.z);
     this.trimRagdolls();
     this.emit();
     return true;
@@ -639,11 +667,33 @@ export class SandboxController {
       steps += 1;
     }
 
+    const now = performance.now() / 1000;
+    this.thinkFrame += 1;
+    while (this.noises.length > 0 && now - this.noises[0]!.at > 2.2) this.noises.shift();
+    const others = this.live
+      .filter((n) => n.active && !n.dead)
+      .map((n) => {
+        const p = n.position;
+        return { x: p.x, z: p.z, id: n.id };
+      });
+    const world: BrainWorld = {
+      player: { x: ctx.playerPos.x, z: ctx.playerPos.z },
+      playerAlive: true,
+      noises: this.noises,
+      others,
+      now,
+      dt: ctx.dt,
+    };
+
     for (const npc of this.live) {
       const p = npc.position;
-      npc.setCameraDistance(
-        Math.hypot(p.x - ctx.camera.position.x, p.y - ctx.camera.position.y, p.z - ctx.camera.position.z),
-      );
+      const dist = Math.hypot(p.x - ctx.camera.position.x, p.y - ctx.camera.position.y, p.z - ctx.camera.position.z);
+      npc.setCameraDistance(dist);
+      const near = dist < 42;
+      const stagger = near ? 1 : 3;
+      if (near || npc.id % stagger === this.thinkFrame % stagger) {
+        npc.think(this.nav, world);
+      }
       npc.update(ctx.dt);
     }
     this.cleanupCorpses();
@@ -778,8 +828,8 @@ export class SandboxController {
     npc.onImpact = (x, y, z, nx, ny, nz, speed) => {
       this.onImpact?.(x, y, z, nx, ny, nz, speed);
     };
-    npc.onHit = (x, y, z, nx, ny, nz, zone, killed) => {
-      this.onNpcHit?.(x, y, z, nx, ny, nz, zone, killed);
+    npc.onHit = (x, y, z, nx, ny, nz, zone, killed, attach) => {
+      this.onNpcHit?.(x, y, z, nx, ny, nz, zone, killed, attach);
     };
   }
 

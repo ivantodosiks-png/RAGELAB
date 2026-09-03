@@ -7,13 +7,15 @@ import {
   type SkinnedCharacter,
 } from '../characters/skinnedHumanoid';
 import type { NpcLook } from '../sandbox/npcModel';
+import { LAYER_LOCAL_BODY, setLayerRecursive } from '../renderer/layers';
 
 const TEAM_COLORS = [0xf05b4a, 0x4a9df0, 0x67e08a, 0xf0c14a];
 
 /**
- * First-person body for the local player. Head and arms are hidden so they
- * do not fight the camera or view-model; legs, torso, clothes and boots stay
- * visible when looking down.
+ * First-person body for the local player. The mesh stays in the scene on a
+ * dedicated camera layer so third-person / remote views can still use it, but
+ * the gameplay camera never draws it — that avoids near-plane clipping and a
+ * giant chest filling the view.
  */
 export class LocalCharacter {
   readonly root = new THREE.Group();
@@ -58,9 +60,11 @@ export class LocalCharacter {
     if (this.character) return;
     const inst = instantiateCharacter('soldier', this.look);
     if (!inst) return;
-    inst.setFirstPersonBody(true);
+    inst.setFirstPersonBody(false);
+    setLayerRecursive(inst.root, LAYER_LOCAL_BODY);
     this.character = inst;
     this.root.add(inst.root);
+    setLayerRecursive(this.root, LAYER_LOCAL_BODY);
   }
 }
 
@@ -82,5 +86,6 @@ export function lookFromIdentity(identity: PlayerIdentity | undefined): NpcLook 
     shoes: 0x1a1a1a,
     hairStyle: 0,
     gltfTint: shirt,
+    heightScale: 1,
   };
 }

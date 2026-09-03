@@ -24,6 +24,13 @@ export class AssetManager {
     return this.ready.has(url);
   }
 
+  /** Clone sharing geometry and materials — used for map instancing. */
+  cloneSceneShared(url: string): THREE.Group | null {
+    const gltf = this.ready.get(url);
+    if (!gltf) return null;
+    return gltf.scene.clone(true);
+  }
+
   /** Deep-clone a cached scene. Returns null until the URL has loaded. */
   cloneScene(url: string): THREE.Group | null {
     const gltf = this.ready.get(url);

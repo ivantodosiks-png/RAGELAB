@@ -32,6 +32,8 @@ import {
 } from './npcGltf';
 import type { CharacterKind, LocoClip } from '../characters/skinnedHumanoid';
 import { preloadCharacter } from '../characters/skinnedHumanoid';
+import { NpcBrain, type BrainWorld, type MoveCommand } from '../ai/npcBrain';
+import type { NavGrid } from '../ai/navGrid';
 
 export interface NpcUserData {
   kind: 'sandboxNpc';
@@ -72,8 +74,6 @@ export class SandboxNpc {
   private state: NpcState = 'Idle';
   private yaw = 0;
   private phase = Math.random() * Math.PI * 2;
-  private wanderYaw = 0;
-  private wanderTimer = 0;
   private recoverTimer = 0;
   private stillTimer = 0;
   private feet = { x: 0, y: 0, z: 0 };
@@ -92,8 +92,21 @@ export class SandboxNpc {
   private kind: CharacterKind;
   onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
     null;
-  onHit: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, zone: string, killed: boolean) => void) | null =
-    null;
+  onHit:
+    | ((
+        x: number,
+        y: number,
+        z: number,
+        nx: number,
+        ny: number,
+        nz: number,
+        zone: string,
+        killed: boolean,
+        attach: THREE.Object3D | null,
+      ) => void)
+    | null = null;
+  readonly brain = new NpcBrain(() => Math.random());
+  private cmd: MoveCommand = { yaw: 0, speed: 0, clip: 'idle' };
 
   constructor(
     rapier: typeof RAPIER,
@@ -108,6 +121,13 @@ export class SandboxNpc {
     this.visual = buildNpcVisual(assets, randomNpcLook(rng));
     this.root = this.visual.root;
     this.root.visible = false;
+    for (const part of Object.values(this.visual.parts)) {
+      part.mesh.visible = false;
+      part.group.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh) mesh.visible = false;
+      });
+    }
     this.buildPhysics();
     this.setPhysicsEnabled(false);
     void preloadCharacter(this.kind).then(() => {
@@ -117,6 +137,37 @@ export class SandboxNpc {
 
   get npcState(): NpcState {
     return this.state;
+  }
+
+  get behavior(): string {
+    return this.brain.behavior;
+  }
+
+  think(nav: NavGrid, world: BrainWorld): void {
+    if (!this.alive) return;
+    if (this.dead || this.state === 'Ragdoll' || this.state === 'Dead' || this.state === 'Recovering') {
+      if (this.dead) this.brain.markDead();
+      this.cmd = { yaw: this.yaw, speed: 0, clip: 'idle' };
+      return;
+    }
+    this.cmd = this.brain.tick(nav, this.feet.x, this.feet.z, this.health, world);
+    let pushX = 0;
+    let pushZ = 0;
+    for (const o of world.others) {
+      if (o.id === this.id) continue;
+      const dx = this.feet.x - o.x;
+      const dz = this.feet.z - o.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 1.2 && d > 0.05) {
+        const w = (1.2 - d) / 1.2;
+        pushX += (dx / d) * w;
+        pushZ += (dz / d) * w;
+      }
+    }
+    if (pushX !== 0 || pushZ !== 0) {
+      const away = Math.atan2(-pushX, -pushZ);
+      this.cmd = { ...this.cmd, yaw: dampAngle(this.cmd.yaw, away, 0.38) };
+    }
   }
 
   get active(): boolean {
@@ -158,10 +209,10 @@ export class SandboxNpc {
     this.gltf = null;
     this.root.visible = true;
     this.yaw = yaw;
-    this.wanderYaw = yaw;
+    this.cmd = { yaw, speed: 0, clip: 'idle' };
+    this.brain.reset(x, z);
     this.feet = { x, y, z };
     this.phase = Math.random() * Math.PI * 2;
-    this.wanderTimer = 0.6 + Math.random() * 1.4;
     this.stillTimer = 0;
     this.recoverTimer = 0;
     this.applyHighlight(false, false);
@@ -252,13 +303,15 @@ export class SandboxNpc {
     part: NpcPartId,
     damage: number,
     impulse: number,
+    hitPoint?: { x: number; y: number; z: number },
   ): { killed: boolean; zone: string; health: number; alreadyDead: boolean } {
     const zone = npcZoneForPart(part);
-    const origin = this.visual.parts[part]?.group.position ?? this.position;
+    const origin = hitPoint ?? this.hitWorldPoint(part);
+    const attach = this.hitAttach(part);
     if (this.dead) {
       const target = this.parts.get(part)?.body ?? this.parts.get('torso')?.body;
       target?.applyImpulse({ x: dir.x * impulse * 0.45, y: dir.y * impulse * 0.45 + 1.2, z: dir.z * impulse * 0.45 }, true);
-      this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, false);
+      this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, false, attach);
       return { killed: false, zone, health: 0, alreadyDead: true };
     }
     this.health = Math.max(0, this.health - damage);
@@ -267,6 +320,7 @@ export class SandboxNpc {
     if (killed) {
       this.dead = true;
       this.corpseAt = performance.now();
+      this.brain.markDead();
       this.enterRagdoll(
         { x: dir.x * impulse, y: dir.y * impulse + 2.4, z: dir.z * impulse },
         part,
@@ -275,8 +329,23 @@ export class SandboxNpc {
       const v = this.locator.linvel();
       this.locator.setLinvel({ x: v.x + dir.x * 1.15, y: v.y + 0.15, z: v.z + dir.z * 1.15 }, true);
     }
-    this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, killed);
+    this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, killed, attach);
     return { killed, zone, health: this.health, alreadyDead: false };
+  }
+
+  hitAttach(part: NpcPartId): THREE.Object3D | null {
+    return this.gltf?.character.bones[part] ?? this.gltf?.character.root ?? this.visual.parts[part]?.group ?? null;
+  }
+
+  private hitWorldPoint(part: NpcPartId): { x: number; y: number; z: number } {
+    const bone = this.gltf?.character.bones[part];
+    if (bone) {
+      bone.getWorldPosition(tmpPos);
+      return { x: tmpPos.x, y: tmpPos.y, z: tmpPos.z };
+    }
+    const group = this.visual.parts[part]?.group;
+    if (group) return { x: group.position.x, y: group.position.y, z: group.position.z };
+    return { x: this.feet.x, y: this.feet.y + 1.1, z: this.feet.z };
   }
 
   matchesObject(obj: THREE.Object3D): boolean {
@@ -390,16 +459,12 @@ export class SandboxNpc {
   }
 
   private stepLocomotion(dt: number): void {
-    this.wanderTimer -= dt;
-    if (this.wanderTimer <= 0) {
-      this.wanderYaw += (Math.random() - 0.5) * 2.2;
-      this.wanderTimer = 1.2 + Math.random() * 2.4;
-    }
-    this.yaw = dampAngle(this.yaw, this.wanderYaw, 1 - Math.exp(-4 * dt));
-
+    this.yaw = dampAngle(this.yaw, this.cmd.yaw, 1 - Math.exp(-6 * dt));
     const grounded = this.isGrounded();
-    const walk = this.state !== 'Falling';
-    const speed = walk && grounded ? RAGDOLL.walkSpeed : 0;
+    const wounded = this.health < 45;
+    let speed = this.cmd.speed;
+    if (wounded) speed *= 0.58;
+    if (this.state === 'Falling' || !grounded) speed = 0;
     const vx = -Math.sin(this.yaw) * speed;
     const vz = -Math.cos(this.yaw) * speed;
     const vy = this.locator.linvel().y;
@@ -632,17 +697,11 @@ export class SandboxNpc {
     }
     this.gltf = inst;
     this.root.add(inst.character.root);
-    const keepOverlays = inst.kind === 'humanoid';
     for (const part of Object.values(this.visual.parts)) {
       part.mesh.visible = false;
       part.group.traverse((obj) => {
-        if (obj === part.group || obj === part.mesh) return;
         const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        const keep =
-          keepOverlays &&
-          (mesh.name === 'hair' || mesh.name === 'bun' || mesh.name === 'collar' || mesh.name === 'belt');
-        mesh.visible = keep;
+        if (mesh.isMesh) mesh.visible = false;
       });
     }
     this.applyFk(this.pose, 1);
@@ -662,9 +721,13 @@ export class SandboxNpc {
     }
     char.root.position.set(this.feet.x, this.feet.y, this.feet.z);
     char.root.rotation.set(0, this.yaw, 0);
-    const clip: LocoClip =
-      this.state === 'Falling' ? 'fall' : this.state === 'Walking' && this.flinch <= 0 ? 'walk' : 'idle';
-    char.play(clip);
+    const wounded = this.health < 45;
+    let clip: LocoClip = 'idle';
+    if (this.state === 'Falling') clip = 'fall';
+    else if (this.flinch > 0) clip = 'idle';
+    else if (this.cmd.clip === 'run' && !wounded) clip = 'run';
+    else if (this.cmd.speed > 0.2 || this.state === 'Walking') clip = 'walk';
+    char.play(clip, 0.18, wounded ? 0.7 : 1);
     char.update(dt, this.camDist);
     this.snapHitboxesFromBones();
   }

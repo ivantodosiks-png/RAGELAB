@@ -29,6 +29,8 @@ import {
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
 import { MapMeshBuilder } from '../maps/mapMeshBuilder';
+import { MapDecor } from '../maps/mapDecor';
+import { pickMapSpawn } from '../maps/spawnLayout';
 import { LocalPlayer } from '../player/localPlayer';
 import { LocalCharacter, clipFromAnimation } from '../player/localCharacter';
 import { InputController, TOOL_GUN_UI_SLOT } from '../player/inputController';
@@ -82,6 +84,7 @@ export class GameSession {
   private physics!: ClientPhysicsWorld;
   private map!: MapDefinition;
   private mapBuilder!: MapMeshBuilder;
+  private mapDecor: MapDecor | null = null;
   private local!: LocalPlayer;
   private input!: InputController;
   private camera!: CameraRig;
@@ -228,12 +231,16 @@ export class GameSession {
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : [...DEFAULT_LOADOUT];
     this.input.loadoutSize = this.loadout.length;
     this.map = getMap(welcome.room.mapId);
-    const spawn = this.map.spawnPoints[0]!;
+    const spawn = pickMapSpawn(this.map, 'player')!;
     const spawnPos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
 
     this.physics = new ClientPhysicsWorld(rapier, this.map, spawnPos);
     this.mapBuilder = new MapMeshBuilder(this.map);
     this.renderer.scene.add(this.mapBuilder.build());
+    this.mapDecor?.dispose();
+    this.mapDecor = new MapDecor(this.map);
+    this.renderer.scene.add(this.mapDecor.root);
+    void this.mapDecor.load();
     this.renderer.applyEnvironment(this.map);
 
     this.entities = new EntityManager(this.map, (name) => this.mapBuilder.material(name));
@@ -257,8 +264,8 @@ export class GameSession {
     this.sandbox.onImpact = (x, y, z, nx, ny, nz, speed) => {
       this.effects.physicsImpact({ x, y, z }, { x: nx, y: ny, z: nz }, speed);
     };
-    this.sandbox.onNpcHit = (x, y, z, nx, ny, nz, zone, killed) => {
-      this.effects.npcHitEffect({ x, y, z }, { x: nx, y: ny, z: nz }, performance.now(), zone, killed);
+    this.sandbox.onNpcHit = (x, y, z, nx, ny, nz, zone, killed, attach) => {
+      this.effects.npcHitEffect({ x, y, z }, { x: nx, y: ny, z: nz }, performance.now(), zone, killed, attach);
       this.audio.playAt('impact_flesh', { x, y, z }, killed || zone === 'head' ? 0.85 : 0.55, 36, 0.05);
     };
     this.localCharacter?.dispose();
@@ -542,6 +549,7 @@ export class GameSession {
     if (this.weapon.didFire) {
       this.spawnPredictedTracer();
       this.sandbox.tryShot(muzzlePos, muzzleDir, this.weapon.definition.range, this.weapon.definition);
+      this.sandbox.notifyNoise(predicted.position.x, predicted.position.z);
     }
 
     if (this.local.footstepThisFrame) {
@@ -893,6 +901,8 @@ export class GameSession {
     this.spawnMenu?.dispose();
     this.effects?.dispose();
     this.mapBuilder?.dispose();
+    this.mapDecor?.dispose();
+    this.mapDecor = null;
     this.physics?.dispose();
     this.audio?.dispose();
     this.renderer?.dispose();

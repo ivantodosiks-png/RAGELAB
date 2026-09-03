@@ -25,6 +25,7 @@ import {
   isWeaponId,
   maxSpeedFor,
   msPerShot,
+  playerSpawns,
   reloadDurationMs,
   stepMovement,
   ANTICHEAT_FIRE_RATE_GRACE_MS,
@@ -627,7 +628,7 @@ export class Room {
 
   /** Pick the spawn point furthest from every living player. */
   private pickSpawn(): { position: Vec3; yaw: number } {
-    const points = this.map.spawnPoints;
+    const points = playerSpawns(this.map);
     let best = points[this.spawnCursor % points.length]!;
     let bestScore = -Infinity;
 

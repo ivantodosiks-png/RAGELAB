@@ -2,6 +2,21 @@
 
 Third-party 3D assets shipped with RAGELAB. Only files under `client/public/` are bundled. Scratch downloads in `tmp-assets/` are not part of the game.
 
+## Harbor Lane city kit — `client/public/models/city/*.glb`
+
+Compact downtown scenery for the Harbor Lane sandbox map. Kenney tiles are scaled ×10 at runtime (1 unit → 10 m) so roads are two-lane and buildings match player scale.
+
+| Files | Pack | Count |
+| --- | --- | --- |
+| `building-*.glb`, `skyscraper-*.glb` | City Kit (Commercial) 2.1 | 10 |
+| `house-*.glb`, `tree-*.glb`, `fence*.glb`, `planter.glb`, `driveway.glb`, `path-*.glb`, `parasol.glb` | City Kit (Suburban) 2.0 + Commercial details | 12 |
+| `road-*.glb`, `lamp*.glb`, `light-square.glb`, `sign*.glb`, `cone.glb`, `barrier.glb`, `construction-light.glb` | City Kit (Roads) | 21 |
+
+- **Author:** Kenney
+- **URL:** https://kenney.nl/assets/city-kit-commercial · https://kenney.nl/assets/city-kit-suburban · https://kenney.nl/assets/city-kit-roads
+- **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) — commercial use allowed, attribution not required.
+- **Use:** Client-only decoration. Collision is cheap box/cylinder brushes cooked on both client and server; GLBs are never loaded by physics.
+
 ## Player / NPC character — `client/public/models/characters/soldier.glb`
 
 - **Source:** three.js example `models/gltf/Soldier.glb` (Mixamo “Vanguard” by Adobe Mixamo).
@@ -9,7 +24,7 @@ Third-party 3D assets shipped with RAGELAB. Only files under `client/public/` ar
 - **URL:** https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Soldier.glb
 - **License:** Mixamo characters may be used **inside a game or real-time experience**. They must not be resold or redistributed as a standalone character pack. This repo ships a single runtime GLB for in-engine use only (player avatar + sandbox NPCs). See [Mixamo FAQ / terms](https://www.mixamo.com).
 - **Contents:** PBR-textured rigged humanoid (~2.1 MB) with Idle, Walk, Run (and T-Pose) Mixamo clips. Loaded once through AssetManager and cloned per instance; not preloaded onto the NPC pool.
-- **Use:** Local first-person body, remote player avatars, and the majority of spawned sandbox NPCs. Clothing tint, visor visibility, hair and cap overlays are original RAGELAB extras.
+- **Use:** Local first-person body (hidden from the gameplay camera via a dedicated render layer), remote player avatars, and sandbox NPCs. Clothing tint, visor visibility, hair and cap overlays vary per NPC so the same rig reads as several people. The first-person camera does not draw this mesh, so it cannot clip the near plane.
 
 ## NPC humanoid — `client/public/models/npc/humanoid.glb`
 
@@ -17,7 +32,7 @@ Third-party 3D assets shipped with RAGELAB. Only files under `client/public/` ar
 - **Author:** Quaternius
 - **URL:** https://quaternius.com
 - **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
-- **Use:** Browser sandbox NPCs. Animations were stripped and the mesh was quantized so the runtime file stays under ~500 KB / ~14k triangles. Materials are recolored per spawn (shirt / pants / skin variants). Procedural hair, collar and belt overlays are original RAGELAB geometry, not part of the Quaternius file.
+- **Use:** Unused at runtime (kept as a fallback file). Live NPCs use the Mixamo soldier with clothing/hair variants.
 
 ## Weapons — `client/public/models/weapons/*.glb`
 

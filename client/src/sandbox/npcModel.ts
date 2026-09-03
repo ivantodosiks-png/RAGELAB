@@ -15,6 +15,7 @@ export interface NpcLook {
   shoes: number;
   hairStyle: 0 | 1 | 2 | 3;
   gltfTint: number;
+  heightScale: number;
 }
 
 export function randomNpcLook(rng: () => number): NpcLook {
@@ -27,6 +28,7 @@ export function randomNpcLook(rng: () => number): NpcLook {
     shoes: pick(SHOES),
     hairStyle: Math.floor(rng() * 4) as 0 | 1 | 2 | 3,
     gltfTint: pick(SHIRT),
+    heightScale: 0.96 + rng() * 0.1,
   };
 }
 

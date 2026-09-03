@@ -8,7 +8,11 @@ export type ProceduralTextureKind =
   | 'crate'
   | 'grid'
   | 'sand'
-  | 'hazard';
+  | 'hazard'
+  | 'asphalt'
+  | 'grass'
+  | 'brick'
+  | 'pavement';
 
 const cache = new Map<string, THREE.Texture>();
 const SIZE = 256;
@@ -49,6 +53,18 @@ export function proceduralTexture(kind: ProceduralTextureKind): THREE.Texture {
       break;
     case 'hazard':
       drawHazard(ctx);
+      break;
+    case 'asphalt':
+      drawAsphalt(ctx);
+      break;
+    case 'grass':
+      drawGrass(ctx);
+      break;
+    case 'brick':
+      drawBrick(ctx);
+      break;
+    case 'pavement':
+      drawPavement(ctx);
       break;
   }
 
@@ -260,6 +276,74 @@ function drawHazard(ctx: CanvasRenderingContext2D): void {
     ctx.fillRect(rand() * SIZE, rand() * SIZE, rand() * 8, rand() * 8);
   }
   ctx.globalAlpha = 1;
+}
+
+function drawAsphalt(ctx: CanvasRenderingContext2D): void {
+  noiseFill(ctx, [58, 60, 64], 22, 91001);
+  const rand = mulberry32(44);
+  ctx.strokeStyle = 'rgba(210, 214, 220, 0.22)';
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(SIZE * 0.48, 0);
+  ctx.lineTo(SIZE * 0.52, SIZE);
+  ctx.stroke();
+  ctx.setLineDash([18, 22]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (let i = 0; i < 80; i++) {
+    ctx.fillStyle = `rgba(${(80 + rand() * 40) | 0},${(82 + rand() * 40) | 0},${(86 + rand() * 40) | 0},0.28)`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 2 + rand() * 8, 1 + rand() * 3);
+  }
+}
+
+function drawGrass(ctx: CanvasRenderingContext2D): void {
+  noiseFill(ctx, [86, 118, 64], 28, 2202);
+  const rand = mulberry32(19);
+  for (let i = 0; i < 900; i++) {
+    const x = rand() * SIZE;
+    const y = rand() * SIZE;
+    ctx.strokeStyle = `rgba(${(40 + rand() * 50) | 0},${(90 + rand() * 80) | 0},${(30 + rand() * 40) | 0},0.55)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (rand() - 0.5) * 4, y - 4 - rand() * 6);
+    ctx.stroke();
+  }
+}
+
+function drawBrick(ctx: CanvasRenderingContext2D): void {
+  ctx.fillStyle = '#6a4034';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  const rand = mulberry32(71);
+  const bw = 42;
+  const bh = 20;
+  for (let row = 0; row < SIZE / bh + 1; row++) {
+    const ox = row % 2 === 0 ? 0 : bw / 2;
+    for (let col = -1; col < SIZE / bw + 1; col++) {
+      const x = col * bw + ox;
+      const y = row * bh;
+      const r = 150 + rand() * 40;
+      const g = 78 + rand() * 28;
+      const b = 58 + rand() * 22;
+      ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+      ctx.fillRect(x + 1, y + 1, bw - 2, bh - 2);
+    }
+  }
+}
+
+function drawPavement(ctx: CanvasRenderingContext2D): void {
+  noiseFill(ctx, [176, 174, 168], 18, 6061);
+  ctx.strokeStyle = 'rgba(90,88,84,0.55)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i <= 4; i++) {
+    const p = (i / 4) * SIZE;
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, SIZE);
+    ctx.moveTo(0, p);
+    ctx.lineTo(SIZE, p);
+  }
+  ctx.stroke();
 }
 
 /** Soft radial sprite used for smoke, muzzle flash and blood particles. */
