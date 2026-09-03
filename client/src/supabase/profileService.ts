@@ -155,7 +155,7 @@ export class ProfileService {
     const { data, error } = await supabase().rpc('active_servers', { p_stale_seconds: 45 });
     if (error || !data) return [];
     return data.map((row) => ({
-      // The registry prefixes rows with the region; the room id is the suffix.
+      // The registry prefixes rows with the instance id; the room id is the suffix.
       id: row.id.includes(':') ? row.id.slice(row.id.indexOf(':') + 1) : row.id,
       name: row.name,
       mapId: row.map_id,
@@ -166,6 +166,7 @@ export class ProfileService {
       region: row.region,
       tickMs: row.tick_ms,
       createdAt: new Date(row.created_at).getTime(),
+      wsUrl: row.ws_url || undefined,
     }));
   }
 

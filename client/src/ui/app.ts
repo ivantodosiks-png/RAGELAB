@@ -12,6 +12,7 @@ export interface JoinRequest {
   roomId?: string;
   mapId?: string;
   password?: string;
+  wsUrl?: string;
   create?: {
     name: string;
     mapId: string;
@@ -31,8 +32,8 @@ export class UiApp {
 
   constructor(root: HTMLElement) {
     this.menu = new MainMenu(root, {
-      play: (opts) => this.onJoin?.({ ...opts }),
-      createRoom: (opts) => this.onJoin?.({ username: this.menu.username, create: opts }),
+      play: (opts) => void this.joinFromPlay(opts),
+      createRoom: (opts) => void this.hostNewRoom(opts),
       refreshServers: () => this.fetchRooms(),
       signIn: (email, password) => this.signIn(email, password),
       signUp: (email, password, username) => this.signUp(email, password, username),
@@ -144,16 +145,103 @@ export class UiApp {
   }
 
   private async fetchRooms(): Promise<RoomSummary[]> {
-    try {
-      const res = await fetch(`${GAME_SERVER_HTTP_URL}/rooms`);
-      if (res.ok) {
-        const body = (await res.json()) as { rooms?: RoomSummary[] };
-        if (body.rooms) return body.rooms;
-      }
-    } catch {
-      /* fall through to supabase registry */
+    const local = await this.fetchLocalRooms();
+    const remote = supabaseConfigured() ? await profileService.activeServers() : [];
+    const seen = new Set<string>();
+    const out: RoomSummary[] = [];
+
+    for (const room of local.rooms) {
+      seen.add(`${local.wsUrl ?? 'local'}|${room.id}`);
+      // Rooms on this PC join through the same-origin proxy, not the public tunnel.
+      out.push({ ...room, wsUrl: undefined });
     }
-    return profileService.activeServers();
+    for (const room of remote) {
+      const key = `${room.wsUrl ?? ''}|${room.id}`;
+      if (local.wsUrl && room.wsUrl === local.wsUrl && seen.has(`${local.wsUrl}|${room.id}`)) {
+        continue;
+      }
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(room);
+    }
+    return out;
+  }
+
+  private async fetchLocalRooms(): Promise<{ rooms: RoomSummary[]; wsUrl: string | null }> {
+    try {
+      const res = await fetch(`${GAME_SERVER_HTTP_URL}/rooms`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!res.ok) return { rooms: [], wsUrl: null };
+      const body = (await res.json()) as { rooms?: RoomSummary[]; wsUrl?: string | null };
+      return { rooms: body.rooms ?? [], wsUrl: body.wsUrl ?? null };
+    } catch {
+      return { rooms: [], wsUrl: null };
+    }
+  }
+
+  private async localServerReachable(): Promise<boolean> {
+    try {
+      const res = await fetch(`${GAME_SERVER_HTTP_URL}/health`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private async joinFromPlay(opts: {
+    username: string;
+    roomId?: string;
+    mapId?: string;
+    password?: string;
+    wsUrl?: string;
+  }): Promise<void> {
+    if (opts.roomId) {
+      this.onJoin?.(opts);
+      return;
+    }
+
+    const rooms = await this.fetchRooms();
+    const hosted = rooms
+      .filter(
+        (room) =>
+          room.playerCount > 0 &&
+          room.playerCount < room.maxPlayers &&
+          !room.hasPassword &&
+          (!opts.mapId || room.mapId === opts.mapId),
+      )
+      .sort((a, b) => b.playerCount - a.playerCount)[0];
+
+    if (hosted) {
+      this.onJoin?.({
+        ...opts,
+        roomId: hosted.id,
+        wsUrl: hosted.wsUrl,
+      });
+      return;
+    }
+
+    if (await this.localServerReachable()) {
+      this.onJoin?.(opts);
+      return;
+    }
+
+    this.toast('No hosted servers online. Run npm run dev to host, then wait for friends to Join.');
+  }
+
+  private async hostNewRoom(opts: {
+    name: string;
+    mapId: string;
+    maxPlayers: number;
+    password: string;
+  }): Promise<void> {
+    if (!(await this.localServerReachable())) {
+      this.toast('Start the game with npm run dev on this PC to host a server.');
+      return;
+    }
+    this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
   }
 
   get profile(): FullProfile | null {

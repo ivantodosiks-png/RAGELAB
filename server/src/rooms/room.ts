@@ -121,6 +121,9 @@ export class Room {
   private spawnCursor = 0;
   private matchEndsAt = 0;
   private tickDurationMs = 0;
+  /** First player in (or the creator) — when they leave the match ends. */
+  hostPlayerId: number | null = null;
+  dissolving = false;
 
   /** Events queued this tick: broadcast plus per-player. */
   private broadcastEvents: GameEvent[] = [];
@@ -193,7 +196,20 @@ export class Room {
       region: config.region,
       tickMs: Math.round(this.tickDurationMs * 100) / 100,
       createdAt: this.createdAt,
+      wsUrl: config.publicWsUrl || undefined,
     };
+  }
+
+  isHost(playerId: number): boolean {
+    return this.hostPlayerId === playerId;
+  }
+
+  playerConnections(): Array<{ playerId: number; connection: Connection }> {
+    const out: Array<{ playerId: number; connection: Connection }> = [];
+    for (const [playerId, member] of this.players) {
+      out.push({ playerId, connection: member.connection });
+    }
+    return out;
   }
 
   addPlayer(connection: Connection): PlayerEntity {
@@ -236,6 +252,7 @@ export class Room {
     this.players.set(id, roomPlayer);
     this.entities.set(id, entity);
     connection.attachToRoom(this, id);
+    if (this.hostPlayerId === null) this.hostPlayerId = id;
 
     const welcome: WelcomePayload = {
       protocol: PROTOCOL_VERSION,
@@ -280,6 +297,7 @@ export class Room {
       player: id,
       username: identity.username,
       guest: identity.isGuest,
+      host: this.hostPlayerId === id,
       players: this.players.size,
     });
     return entity;
@@ -299,6 +317,7 @@ export class Room {
       p: playerId,
       name: roomPlayer.entity.identity.username,
     });
+    if (this.hostPlayerId === playerId) this.hostPlayerId = null;
     this.broadcastRoster();
 
     log.info('player left room', {

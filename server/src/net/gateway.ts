@@ -212,6 +212,14 @@ export class Gateway {
 
     connection.state = ConnectionState.Idle;
 
+    if (payload.create) {
+      if (connection.room) await this.rooms.removePlayer(connection);
+      const created = this.rooms.createRoom(payload.create);
+      created.addPlayer(connection);
+      this.rooms.heartbeatNow();
+      return;
+    }
+
     const result = this.rooms.findOrCreateRoom({
       roomId: payload.roomId,
       password: payload.password,
@@ -224,6 +232,7 @@ export class Gateway {
     }
 
     result.room.addPlayer(connection);
+    this.rooms.heartbeatNow();
   }
 
   private handleInput(connection: Connection, data: Uint8Array): void {
@@ -272,6 +281,7 @@ export class Gateway {
     if (connection.room) await this.rooms.removePlayer(connection);
     const room = this.rooms.createRoom(payload.config ?? {});
     room.addPlayer(connection);
+    this.rooms.heartbeatNow();
   }
 
   private async onClose(connection: Connection): Promise<void> {

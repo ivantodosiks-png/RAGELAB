@@ -1,4 +1,6 @@
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
@@ -55,6 +57,8 @@ export interface ServerConfig {
   port: number;
   name: string;
   region: string;
+  /** Distinguishes this process in the Supabase server browser. */
+  instanceId: string;
   tickRate: number;
   snapshotRate: number;
   maxPlayersPerRoom: number;
@@ -64,6 +68,8 @@ export interface ServerConfig {
   persist: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   publicWsUrl: string;
+  /** Open a Cloudflare quick tunnel so friends can join from any internet. */
+  publicTunnel: boolean;
   supabase: {
     url: string;
     serviceRoleKey: string;
@@ -77,8 +83,9 @@ export interface ServerConfig {
 export const config: ServerConfig = {
   host: str('GAME_SERVER_HOST', '0.0.0.0'),
   port: num('GAME_SERVER_PORT', 8080),
-  name: str('GAME_SERVER_NAME', 'RAGELAB Local Server'),
+  name: str('GAME_SERVER_NAME', `RAGELAB · ${hostname()}`).slice(0, 48),
   region: str('GAME_SERVER_REGION', 'local'),
+  instanceId: str('GAME_SERVER_ID', randomBytes(4).toString('hex')),
   tickRate: Math.min(num('GAME_SERVER_TICK_RATE', TICK_RATE), 120),
   snapshotRate: Math.min(num('GAME_SERVER_SNAPSHOT_RATE', SNAPSHOT_RATE), 60),
   maxPlayersPerRoom: Math.min(
@@ -93,7 +100,8 @@ export const config: ServerConfig = {
   allowGuests: bool('GAME_SERVER_ALLOW_GUESTS', true),
   persist: bool('GAME_SERVER_PERSIST', true),
   logLevel: (str('LOG_LEVEL', 'info') as ServerConfig['logLevel']) ?? 'info',
-  publicWsUrl: str('GAME_SERVER_PUBLIC_WS_URL', str('VITE_GAME_SERVER_URL', '')),
+  publicWsUrl: str('GAME_SERVER_PUBLIC_WS_URL', ''),
+  publicTunnel: bool('GAME_SERVER_PUBLIC_TUNNEL', true),
   supabase: {
     url: supabaseUrl,
     serviceRoleKey,
@@ -110,12 +118,15 @@ export function describeConfig(): Record<string, unknown> {
     port: config.port,
     name: config.name,
     region: config.region,
+    instanceId: config.instanceId,
     tickRate: config.tickRate,
     snapshotRate: config.snapshotRate,
     maxPlayersPerRoom: config.maxPlayersPerRoom,
     allowedOrigins: config.allowedOrigins,
     allowGuests: config.allowGuests,
     persist: config.persist,
+    publicWsUrl: config.publicWsUrl || '(local only)',
+    publicTunnel: config.publicTunnel,
     supabase: {
       url: config.supabase.url ? new URL(config.supabase.url).host : '(not configured)',
       serviceRoleKey: config.supabase.serviceRoleKey ? 'present' : 'missing',

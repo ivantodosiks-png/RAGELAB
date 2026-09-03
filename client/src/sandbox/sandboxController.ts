@@ -32,6 +32,7 @@ import { NavGrid } from '../ai/navGrid';
 import type { BrainWorld } from '../ai/npcBrain';
 import {
   DEFAULT_SPAWN_ENTRY,
+  NPC_MENU_ENABLED,
   npcRagdollOnSpawn,
   propKindFromEntry,
   toolFromEntry,
@@ -239,6 +240,7 @@ export class SandboxController {
   }
 
   setSelection(entry: SpawnEntry): void {
+    if (entry.category === 'npc' && !NPC_MENU_ENABLED) return;
     this.selection = entry;
     this.preview.setEntry(entry);
     this.syncMarkerVisibility();
@@ -315,7 +317,9 @@ export class SandboxController {
     const point = this.groundPoint(aim.origin, aim.dir);
     if (!point) return true;
     if (entry.category === 'npc') {
-      this.spawnBurst(point, yaw, { count: 1, ragdoll: npcRagdollOnSpawn(entry.id) });
+      if (NPC_MENU_ENABLED) {
+        this.spawnBurst(point, yaw, { count: 1, ragdoll: npcRagdollOnSpawn(entry.id) });
+      }
       return true;
     }
     if (entry.category === 'props') {
@@ -331,6 +335,7 @@ export class SandboxController {
     camera: THREE.Camera,
   ): boolean {
     if (tool === 'spawn') {
+      if (!NPC_MENU_ENABLED) return true;
       const point = this.groundPoint(aim.origin, aim.dir);
       if (!point) return true;
       this.spawnBurst(point, Math.atan2(-aim.dir.x, -aim.dir.z));
@@ -425,6 +430,7 @@ export class SandboxController {
     yaw: number,
     opts?: { count?: number; ragdoll?: boolean },
   ): number {
+    if (!NPC_MENU_ENABLED) return 0;
     const n = opts?.count ?? this.settings.npcCount;
     const ragdoll = opts?.ragdoll ?? this.settings.ragdollOnSpawn;
     let spawned = 0;

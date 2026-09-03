@@ -4,7 +4,6 @@ import {
   DEFAULT_MAP_ID,
   GameMode,
   MIN_PLAYERS_PER_ROOM,
-  ROOM_EMPTY_TTL_MS,
   isMapId,
   type RoomConfig,
   type RoomSummary,
@@ -28,7 +27,6 @@ let roomCounter = 1;
  */
 export class RoomManager {
   private readonly rooms = new Map<string, Room>();
-  private readonly emptySince = new Map<string, number>();
   private readonly registry = new ServerRegistry();
 
   private timer: NodeJS.Timeout | null = null;
@@ -63,7 +61,6 @@ export class RoomManager {
 
     const room = new Room(id, roomConfig, this.rapier);
     this.rooms.set(id, room);
-    this.emptySince.set(id, Date.now());
     return room;
   }
 
@@ -113,11 +110,58 @@ export class RoomManager {
   async removePlayer(connection: Connection): Promise<void> {
     const room = connection.room;
     if (!room || !connection.playerId) return;
+
+    if (!room.dissolving && room.isHost(connection.playerId) && room.playerCount > 1) {
+      await this.dissolveRoom(room, 'Host left — session ended', connection);
+      return;
+    }
+
     const entity = room.removePlayer(connection.playerId);
     connection.detachFromRoom();
     if (entity) {
       await flushSession(entity, room.serverTimeMs, true);
     }
+
+    if (room.isEmpty && !room.dissolving) {
+      this.disposeRoom(room);
+      void this.registry.heartbeat(this.listedRooms());
+    }
+  }
+
+  /**
+   * Host left while others were still in: kick everyone, drop the room, and
+   * unlist it immediately. No host migration.
+   */
+  private async dissolveRoom(room: Room, reason: string, hostConnection: Connection): Promise<void> {
+    room.dissolving = true;
+    log.info('host left, ending session', { room: room.id, reason, players: room.playerCount });
+
+    const snapshot = room.playerConnections();
+    for (const member of snapshot) {
+      const entity = room.removePlayer(member.playerId);
+      member.connection.detachFromRoom();
+      if (entity) await flushSession(entity, room.serverTimeMs, true);
+    }
+    this.disposeRoom(room);
+
+    for (const member of snapshot) {
+      if (member.connection !== hostConnection) member.connection.kick(reason);
+    }
+    void this.registry.heartbeat(this.listedRooms());
+  }
+
+  private disposeRoom(room: Room): void {
+    room.dispose();
+    this.rooms.delete(room.id);
+  }
+
+  /** Occupied rooms only — empty warm rooms must not show up as joinable hosts. */
+  listedRooms(): RoomSummary[] {
+    return this.listRooms().filter((room) => room.playerCount > 0);
+  }
+
+  heartbeatNow(): void {
+    void this.registry.heartbeat(this.listedRooms());
   }
 
   // ── the loop ──────────────────────────────────────────────────────────────
@@ -172,29 +216,14 @@ export class RoomManager {
 
     if (this.heartbeatAccumulatorMs >= HEARTBEAT_INTERVAL_MS) {
       this.heartbeatAccumulatorMs = 0;
-      void this.registry.heartbeat(this.listRooms());
+      void this.registry.heartbeat(this.listedRooms());
       this.reapEmptyRooms();
     }
   }
 
   private reapEmptyRooms(): void {
-    const now = Date.now();
-    for (const [id, room] of this.rooms) {
-      if (!room.isEmpty) {
-        this.emptySince.delete(id);
-        continue;
-      }
-      const since = this.emptySince.get(id);
-      if (since === undefined) {
-        this.emptySince.set(id, now);
-        continue;
-      }
-      // Keep one room warm so the first player never waits for world creation.
-      if (now - since > ROOM_EMPTY_TTL_MS && this.rooms.size > 1) {
-        room.dispose();
-        this.rooms.delete(id);
-        this.emptySince.delete(id);
-      }
+    for (const room of [...this.rooms.values()]) {
+      if (room.isEmpty && !room.dissolving) this.disposeRoom(room);
     }
   }
 

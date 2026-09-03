@@ -6,7 +6,7 @@ import { serviceClient } from '../auth/supabase';
 /**
  * Mirrors live room state into `public.game_servers` so the client's server
  * browser can be a plain Supabase query instead of a custom discovery service.
- * Rows are keyed by `<serverName>:<roomId>` and pruned on shutdown.
+ * Rows are keyed by `<instanceId>:<roomId>` and pruned on shutdown.
  */
 export class ServerRegistry {
   private known = new Set<string>();
@@ -17,12 +17,17 @@ export class ServerRegistry {
   }
 
   private rowId(roomId: string): string {
-    return `${config.region}:${roomId}`;
+    return `${config.instanceId}:${roomId}`;
   }
 
   async heartbeat(rooms: RoomSummary[]): Promise<void> {
     if (!this.enabled || this.failures > 5) return;
     const client = serviceClient()!;
+    const publicUrl = config.publicWsUrl || null;
+    if (!publicUrl) {
+      if (this.known.size > 0) await this.unregisterAll();
+      return;
+    }
 
     const rows = rooms.map((room) => ({
       id: this.rowId(room.id),
@@ -34,7 +39,7 @@ export class ServerRegistry {
       max_players: room.maxPlayers,
       has_password: room.hasPassword,
       tick_ms: room.tickMs,
-      ws_url: config.publicWsUrl || null,
+      ws_url: publicUrl,
       heartbeat_at: new Date().toISOString(),
     }));
 

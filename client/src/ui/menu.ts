@@ -13,7 +13,13 @@ import { formatCode, el, clear } from './dom';
 export type MenuScreen = 'play' | 'servers' | 'profile' | 'settings' | 'controls' | 'auth';
 
 export interface MenuCallbacks {
-  play: (opts: { username: string; roomId?: string; mapId?: string; password?: string }) => void;
+  play: (opts: {
+    username: string;
+    roomId?: string;
+    mapId?: string;
+    password?: string;
+    wsUrl?: string;
+  }) => void;
   createRoom: (opts: { name: string; mapId: string; maxPlayers: number; password: string }) => void;
   refreshServers: () => Promise<RoomSummary[]>;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -146,7 +152,7 @@ export class MainMenu {
       el(
         'p',
         'lead',
-        'Join the live sandbox. Movement, guns, physics and combat are server-authoritative. Two browsers on this machine is enough to test multiplayer.',
+        'Host a match from this PC (any internet) or join a live host. When the host leaves, the session ends for everyone.',
       ),
     );
     const form = el('div', 'rl-form');
@@ -168,7 +174,13 @@ export class MainMenu {
 
   private async renderServers(): Promise<void> {
     this.panel.append(el('h2', '', 'Servers'));
-    this.panel.append(el('p', 'lead', 'Live rooms on this game server. Join an existing one or spin up your own.'));
+    this.panel.append(
+      el(
+        'p',
+        'lead',
+        'Create a room on this PC to host. Friends join from this list over the internet. If you leave, everyone is kicked.',
+      ),
+    );
     const listHost = el('div');
     listHost.textContent = 'Loading rooms…';
     this.panel.append(listHost);
@@ -182,7 +194,7 @@ export class MainMenu {
     (max.input as HTMLInputElement).type = 'number';
     const password = inputField('Password (optional)', '');
     (password.input as HTMLInputElement).type = 'password';
-    const go = el('button', 'rl-btn primary', 'Create & join');
+    const go = el('button', 'rl-btn primary', 'Host & join');
     go.addEventListener('click', () => {
       this.callbacks.createRoom({
         name: (name.input as HTMLInputElement).value.trim() || 'RAGELAB',
@@ -198,7 +210,7 @@ export class MainMenu {
     try {
       const rooms = await this.callbacks.refreshServers();
       if (rooms.length === 0) {
-        listHost.textContent = 'No rooms listed. Create one below, or hit Play to auto-match.';
+        listHost.textContent = 'No rooms listed. Host one below, or hit Play.';
         return;
       }
       const table = document.createElement('table');
@@ -217,6 +229,7 @@ export class MainMenu {
             username: this.signedIn ? this.username : this.guestName,
             roomId: room.id,
             password: password || undefined,
+            wsUrl: room.wsUrl,
           });
         });
         td.append(btn);

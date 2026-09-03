@@ -49,8 +49,23 @@ export function supabase(): AppSupabaseClient {
 export const GAME_SERVER_URL = resolveGameServerUrl(__GAME_SERVER_URL__, 'ws');
 export const GAME_SERVER_HTTP_URL = resolveGameServerUrl(__GAME_SERVER_HTTP_URL__, 'http');
 
-function isLoopbackHost(host: string): boolean {
+export function isLoopbackHost(host: string): boolean {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+}
+
+/** Use a listed host's public WebSocket when joining from another network. */
+export function resolveJoinWsUrl(wsUrl?: string | null): string {
+  if (!wsUrl) return GAME_SERVER_URL;
+  try {
+    const parsed = new URL(wsUrl);
+    if (isLoopbackHost(parsed.hostname)) return GAME_SERVER_URL;
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && parsed.protocol === 'ws:') {
+      parsed.protocol = 'wss:';
+    }
+    return parsed.toString();
+  } catch {
+    return GAME_SERVER_URL;
+  }
 }
 
 function resolveGameServerUrl(configured: string, kind: 'ws' | 'http'): string {

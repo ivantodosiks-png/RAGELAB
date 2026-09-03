@@ -46,8 +46,9 @@ import { settingsStore } from '../settings/settingsStore';
 import type { UiApp } from '../ui/app';
 import { SpawnMenu } from '../ui/spawnMenu';
 import { SandboxController } from '../sandbox/sandboxController';
+import { NPC_MENU_ENABLED } from '../sandbox/spawnCatalog';
 import { ToolGunView } from '../sandbox/toolGunView';
-import { GAME_SERVER_URL } from '../supabase/client';
+import { resolveJoinWsUrl } from '../supabase/client';
 import { assetManager } from '../assets/assetManager';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
@@ -68,6 +69,7 @@ export interface SessionStart {
   roomId?: string;
   mapId?: string;
   password?: string;
+  wsUrl?: string;
   create?: { name: string; mapId: string; maxPlayers: number; password: string };
 }
 
@@ -117,7 +119,6 @@ export class GameSession {
   private paused = false;
   private running = false;
   private disposed = false;
-  private pendingCreate: SessionStart['create'];
   private remoteStep = new Map<number, number>();
   private readonly feetPos = new THREE.Vector3();
   private readonly unsubs: Array<() => void> = [];
@@ -151,16 +152,23 @@ export class GameSession {
     this.input.attach();
     this.interp = new SnapshotInterpolator();
     this.net = new NetClient();
-    this.pendingCreate = start.create;
     assetManager.setErrorHandler((_url, message) => this.ui.toast(`NPC model: ${message}`));
 
     const welcome = await this.connect({
-      url: GAME_SERVER_URL,
+      url: resolveJoinWsUrl(start.wsUrl),
       token: start.token,
       username: start.username,
       roomId: start.roomId,
       password: start.password,
       mapId: start.mapId,
+      create: start.create
+        ? {
+            name: start.create.name,
+            mapId: start.create.mapId,
+            maxPlayers: start.create.maxPlayers,
+            password: start.create.password || undefined,
+          }
+        : undefined,
     });
 
     this.buildWorld(rapier, welcome);
@@ -178,7 +186,7 @@ export class GameSession {
 
   private connect(options: ConnectOptions): Promise<WelcomePayload> {
     return new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error('Timed out waiting for the game server')), 12_000);
+      const timeout = window.setTimeout(() => reject(new Error('Timed out waiting for the game server')), 25_000);
       this.net.setHandlers({
         onWelcome: (payload) => {
           window.clearTimeout(timeout);
@@ -216,7 +224,13 @@ export class GameSession {
           }
         },
         onKicked: (payload) => {
-          this.ui.toast(payload.reason);
+          window.clearTimeout(timeout);
+          const reason = payload.reason || 'Host left — session ended';
+          this.ui.toast(reason);
+          if (!this.local) {
+            reject(new Error(reason));
+            return;
+          }
           this.ui.onLeaveMatch?.();
         },
         onState: (state, detail) => {
@@ -313,18 +327,6 @@ export class GameSession {
     for (const id of welcome.worldState.pickupsTaken) {
       this.entities.setPickupAvailable(id, false);
       this.mapBuilder.setPickupVisible(id, false);
-    }
-
-    if (this.pendingCreate) {
-      this.net.createRoom({
-        config: {
-          name: this.pendingCreate.name,
-          mapId: this.pendingCreate.mapId,
-          maxPlayers: this.pendingCreate.maxPlayers,
-          password: this.pendingCreate.password || undefined,
-        },
-      });
-      this.pendingCreate = undefined;
     }
 
     this.ui.showGame();
@@ -904,7 +906,7 @@ export class GameSession {
     if (!this.local.alive) return null;
     if (this.local.carrying) return 'LMB throw  ·  G drop  ·  E drop';
     const npc = this.sandbox.hoveredNpc;
-    if (npc?.active && !npc.dead) {
+    if (NPC_MENU_ENABLED && npc?.active && !npc.dead) {
       const px = npc.position.x;
       const pz = npc.position.z;
       const dx = px - this.local.renderPosition.x;

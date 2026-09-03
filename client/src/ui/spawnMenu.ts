@@ -1,6 +1,7 @@
 import { el } from './dom';
 import {
   DEFAULT_SPAWN_ENTRY,
+  NPC_MENU_ENABLED,
   entriesFor,
   spawnEntryById,
   type SpawnCategory,
@@ -29,7 +30,7 @@ export class SpawnMenu {
   private readonly confirm: HTMLElement;
   private readonly tabs = new Map<SpawnCategory, HTMLButtonElement>();
   private readonly cards = new Map<string, HTMLButtonElement>();
-  private category: SpawnCategory = 'npc';
+  private category: SpawnCategory = NPC_MENU_ENABLED ? 'npc' : 'props';
   private selectedId = DEFAULT_SPAWN_ENTRY.id;
   private query = '';
   private openTimer = 0;
@@ -54,6 +55,7 @@ export class SpawnMenu {
 
     const tabs = el('nav', 'spawn-tabs');
     for (const [id, label] of TABS) {
+      if (id === 'npc' && !NPC_MENU_ENABLED) continue;
       const btn = el('button', 'spawn-tab', label);
       btn.type = 'button';
       btn.addEventListener('click', (event) => {
@@ -126,7 +128,7 @@ export class SpawnMenu {
       event.stopPropagation();
     });
     host.append(this.root);
-    this.setCategory('npc');
+    this.setCategory(NPC_MENU_ENABLED ? 'npc' : 'props');
   }
 
   onSelect: ((entry: SpawnEntry) => void) | null = null;
@@ -171,7 +173,9 @@ export class SpawnMenu {
   }
 
   setSelected(id: string): void {
-    if (!spawnEntryById(id)) return;
+    const entry = spawnEntryById(id);
+    if (!entry) return;
+    if (entry.category === 'npc' && !NPC_MENU_ENABLED) return;
     this.selectedId = id;
     this.highlight();
   }

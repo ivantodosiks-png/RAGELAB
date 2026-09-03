@@ -45,6 +45,7 @@ async function join(request: JoinRequest): Promise<void> {
       roomId: request.roomId,
       mapId: request.mapId,
       password: request.password,
+      wsUrl: request.wsUrl,
       create: request.create,
     });
     session?.dispose();

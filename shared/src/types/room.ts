@@ -18,6 +18,11 @@ export interface RoomSummary {
   /** Server-reported average tick duration, useful for health display. */
   tickMs: number;
   createdAt: number;
+  /**
+   * Public WebSocket URL of the process hosting this room. Friends on another
+   * network join here instead of their own localhost.
+   */
+  wsUrl?: string;
 }
 
 export interface RoomConfig {

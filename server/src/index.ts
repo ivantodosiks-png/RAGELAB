@@ -4,6 +4,7 @@ import { MAP_IDS, PROTOCOL_VERSION, WEAPON_IDS } from '@ragelab/shared';
 import { config, describeConfig } from './config';
 import { log } from './logger';
 import { Gateway } from './net/gateway';
+import { startPublicTunnel, type PublicTunnel } from './net/publicTunnel';
 import { RoomManager } from './rooms/roomManager';
 
 async function main(): Promise<void> {
@@ -13,8 +14,6 @@ async function main(): Promise<void> {
   log.info('Rapier physics initialised');
 
   const rooms = new RoomManager(RAPIER);
-  // Keep one warm room so the first player joins instantly.
-  rooms.createRoom({ name: config.name });
 
   const httpServer = createServer((req, res) => handleHttp(req, res, rooms, gateway));
   const gateway = new Gateway(httpServer, rooms);
@@ -34,11 +33,20 @@ async function main(): Promise<void> {
     weapons: WEAPON_IDS,
   });
 
+  let tunnel: PublicTunnel | null = null;
+  try {
+    tunnel = await startPublicTunnel(config.port);
+  } catch (err) {
+    log.warn('public tunnel failed', { message: (err as Error).message });
+  }
+  rooms.heartbeatNow();
+
   let shuttingDown = false;
   const shutdown = async (signal: string): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
     log.info('shutting down', { signal });
+    tunnel?.stop();
     await gateway.close();
     await rooms.shutdown();
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));

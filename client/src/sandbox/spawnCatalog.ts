@@ -4,6 +4,9 @@ import type { SandboxTool } from './types';
 
 export type SpawnCategory = 'npc' | 'props' | 'tools' | 'weapons';
 
+/** NPC spawn UI is unfinished — hide the tab and reject Tool Gun NPC spawns. */
+export const NPC_MENU_ENABLED = false;
+
 export type ToolGunToolId = Extract<SandboxTool, 'delete' | 'select' | 'ragdoll' | 'grab'>;
 
 export interface SpawnEntry {
@@ -23,7 +26,7 @@ export const NPC_ENTRIES: SpawnEntry[] = [
     category: 'npc',
     name: 'Person',
     info: 'Human NPC with walk/run and ragdoll',
-    spawnable: true,
+    spawnable: NPC_MENU_ENABLED,
     swatch: 0x3d5a80,
     glyph: 'NPC',
   },
@@ -32,7 +35,7 @@ export const NPC_ENTRIES: SpawnEntry[] = [
     category: 'npc',
     name: 'Ragdoll Dummy',
     info: 'Spawns already limp',
-    spawnable: true,
+    spawnable: NPC_MENU_ENABLED,
     swatch: 0xc44536,
     glyph: 'RAG',
   },
@@ -41,7 +44,7 @@ export const NPC_ENTRIES: SpawnEntry[] = [
     category: 'npc',
     name: 'Civilian',
     info: 'Same humanoid, random look',
-    spawnable: true,
+    spawnable: NPC_MENU_ENABLED,
     swatch: 0x2d6a4f,
     glyph: 'CIV',
   },
@@ -134,13 +137,14 @@ export const WEAPON_ENTRIES: SpawnEntry[] = SANDBOX_WEAPON_KINDS.map((id) => {
 
 export const SPAWN_CATALOG: SpawnEntry[] = [...NPC_ENTRIES, ...PROP_ENTRIES, ...TOOL_ENTRIES, ...WEAPON_ENTRIES];
 
-export const DEFAULT_SPAWN_ENTRY = NPC_ENTRIES[0]!;
+export const DEFAULT_SPAWN_ENTRY = NPC_MENU_ENABLED ? NPC_ENTRIES[0]! : PROP_ENTRIES[0]!;
 
 export function spawnEntryById(id: string): SpawnEntry | undefined {
   return SPAWN_CATALOG.find((entry) => entry.id === id);
 }
 
 export function entriesFor(category: SpawnCategory): SpawnEntry[] {
+  if (category === 'npc' && !NPC_MENU_ENABLED) return [];
   return SPAWN_CATALOG.filter((entry) => entry.category === category);
 }
 

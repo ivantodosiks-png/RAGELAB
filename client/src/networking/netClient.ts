@@ -17,6 +17,7 @@ import {
   type InputPacket,
   type KickedPayload,
   type OpCode,
+  type RoomConfig,
   type RoomListPayload,
   type RosterPayload,
   type SwitchWeaponPayload,
@@ -52,6 +53,7 @@ export interface ConnectOptions {
   password?: string;
   mapId?: string;
   mode?: HelloPayload['mode'];
+  create?: Partial<RoomConfig>;
 }
 
 const PING_INTERVAL_MS = 1000;
@@ -142,6 +144,7 @@ export class NetClient {
         password: options.password,
         mapId: options.mapId,
         mode: options.mode,
+        create: options.create,
       };
       this.sendJson(Op.Hello, hello);
     };
@@ -313,6 +316,12 @@ export class NetClient {
   private scheduleReconnect(detail: string): void {
     if (!this.options) {
       this.setState('closed', detail);
+      return;
+    }
+    if (this.reconnectAttempt >= RECONNECT_DELAYS_MS.length) {
+      this.intentionalClose = true;
+      this.setState('closed', detail);
+      this.handlers.onKicked?.({ reason: 'Host left — session ended' });
       return;
     }
     const delay =

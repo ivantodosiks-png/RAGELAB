@@ -16,6 +16,8 @@ export interface HelloPayload {
   /** Used when auto-matching or creating a room. */
   mapId?: string;
   mode?: GameModeId;
+  /** Create a new room and become its host instead of auto-matching. */
+  create?: Partial<RoomConfig>;
   /** Protocol version guard. */
   protocol: number;
 }
