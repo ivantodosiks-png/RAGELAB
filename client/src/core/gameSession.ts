@@ -443,7 +443,7 @@ export class GameSession {
       return;
     }
     if (this.joinCode) {
-      this.ui.hud.showToast(this.isHost ? `Лобби ${this.joinCode}` : `Лобби ${this.joinCode}`);
+      this.ui.hud.showToast(`Лобби ${this.joinCode}`);
     } else {
       this.ui.hud.showToast(`${this.roomName || this.map.name}`);
     }

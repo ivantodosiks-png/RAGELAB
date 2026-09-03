@@ -238,8 +238,6 @@ export class Gateway {
       roomId: payload.roomId,
       roomCode: payload.roomCode,
       password: payload.password,
-      mapId: payload.mapId,
-      mode: payload.mode,
     });
     if ('error' in result) {
       connection.sendError(result.error, describeJoinError(result.error), true);

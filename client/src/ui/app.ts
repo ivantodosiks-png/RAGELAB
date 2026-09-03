@@ -1,8 +1,5 @@
 import {
   GAME_SERVER_HTTP_URL,
-  GAME_SERVER_URL,
-  canDirectConnectToGameServer,
-  isPublicGameServerUrl,
   localGameServerReachable,
   shouldQueryConfiguredGameHttp,
   supabaseConfigured,
@@ -278,13 +275,11 @@ export class UiApp {
     const out: RoomSummary[] = [];
 
     for (const room of local.rooms) {
-      if (isHubListing(room)) continue;
       seen.add(`${local.wsUrl ?? 'local'}|${room.id}`);
       // Rooms on this PC join through the same-origin proxy, not the public tunnel.
       out.push({ ...room, wsUrl: undefined });
     }
     for (const room of remote) {
-      if (isHubListing(room)) continue;
       const key = `${room.wsUrl ?? ''}|${room.id}`;
       if (local.wsUrl && room.wsUrl === local.wsUrl && seen.has(`${local.wsUrl}|${room.id}`)) {
         continue;
@@ -308,14 +303,6 @@ export class UiApp {
     } catch {
       return { rooms: [], wsUrl: null };
     }
-  }
-
-  private async localServerReachable(): Promise<boolean> {
-    return localGameServerReachable();
-  }
-
-  private canHostOnline(): boolean {
-    return canDirectConnectToGameServer() || isPublicGameServerUrl(GAME_SERVER_URL);
   }
 
   private async fetchLobbyByCode(code: string): Promise<RoomSummary | null> {
@@ -355,33 +342,7 @@ export class UiApp {
       await this.joinByCode({ username: opts.username, code: opts.roomCode, mapId: opts.mapId, wsUrl: opts.wsUrl });
       return;
     }
-    if (opts.roomId) {
-      this.onJoin?.(opts);
-      return;
-    }
-
-    const rooms = await this.fetchRooms();
-    const hosted = rooms
-      .filter(
-        (room) =>
-          room.playerCount > 0 &&
-          room.playerCount < room.maxPlayers &&
-          !room.hasPassword &&
-          (!opts.mapId || room.mapId === opts.mapId),
-      )
-      .sort((a, b) => b.playerCount - a.playerCount)[0];
-
-    if (hosted) {
-      this.onJoin?.({
-        ...opts,
-        roomId: hosted.id,
-        roomCode: hosted.joinCode,
-        wsUrl: hosted.wsUrl,
-      });
-      return;
-    }
-
-    this.toast('Нет открытого лобби. Введите код или попросите администратора создать лобби.');
+    this.onJoin?.(opts);
   }
 
   private async joinByCode(opts: {
@@ -419,7 +380,7 @@ export class UiApp {
       return;
     }
 
-    if ((await this.localServerReachable()) || this.canHostOnline()) {
+    if (await localGameServerReachable()) {
       this.onJoin?.({ username: opts.username, roomCode: code, mapId: opts.mapId });
       return;
     }
@@ -438,7 +399,7 @@ export class UiApp {
       this.toast('Только администратор может создать лобби.');
       return;
     }
-    if ((await this.localServerReachable()) || this.canHostOnline()) {
+    if (await localGameServerReachable()) {
       this.menu.setCreateBusy(true);
       this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
       return;
@@ -449,8 +410,4 @@ export class UiApp {
   get profile(): FullProfile | null {
     return this.menu.profile;
   }
-}
-
-function isHubListing(room: RoomSummary): boolean {
-  return room.id === 'hub' || room.maxPlayers === 0;
 }

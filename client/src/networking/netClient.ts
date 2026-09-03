@@ -10,7 +10,6 @@ import {
   encodeJson,
   encodePing,
   type ChatPayload,
-  type CreateRoomPayload,
   type ErrorPayload,
   type EventsPayload,
   type HelloPayload,
@@ -22,7 +21,6 @@ import {
   type RoomListPayload,
   type RosterPayload,
   type StartMatchPayload,
-  type SwitchWeaponPayload,
   type WelcomePayload,
   type WorldSnapshot,
 } from '@ragelab/shared';
@@ -254,28 +252,12 @@ export class NetClient {
     this.sendBytes(encodeInputPacket(packet, this.inputWriter));
   }
 
-  sendSwitchWeapon(slot: number): void {
-    this.sendJson(Op.SwitchWeapon, { slot } satisfies SwitchWeaponPayload);
-  }
-
   sendChat(text: string): void {
     this.sendJson(Op.Chat, { text } satisfies ChatPayload);
   }
 
   sendRespawnRequest(): void {
     this.sendJson(Op.RespawnRequest, {});
-  }
-
-  requestRoomList(): void {
-    this.sendJson(Op.ListRooms, {});
-  }
-
-  createRoom(payload: CreateRoomPayload): void {
-    this.sendJson(Op.CreateRoom, payload);
-  }
-
-  leaveRoom(): void {
-    this.sendJson(Op.LeaveRoom, {});
   }
 
   startMatch(): void {

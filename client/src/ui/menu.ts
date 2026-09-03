@@ -191,7 +191,7 @@ export class MainMenu {
         'Офлайн доступен всем — сервер не нужен. Онлайн-лобби может создать только администратор после npm run dev.',
       ),
     );
-    const form = el('div', 'rl-form lobby-play');
+    const form = el('div', 'rl-form');
     const name = inputField('Позывной', this.signedIn ? this.username : this.guestName, !this.signedIn);
     const map = selectField('Карта', MAP_IDS, DEFAULT_MAP_ID);
     const err = el('div', 'rl-error');
@@ -320,7 +320,7 @@ export class MainMenu {
     try {
       const rooms = await this.callbacks.refreshServers();
       if (rooms.length === 0) {
-        listHost.textContent = 'No rooms listed. Host one below, or hit Play.';
+        listHost.textContent = 'No rooms listed. Create a lobby as admin, or join with a code.';
         return;
       }
       const table = document.createElement('table');

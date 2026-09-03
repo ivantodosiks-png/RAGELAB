@@ -121,8 +121,6 @@ export class RoomManager {
     roomId?: string;
     roomCode?: string;
     password?: string;
-    mapId?: string;
-    mode?: RoomConfig['mode'];
   }): { room: Room } | { error: 'room_not_found' | 'room_full' | 'bad_password' | 'room_closed' } {
     if (options.roomCode) {
       return this.evaluateJoin(this.getRoomByCode(options.roomCode), options.password);
@@ -130,28 +128,7 @@ export class RoomManager {
     if (options.roomId) {
       return this.evaluateJoin(this.rooms.get(options.roomId), options.password);
     }
-
-    let best: Room | null = null;
-    for (const room of this.rooms.values()) {
-      if (room.dissolving || room.phase === RoomPhase.Closed) continue;
-      if (room.isFull || room.config.password) continue;
-      if (options.mapId && isMapId(options.mapId) && room.map.id !== options.mapId) continue;
-      if (options.mode && room.config.mode !== options.mode) continue;
-      if (!best || room.playerCount > best.playerCount) best = room;
-    }
-    if (best) return { room: best };
     return { error: 'room_not_found' };
-  }
-
-  /** @deprecated Use findRoom — kept so older call sites compile during the cutover. */
-  findOrCreateRoom(options: {
-    roomId?: string;
-    roomCode?: string;
-    password?: string;
-    mapId?: string;
-    mode?: RoomConfig['mode'];
-  }): { room: Room } | { error: 'room_not_found' | 'room_full' | 'bad_password' | 'room_closed' } {
-    return this.findRoom(options);
   }
 
   private evaluateJoin(
