@@ -15,6 +15,8 @@ export const RECORDED_SAMPLES: Partial<Record<SoundKey, string>> = {
   rifle_distant: `${BASE}sounds/m4a1_shot_distant.wav`,
   shotgun: `${BASE}sounds/remington_870_shot.wav`,
   shotgun_distant: `${BASE}sounds/remington_870_shot_distant.wav`,
+  footstep_1: `${BASE}sounds/foot1.mp3`,
+  footstep_2: `${BASE}sounds/foot2.mp3`,
 };
 
 export const DISTANT_FOR: Partial<Record<SoundKey, SoundKey>> = {

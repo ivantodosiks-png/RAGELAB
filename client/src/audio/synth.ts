@@ -29,6 +29,8 @@ export type SoundKey =
   | 'footstep_wood'
   | 'footstep_dirt'
   | 'footstep_grass'
+  | 'footstep_1'
+  | 'footstep_2'
   | 'jump'
   | 'land'
   | 'impact_concrete'
@@ -569,6 +571,8 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
   bank.set('footstep_wood', renderFootstep(sampleRate, 'wood', 0x1103));
   bank.set('footstep_dirt', renderFootstep(sampleRate, 'dirt', 0x1104));
   bank.set('footstep_grass', renderFootstep(sampleRate, 'grass', 0x1105));
+  bank.set('footstep_1', renderFootstep(sampleRate, 'concrete', 0x1106));
+  bank.set('footstep_2', renderFootstep(sampleRate, 'concrete', 0x1107));
 
   bank.set('jump', renderFootstep(sampleRate, 'dirt', 0x1201));
   bank.set('land', renderLand(sampleRate, 0x1202));

@@ -307,8 +307,12 @@ const IMPACT_BY_SURFACE: Record<SurfaceId, SoundKey> = {
   grass: 'impact_grass',
 };
 
-export function footstepSound(surface: SurfaceId): SoundKey {
-  return FOOTSTEP_BY_SURFACE[surface] ?? 'footstep_concrete';
+let footstepIndex = 0;
+
+export function footstepSound(_surface?: SurfaceId): SoundKey {
+  const key = footstepIndex % 2 === 0 ? 'footstep_1' : 'footstep_2';
+  footstepIndex += 1;
+  return key;
 }
 
 export function impactSound(surface: SurfaceId): SoundKey {

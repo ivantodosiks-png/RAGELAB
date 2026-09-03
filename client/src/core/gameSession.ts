@@ -750,7 +750,7 @@ export class GameSession {
 
     if (this.local.footstepThisFrame) {
       const surface = this.physics.querySurfaceBelow(predicted.position);
-      this.audio.play(footstepSound(surface), { volume: 0.68, variation: 0.06 });
+      this.audio.play(footstepSound(surface), { volume: 0.78, variation: 0.02 });
       this.effects.footstepDust(predicted.position, surface);
     }
     if (this.local.jumpedThisFrame) this.audio.play('jump', { volume: 0.45, variation: 0.05 });
