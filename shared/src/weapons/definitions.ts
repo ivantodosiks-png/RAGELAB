@@ -62,8 +62,8 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.018,
       tracerColor: 0xffd48a,
       shellEjection: true,
-      hipPosition: [0.19, -0.19, -0.38],
-      aimPosition: [0.0, -0.1, -0.3],
+      hipPosition: [0.19, -0.24, -0.38],
+      aimPosition: [0.0, -0.14, -0.3],
     },
   },
 
@@ -121,8 +121,8 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.016,
       tracerColor: 0xffc46a,
       shellEjection: true,
-      hipPosition: [0.2, -0.2, -0.46],
-      aimPosition: [0.0, -0.11, -0.34],
+      hipPosition: [0.2, -0.17, -0.46],
+      aimPosition: [0.0, -0.09, -0.34],
     },
   },
 
@@ -180,8 +180,8 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.026,
       tracerColor: 0xfff0c0,
       shellEjection: true,
-      hipPosition: [0.2, -0.2, -0.48],
-      aimPosition: [0.0, -0.118, -0.34],
+      hipPosition: [0.2, -0.155, -0.48],
+      aimPosition: [0.0, -0.08, -0.34],
     },
   },
 
