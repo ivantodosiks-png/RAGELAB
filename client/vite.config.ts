@@ -9,7 +9,7 @@ const monorepoRoot = resolve(__dirname, '..');
  * ourselves and inject just the public values. Service-role keys and the JWT
  * secret are never referenced here, so they cannot leak into the bundle.
  */
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const fileEnv = loadEnv(mode, monorepoRoot, '');
   const env = { ...fileEnv, ...process.env };
 
@@ -22,6 +22,20 @@ export default defineConfig(({ mode }) => {
   const gameServerUrl = env.VITE_GAME_SERVER_URL || 'ws://localhost:8080';
   const gameServerHttpUrl =
     env.VITE_GAME_SERVER_HTTP_URL || gameServerUrl.replace(/^ws/, 'http');
+  const gameServerProxyTarget = gameServerHttpUrl.replace(/^ws/, 'http');
+  const devProxy = command === 'serve';
+  const gameProxy = {
+    '/game-http': {
+      target: gameServerProxyTarget,
+      changeOrigin: true,
+      rewrite: (path: string) => path.replace(/^\/game-http/, ''),
+    },
+    '/game-ws': {
+      target: gameServerProxyTarget,
+      ws: true,
+      rewrite: () => '/',
+    },
+  };
 
   return {
     root: __dirname,
@@ -31,6 +45,7 @@ export default defineConfig(({ mode }) => {
       __SUPABASE_ANON_KEY__: JSON.stringify(supabaseAnonKey),
       __GAME_SERVER_URL__: JSON.stringify(gameServerUrl),
       __GAME_SERVER_HTTP_URL__: JSON.stringify(gameServerHttpUrl),
+      __GAME_SERVER_DEV_PROXY__: JSON.stringify(devProxy),
     },
     server: {
       port: 5173,
@@ -39,9 +54,12 @@ export default defineConfig(({ mode }) => {
       fs: {
         allow: [monorepoRoot],
       },
+      proxy: gameProxy,
     },
     preview: {
       port: 4173,
+      host: true,
+      proxy: gameProxy,
     },
     build: {
       target: 'es2022',

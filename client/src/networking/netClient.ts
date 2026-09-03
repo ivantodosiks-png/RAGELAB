@@ -126,6 +126,9 @@ export class NetClient {
       this.scheduleReconnect(String(error));
       return;
     }
+    if (this.reconnectAttempt === 0) {
+      console.info('[net] connecting', options.url);
+    }
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
 

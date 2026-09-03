@@ -80,6 +80,15 @@ Open the client URL, click **Play**. Guest join works when `GAME_SERVER_ALLOW_GU
 
 If the second window joins an empty extra room, join the listed room from **Servers** instead.
 
+### LAN — other PCs on the same Wi‑Fi
+
+Do **not** send friends `http://localhost:5173`. That address only works on your computer.
+
+1. Start `npm run dev` on the host PC.
+2. In the Vite log, copy the **Network** URL, e.g. `http://192.168.1.42:5173`.
+3. Friends open that URL. The client proxies the game WebSocket through the same host, so they do not need port 8080.
+4. If the page itself will not load, allow Node.js inbound on port **5173** in Windows Firewall (Private network).
+
 ## Controls (defaults)
 
 | Action | Binding |

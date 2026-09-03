@@ -5,6 +5,8 @@ declare const __SUPABASE_URL__: string;
 declare const __SUPABASE_ANON_KEY__: string;
 declare const __GAME_SERVER_URL__: string;
 declare const __GAME_SERVER_HTTP_URL__: string;
+/** True when Vite is serving the client and proxies /game-ws + /game-http. */
+declare const __GAME_SERVER_DEV_PROXY__: boolean;
 
 declare module '*.mp3?url' {
   const src: string;

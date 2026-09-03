@@ -37,5 +37,40 @@ export function supabase(): AppSupabaseClient {
   return client;
 }
 
-export const GAME_SERVER_URL = __GAME_SERVER_URL__;
-export const GAME_SERVER_HTTP_URL = __GAME_SERVER_HTTP_URL__;
+/**
+ * WebSocket / HTTP URLs the browser actually uses.
+ *
+ * The Vite bundle defaults to localhost, which only works on the host PC.
+ * Friends opening the page via a LAN IP would otherwise hit *their* localhost
+ * (WebSocket close 1006, endless Reconnecting). In `vite` / `vite preview` we
+ * proxy through the same origin so they only need the client port. In a static
+ * production build we rewrite loopback hosts to the page hostname.
+ */
+export const GAME_SERVER_URL = resolveGameServerUrl(__GAME_SERVER_URL__, 'ws');
+export const GAME_SERVER_HTTP_URL = resolveGameServerUrl(__GAME_SERVER_HTTP_URL__, 'http');
+
+function isLoopbackHost(host: string): boolean {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+}
+
+function resolveGameServerUrl(configured: string, kind: 'ws' | 'http'): string {
+  if (typeof window === 'undefined' || !configured) return configured;
+
+  if (__GAME_SERVER_DEV_PROXY__) {
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return kind === 'ws'
+      ? `${wsProto}//${window.location.host}/game-ws`
+      : `${window.location.origin}/game-http`;
+  }
+
+  try {
+    const parsed = new URL(configured);
+    if (isLoopbackHost(parsed.hostname) && !isLoopbackHost(window.location.hostname)) {
+      parsed.hostname = window.location.hostname;
+      return parsed.toString();
+    }
+  } catch {
+    /* keep the compiled URL */
+  }
+  return configured;
+}
