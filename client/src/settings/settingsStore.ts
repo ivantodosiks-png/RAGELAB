@@ -54,7 +54,13 @@ export class SettingsStore {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return structuredClone(DEFAULT_SETTINGS);
-      return mergeSettings(structuredClone(DEFAULT_SETTINGS), JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      const merged = mergeSettings(structuredClone(DEFAULT_SETTINGS), parsed);
+      const oldCrouch = parsed?.controls?.bindings?.crouch;
+      if (oldCrouch === 'ControlLeft' || oldCrouch === 'ControlRight') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      }
+      return merged;
     } catch {
       return structuredClone(DEFAULT_SETTINGS);
     }

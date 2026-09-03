@@ -40,7 +40,10 @@ export class InputController {
     if (isTypingTarget(event.target)) return;
     this.pressed.add(event.code);
     this.handleActionEdge(event.code);
-    if (this.locked && shouldBlockBrowserDefault(event)) event.preventDefault();
+    if (this.locked && shouldBlockBrowserDefault(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
   };
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
@@ -275,6 +278,11 @@ const GAMEPLAY_KEYS = new Set([
   'KeyA',
   'KeyS',
   'KeyD',
+  'KeyC',
+  'KeyR',
+  'KeyQ',
+  'KeyE',
+  'KeyG',
   'ControlLeft',
   'ControlRight',
   'ShiftLeft',
@@ -292,10 +300,10 @@ const GAMEPLAY_KEYS = new Set([
 
 function shouldBlockBrowserDefault(event: KeyboardEvent): boolean {
   if (event.code === 'Escape' || event.code === 'F5' || event.code === 'F12') return false;
-  if (event.ctrlKey && (event.code === 'KeyR' || event.code === 'KeyT' || event.code === 'KeyW' || event.code === 'KeyN')) {
-    return false;
-  }
-  return GAMEPLAY_KEYS.has(event.code) || event.ctrlKey || event.altKey;
+  // Pointer lock: swallow browser chords that collide with movement (Ctrl+W
+  // close tab, Ctrl+R reload). Chrome may still honor Ctrl+W; crouch is C.
+  if (event.ctrlKey || event.metaKey || event.altKey) return true;
+  return GAMEPLAY_KEYS.has(event.code);
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {

@@ -88,7 +88,7 @@ If the second window joins an empty extra room, join the listed room from **Serv
 | Look | Mouse |
 | Jump | Space |
 | Sprint | Shift |
-| Crouch | Ctrl |
+| Crouch | C |
 | Fire | Mouse 1 |
 | Aim | Mouse 2 |
 | Reload | R |

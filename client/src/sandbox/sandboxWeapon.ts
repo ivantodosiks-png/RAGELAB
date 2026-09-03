@@ -217,7 +217,7 @@ export class SandboxWeapon {
     }
     void loadWeaponModel(kind).then((clone) => {
       if (!this.alive || this.kind !== kind || !clone) return;
-      this.setVisual(prepareWeaponVisual(clone, phys.length, { lod: true, ground: false, shadows: true }));
+      this.setVisual(prepareWeaponVisual(clone, phys.length, { lod: true, ground: false, shadows: true, id: kind }));
     });
   }
 

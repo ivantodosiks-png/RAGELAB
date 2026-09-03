@@ -289,7 +289,7 @@ export class PlayerAvatar {
     }
     void loadWeaponModel(id).then((clone) => {
       if (!clone || token !== this.currentWeapon) return;
-      apply(prepareWeaponVisual(clone, length, { lod: false, shadows: true }));
+      apply(prepareWeaponVisual(clone, length, { lod: false, shadows: true, id }));
     });
   }
 

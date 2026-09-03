@@ -255,7 +255,7 @@ export class WeaponViewModel {
     }
     void loadWeaponModel(def.id).then((clone) => {
       if (!clone) return;
-      apply(prepareWeaponVisual(clone, length, { lod: false, shadows: false }));
+      apply(prepareWeaponVisual(clone, length, { lod: false, shadows: false, id: def.id }));
     });
   }
 

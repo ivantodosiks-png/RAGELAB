@@ -8,7 +8,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   right: 'KeyD',
   jump: 'Space',
   sprint: 'ShiftLeft',
-  crouch: 'ControlLeft',
+  crouch: 'KeyC',
   fire: 'Mouse0',
   aim: 'Mouse2',
   reload: 'KeyR',
@@ -143,13 +143,18 @@ export const PARTICLE_BUDGETS: Record<string, { max: number; impactCount: number
 export function mergeSettings(base: UserSettings, patch: unknown): UserSettings {
   if (!patch || typeof patch !== 'object') return base;
   const p = patch as Partial<UserSettings>;
+  const bindings = { ...base.controls.bindings, ...(p.controls?.bindings ?? {}) };
+  // Ctrl+W closes the browser tab. Migrate the old default crouch off Control.
+  if (bindings.crouch === 'ControlLeft' || bindings.crouch === 'ControlRight') {
+    bindings.crouch = 'KeyC';
+  }
   return {
     graphics: { ...base.graphics, ...(p.graphics ?? {}) },
     audio: { ...base.audio, ...(p.audio ?? {}) },
     controls: {
       ...base.controls,
       ...(p.controls ?? {}),
-      bindings: { ...base.controls.bindings, ...(p.controls?.bindings ?? {}) },
+      bindings,
     },
   };
 }

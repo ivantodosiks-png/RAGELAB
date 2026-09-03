@@ -43,8 +43,15 @@ const tmpBox = new THREE.Box3();
 const tmpSize = new THREE.Vector3();
 const tmpCenter = new THREE.Vector3();
 
-/** Align the longest axis to -Z (view-model / world barrel direction) and fit length. */
-export function fitWeaponModel(root: THREE.Object3D, targetLength: number, ground = false): THREE.Vector3 {
+/**
+ * Extra yaw after AABB fit. West-gun GLBs already point barrel to -Z; the old
+ * "more mesh toward -Z" flip inverted SMG/shotgun because the stock is the
+ * larger half of the box.
+ */
+const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: number; roll?: number }>> = {};
+
+/** Align the longest axis to Z (view-model / world barrel direction) and fit length. */
+export function fitWeaponModel(root: THREE.Object3D, targetLength: number, ground = false, id?: string): THREE.Vector3 {
   root.updateMatrixWorld(true);
   tmpBox.setFromObject(root);
   tmpBox.getSize(tmpSize);
@@ -53,10 +60,11 @@ export function fitWeaponModel(root: THREE.Object3D, targetLength: number, groun
   } else if (tmpSize.x >= tmpSize.y && tmpSize.x >= tmpSize.z) {
     root.rotateY(Math.PI / 2);
   }
-  root.updateMatrixWorld(true);
-  tmpBox.setFromObject(root);
-  tmpBox.getSize(tmpSize);
-  if (tmpBox.max.z > -tmpBox.min.z) root.rotateY(Math.PI);
+
+  const extra = id ? WEAPON_ORIENT[id as WeaponModelId] : undefined;
+  if (extra?.pitch) root.rotateX(extra.pitch);
+  if (extra?.yaw) root.rotateY(extra.yaw);
+  if (extra?.roll) root.rotateZ(extra.roll);
 
   root.updateMatrixWorld(true);
   tmpBox.setFromObject(root);
@@ -78,7 +86,7 @@ export function fitWeaponModel(root: THREE.Object3D, targetLength: number, groun
 export function prepareWeaponVisual(
   source: THREE.Group,
   targetLength: number,
-  options: { lod?: boolean; ground?: boolean; shadows?: boolean } = {},
+  options: { lod?: boolean; ground?: boolean; shadows?: boolean; id?: string } = {},
 ): THREE.Object3D {
   const content = source;
   content.name = 'weaponMesh';
@@ -89,7 +97,7 @@ export function prepareWeaponVisual(
     mesh.receiveShadow = true;
     mesh.frustumCulled = true;
   });
-  const size = fitWeaponModel(content, targetLength, options.ground === true);
+  const size = fitWeaponModel(content, targetLength, options.ground === true, options.id);
 
   if (!options.lod) return content;
 
@@ -138,7 +146,7 @@ export function instantiateWeaponVisual(
   if (!url) return null;
   const clone = assetManager.cloneScene(url);
   if (!clone) return null;
-  return prepareWeaponVisual(clone, targetLength, options);
+  return prepareWeaponVisual(clone, targetLength, { ...options, id });
 }
 
 export function loadWeaponModel(id: string): Promise<THREE.Group | null> {
