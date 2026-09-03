@@ -1,6 +1,7 @@
 import { el } from './dom';
 import type { SandboxController } from '../sandbox/sandboxController';
 import type { SandboxQuality, SandboxTool } from '../sandbox/types';
+import { SANDBOX_WEAPON_KINDS, type SandboxWeaponKind } from '../weapons/weaponAssets';
 
 export class SandboxPanel {
   readonly root: HTMLElement;
@@ -20,6 +21,7 @@ export class SandboxPanel {
   private readonly confirm: HTMLElement;
   private readonly liveLabel: HTMLElement;
   private readonly cursorHint: HTMLElement;
+  private readonly weaponSelect: HTMLSelectElement;
   private collapsed = false;
 
   constructor(
@@ -79,6 +81,7 @@ export class SandboxPanel {
     this.fxInput = fxField.input;
 
     this.quality = document.createElement('select');
+    this.weaponSelect = document.createElement('select');
 
     this.body.append(
       this.cursorHint,
@@ -94,6 +97,15 @@ export class SandboxPanel {
         btn('Spawn NPC', 'primary', () => this.onSpawnLook?.()),
         btn('Reset NPC', '', () => this.onResetNpc?.()),
         btn('Remove All NPCs', '', () => this.sandbox.removeAllNpcs()),
+      ]),
+      section('WEAPONS', [
+        weaponSelect(this.weaponSelect, (kind) => this.sandbox.patchSettings({ weaponKind: kind })),
+        toolRow(this.sandbox, [
+          ['spawnWeapon', 'Spawn Weapon'],
+          ['grab', 'Grab / Throw'],
+        ]),
+        btn('Spawn Weapon', 'primary', () => this.onSpawnWeaponLook?.()),
+        btn('Remove Weapons', '', () => this.sandbox.removeAllWeapons()),
       ]),
       section('NPC SETTINGS', [
         heightField.wrap,
@@ -112,7 +124,10 @@ export class SandboxPanel {
         btn('Remove NPCs', '', () => this.sandbox.removeAllNpcs()),
         btn('Remove Effects', '', () => this.onClearEffects?.()),
         btn('Remove Decals', '', () => this.onClearDecals?.()),
-        btn('Remove Physics Objects', '', () => this.sandbox.removeAllNpcs()),
+        btn('Remove Physics Objects', '', () => {
+          this.sandbox.removeAllNpcs();
+          this.sandbox.removeAllWeapons();
+        }),
         btn('Clear Everything', 'danger', () => this.showConfirm(true)),
         btn('Clear Scene', 'danger', () => this.showConfirm(true)),
       ]),
@@ -157,6 +172,7 @@ export class SandboxPanel {
   }
 
   onSpawnLook: (() => void) | null = null;
+  onSpawnWeaponLook: (() => void) | null = null;
   onResetNpc: (() => void) | null = null;
   onClearEffects: (() => void) | null = null;
   onClearDecals: (() => void) | null = null;
@@ -177,7 +193,8 @@ export class SandboxPanel {
     this.ragdollCheck.checked = s.ragdollOnSpawn;
     this.autoCheck.checked = s.autoCleanup;
     this.quality.value = s.quality;
-    this.liveLabel.textContent = `NPC ${this.sandbox.liveCount} / ${s.maxNpcs} · FX ${s.maxEffects}`;
+    this.weaponSelect.value = s.weaponKind;
+    this.liveLabel.textContent = `NPC ${this.sandbox.liveCount} / ${s.maxNpcs} · WPN ${this.sandbox.weaponCount} / ${s.maxWeapons}`;
     this.cursorHint.textContent = this.sandbox.cursorMode
       ? 'Cursor mode on — click the world. B to lock mouse.'
       : 'B — cursor mode · click world to use tool';
@@ -317,6 +334,29 @@ function qualityRow(select: HTMLSelectElement, onChange: (q: SandboxQuality) => 
   }
   select.value = 'medium';
   select.addEventListener('change', () => onChange(select.value as SandboxQuality));
+  wrap.append(select);
+  return wrap;
+}
+
+function weaponSelect(select: HTMLSelectElement, onChange: (kind: SandboxWeaponKind) => void): HTMLElement {
+  const wrap = el('label', 'sandbox-field');
+  wrap.append(el('span', '', 'Weapon'));
+  select.className = 'sandbox-select';
+  const labels: Record<SandboxWeaponKind, string> = {
+    pistol: 'Pistol',
+    rifle: 'Rifle',
+    shotgun: 'Shotgun',
+    smg: 'SMG',
+    melee: 'Melee',
+  };
+  for (const id of SANDBOX_WEAPON_KINDS) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = labels[id];
+    select.append(opt);
+  }
+  select.value = 'pistol';
+  select.addEventListener('change', () => onChange(select.value as SandboxWeaponKind));
   wrap.append(select);
   return wrap;
 }

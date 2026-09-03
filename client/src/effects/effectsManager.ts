@@ -450,6 +450,108 @@ export class EffectsManager {
     });
   }
 
+  /** Body/world collision burst. Intensity scales with impact speed; pooled particles + decals. */
+  physicsImpact(position: Vec3, normal: Vec3, speed: number): void {
+    if (speed < 3.2) return;
+    const strength = Math.min(2.4, 0.28 + speed / 11);
+    const scale = this.effectsScale;
+    const nowMs = performance.now();
+    const nlen = Math.hypot(normal.x, normal.y, normal.z) || 1;
+    const nx = normal.x / nlen;
+    const ny = normal.y / nlen;
+    const nz = normal.z / nlen;
+    const look = SURFACE_LOOKS.concrete;
+
+    const dust = Math.max(4, Math.round(10 * strength * scale));
+    for (let i = 0; i < dust; i++) {
+      const dir = scatter({ x: nx, y: ny, z: nz }, 1.05);
+      const spd = (1.2 + Math.random() * 3.8) * strength;
+      this.particles.spawn({
+        x: position.x,
+        y: position.y,
+        z: position.z,
+        vx: dir.x * spd,
+        vy: dir.y * spd + 0.4,
+        vz: dir.z * spd,
+        life: 0.28 + Math.random() * 0.45,
+        size: 0.04 + Math.random() * 0.05 * strength,
+        sizeEnd: 0.01,
+        color: look.dust,
+        colorEnd: look.dustEnd,
+        gravity: 0.9,
+        drag: 2.2,
+      });
+    }
+
+    const splash = Math.max(6, Math.round(8 * strength * scale));
+    for (let i = 0; i < splash; i++) {
+      const a = (i / splash) * Math.PI * 2 + Math.random() * 0.3;
+      const radial = 1.6 + Math.random() * 2.4 * strength;
+      this.particles.spawn({
+        x: position.x,
+        y: position.y + 0.02,
+        z: position.z,
+        vx: Math.cos(a) * radial,
+        vy: 1.1 + Math.random() * 2.2 * strength,
+        vz: Math.sin(a) * radial,
+        life: 0.22 + Math.random() * 0.28,
+        size: 0.03 + Math.random() * 0.025,
+        sizeEnd: 0.006,
+        color: 0xe8dcc4,
+        colorEnd: look.dustEnd,
+        gravity: 1.15,
+        drag: 1.6,
+      });
+    }
+
+    if (strength > 0.7) {
+      const sparks = Math.max(3, Math.round(5 * strength * scale));
+      for (let i = 0; i < sparks; i++) {
+        const dir = scatter({ x: nx, y: ny, z: nz }, 0.85);
+        const spd = 4 + Math.random() * 9 * strength;
+        this.particles.spawn({
+          x: position.x,
+          y: position.y,
+          z: position.z,
+          vx: dir.x * spd,
+          vy: dir.y * spd + 1.2,
+          vz: dir.z * spd,
+          life: 0.12 + Math.random() * 0.18,
+          size: 0.022,
+          sizeEnd: 0.004,
+          color: 0xfff2c4,
+          colorEnd: 0xd48a3a,
+          gravity: 1.1,
+          drag: 1.1,
+        });
+      }
+    }
+
+    if (this.settings.effects !== QualityLevel.Low) {
+      this.particles.spawn({
+        x: position.x + nx * 0.04,
+        y: position.y + ny * 0.04,
+        z: position.z + nz * 0.04,
+        vx: nx * 0.35,
+        vy: ny * 0.35 + 0.45,
+        vz: nz * 0.35,
+        life: 0.55 + Math.random() * 0.35,
+        size: 0.14 * strength,
+        sizeEnd: 0.55 * strength,
+        color: look.dust,
+        colorEnd: look.dustEnd,
+        gravity: 0,
+        drag: 1.9,
+        buoyancy: 0.5,
+        fadeIn: 0.12,
+      });
+    }
+
+    if (strength > 0.55) {
+      this.decals.spawn('scorch', position, { x: nx, y: ny, z: nz }, 0.22 + strength * 0.18, nowMs);
+    }
+  }
+
   update(dt: number, nowMs: number): void {
     this.particles.update(dt);
     this.decals.update(nowMs);

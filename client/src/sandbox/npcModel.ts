@@ -13,6 +13,8 @@ export interface NpcLook {
   shirt: number;
   pants: number;
   shoes: number;
+  hairStyle: 0 | 1 | 2 | 3;
+  gltfTint: number;
 }
 
 export function randomNpcLook(rng: () => number): NpcLook {
@@ -23,6 +25,8 @@ export function randomNpcLook(rng: () => number): NpcLook {
     shirt: pick(SHIRT),
     pants: pick(PANTS),
     shoes: pick(SHOES),
+    hairStyle: Math.floor(rng() * 4) as 0 | 1 | 2 | 3,
+    gltfTint: pick(SHIRT),
   };
 }
 
@@ -48,7 +52,9 @@ export class SharedNpcAssets {
   readonly lowerLeg = new THREE.CapsuleGeometry(0.055, 0.3, 4, 8);
   readonly foot = new THREE.BoxGeometry(0.1, 0.07, 0.22);
   readonly nose = new THREE.BoxGeometry(0.03, 0.028, 0.04);
-  readonly brow = new THREE.BoxGeometry(0.04, 0.008, 0.012);
+  readonly brow = new THREE.BoxGeometry(0.04, 0.012, 0.016);
+  readonly bun = new THREE.SphereGeometry(0.055, 10, 8);
+  readonly ear = new THREE.SphereGeometry(0.028, 8, 6);
   readonly collar = new THREE.BoxGeometry(0.22, 0.05, 0.16);
   readonly belt = new THREE.BoxGeometry(0.32, 0.04, 0.22);
 
@@ -74,6 +80,8 @@ export class SharedNpcAssets {
     this.foot.dispose();
     this.nose.dispose();
     this.brow.dispose();
+    this.bun.dispose();
+    this.ear.dispose();
     this.collar.dispose();
     this.belt.dispose();
     this.skin.dispose();
@@ -100,6 +108,7 @@ export interface BuiltNpcVisual {
   root: THREE.Group;
   parts: Record<NpcPartId, NpcVisualPart>;
   materials: THREE.MeshStandardMaterial[];
+  look: NpcLook;
 }
 
 /** Hierarchical-looking humanoid; each part is a direct child so ragdoll can drive world pose. */
@@ -138,8 +147,26 @@ export function buildNpcVisual(assets: SharedNpcAssets, look: NpcLook): BuiltNpc
 
   const headExtras = new THREE.Group();
   const hairMesh = new THREE.Mesh(assets.hair, hair);
+  hairMesh.name = 'hair';
   hairMesh.position.set(0, 0.04, -0.01);
   hairMesh.castShadow = true;
+  if (look.hairStyle === 1) hairMesh.scale.set(1.12, 1.25, 1.2);
+  if (look.hairStyle === 2) hairMesh.scale.set(1.05, 0.85, 1.05);
+  const bun = new THREE.Mesh(assets.bun, hair);
+  bun.name = 'bun';
+  bun.position.set(0, 0.06, 0.08);
+  bun.visible = look.hairStyle === 2 || look.hairStyle === 3;
+  bun.castShadow = true;
+  if (look.hairStyle === 3) {
+    bun.scale.set(0.45, 1.4, 0.4);
+    bun.position.set(0, 0.08, 0);
+  }
+  const earL = new THREE.Mesh(assets.ear, skin);
+  const earR = new THREE.Mesh(assets.ear, skin);
+  earL.position.set(-0.1, 0.0, 0.0);
+  earR.position.set(0.1, 0.0, 0.0);
+  earL.scale.set(0.7, 1, 0.55);
+  earR.scale.set(0.7, 1, 0.55);
   const eyeL = new THREE.Mesh(assets.eye, assets.eyeWhite);
   const eyeR = new THREE.Mesh(assets.eye, assets.eyeWhite);
   const pupilL = new THREE.Mesh(assets.eye, assets.eyeDark);
@@ -156,12 +183,14 @@ export function buildNpcVisual(assets: SharedNpcAssets, look: NpcLook): BuiltNpc
   const browR = new THREE.Mesh(assets.brow, hair);
   browL.position.set(-0.035, 0.038, -0.09);
   browR.position.set(0.035, 0.038, -0.09);
-  headExtras.add(hairMesh, eyeL, eyeR, pupilL, pupilR, nose, browL, browR);
+  headExtras.add(hairMesh, bun, earL, earR, eyeL, eyeR, pupilL, pupilR, nose, browL, browR);
 
   const collar = new THREE.Mesh(assets.collar, shirt);
+  collar.name = 'collar';
   collar.position.set(0, 0.2, 0);
   collar.castShadow = true;
   const belt = new THREE.Mesh(assets.belt, shoes);
+  belt.name = 'belt';
   belt.position.set(0, 0.08, 0);
   belt.castShadow = true;
 
@@ -181,7 +210,7 @@ export function buildNpcVisual(assets: SharedNpcAssets, look: NpcLook): BuiltNpc
   add('lowerLegR', assets.lowerLeg, skin);
   add('footR', assets.foot, shoes);
 
-  return { root, parts, materials };
+  return { root, parts, materials, look };
 }
 
 /** Rest-pose local translation of each part relative to the feet, standing, facing -Z. */

@@ -45,6 +45,7 @@ import { SandboxPanel } from '../ui/sandboxPanel';
 import { SandboxController } from '../sandbox/sandboxController';
 import type { SandboxQuality } from '../sandbox/types';
 import { GAME_SERVER_URL } from '../supabase/client';
+import { assetManager } from '../assets/assetManager';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
 
@@ -144,6 +145,7 @@ export class GameSession {
     this.interp = new SnapshotInterpolator();
     this.net = new NetClient();
     this.pendingCreate = start.create;
+    assetManager.setErrorHandler((_url, message) => this.ui.toast(`NPC model: ${message}`));
 
     const welcome = await this.connect({
       url: GAME_SERVER_URL,
@@ -164,11 +166,6 @@ export class GameSession {
     window.addEventListener('resize', this.onResize);
     this.canvas.addEventListener('click', this.onCanvasClick);
     this.canvas.addEventListener('mousemove', this.onPointerMove);
-    this.unsubs.push(this.input.onLockChange((locked) => {
-      if (!locked && this.running && !this.ui.hud.chatting && !this.sandbox?.cursorMode) {
-        this.setPaused(true);
-      }
-    }));
   }
 
   private connect(options: ConnectOptions): Promise<WelcomePayload> {
@@ -251,13 +248,18 @@ export class GameSession {
 
     this.sandbox = new SandboxController(rapier, this.map);
     this.renderer.scene.add(this.sandbox.root);
+    this.sandbox.onImpact = (x, y, z, nx, ny, nz, speed) => {
+      this.effects.physicsImpact({ x, y, z }, { x: nx, y: ny, z: nz }, speed);
+    };
     this.sandboxPanel = new SandboxPanel(this.ui.hud.root, this.sandbox);
     this.sandboxPanel.onSpawnLook = () => this.spawnSandboxFromLook();
+    this.sandboxPanel.onSpawnWeaponLook = () => this.spawnSandboxWeaponFromLook();
     this.sandboxPanel.onResetNpc = () => this.sandbox.resetNearest(this.cameraVec());
-    this.sandboxPanel.onClearEffects = () => this.effects.clearParticles();
+    this.sandboxPanel.onClearEffects = () => this.effects.clear();
     this.sandboxPanel.onClearDecals = () => this.effects.clearDecals();
     this.sandboxPanel.onClearScene = () => {
       this.sandbox.removeAllNpcs();
+      this.sandbox.removeAllWeapons();
       this.effects.clear();
     };
     this.sandboxPanel.onQuality = (q) => this.applySandboxQuality(q);
@@ -373,6 +375,11 @@ export class GameSession {
     this.sandbox.spawnAtLookOrFront(this.cameraVec(), aimDir);
   }
 
+  private spawnSandboxWeaponFromLook(): void {
+    directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
+    this.sandbox.spawnWeaponAtLook(this.cameraVec(), aimDir);
+  }
+
   private applySandboxQuality(quality: SandboxQuality): void {
     const level =
       quality === 'low' ? QualityLevel.Low : quality === 'high' ? QualityLevel.High : QualityLevel.Medium;
@@ -409,6 +416,9 @@ export class GameSession {
       const cursor = this.sandbox.toggleCursorMode();
       if (cursor) this.input.releaseLock();
       else this.input.requestLock();
+    }
+    if (this.input.consumeEdge('menu') && !this.ui.hud.chatting) {
+      this.setPaused(!this.paused);
     }
     if (this.input.consumeEdge('debug')) {
       settingsStore.patchGraphics({ debugOverlay: !settingsStore.graphics.debugOverlay });

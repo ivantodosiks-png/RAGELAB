@@ -18,6 +18,12 @@ import {
   buildNpcVisual,
   randomNpcLook,
 } from './npcModel';
+import {
+  captureBoneBind,
+  driveBonesFromParts,
+  instantiateNpcHumanoid,
+  type NpcGltfInstance,
+} from './npcGltf';
 
 export interface NpcUserData {
   kind: 'sandboxNpc';
@@ -67,6 +73,11 @@ export class SandboxNpc {
   private highlighted = false;
   private selected = false;
   private alive = false;
+  private gltf: NpcGltfInstance | null = null;
+  private lastSpeed = 0;
+  private impactCool = 0;
+  onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
+    null;
 
   constructor(
     rapier: typeof RAPIER,
@@ -130,6 +141,8 @@ export class SandboxNpc {
     this.placeLocator(x, y, z, true);
     this.applyFk(idlePose(), 1);
     this.snapRagdollToVisual();
+    this.attachHumanoid();
+    this.lastSpeed = 0;
 
     if (ragdoll) {
       this.enterRagdoll({ x: (Math.random() - 0.5) * 2, y: 1.2, z: (Math.random() - 0.5) * 2 });
@@ -159,6 +172,7 @@ export class SandboxNpc {
     this.enterLocomotion('Idle');
     this.applyFk(idlePose(), 1);
     this.snapRagdollToVisual();
+    this.driveGltf();
   }
 
   enterRagdoll(impulse?: { x: number; y: number; z: number }, atPart: NpcPartId = 'torso'): void {
@@ -177,6 +191,8 @@ export class SandboxNpc {
     }
     this.state = 'Ragdoll';
     this.stillTimer = 0;
+    this.lastSpeed = Math.hypot(locVel.x, locVel.y, locVel.z);
+    this.emitImpact(6 + (impulse ? Math.hypot(impulse.x, impulse.y, impulse.z) * 0.2 : 0));
   }
 
   setSelected(selected: boolean): void {
@@ -210,6 +226,8 @@ export class SandboxNpc {
 
     if (this.state === 'Ragdoll') {
       this.syncVisualFromRagdoll();
+      this.driveGltf();
+      this.sampleImpact(dt);
       const pelvis = this.parts.get('pelvis')?.body;
       if (pelvis) {
         const t = pelvis.translation();
@@ -228,6 +246,7 @@ export class SandboxNpc {
       this.recoverTimer += dt;
       const k = Math.min(1, this.recoverTimer / RAGDOLL.recoverBlendSec);
       this.applyFk(idlePose(), k);
+      this.driveGltf();
       if (k >= 1) this.enterLocomotion('Idle');
       return;
     }
@@ -254,6 +273,8 @@ export class SandboxNpc {
     blendPose(this.pose, target, 1 - Math.exp(-14 * dt));
     this.applyFk(this.pose, 1);
     this.snapRagdollToVisual();
+    this.driveGltf();
+    this.sampleImpact(dt);
   }
 
   dispose(): void {
@@ -432,8 +453,8 @@ export class SandboxNpc {
   }
 
   private applyHighlight(hovered: boolean, selected: boolean): void {
-    const emit = selected ? 0.35 : hovered ? 0.18 : 0;
-    const color = selected ? 0xd6ff3d : 0xffffff;
+    const color = selected || hovered ? 0xd6ff3d : 0x000000;
+    const emit = selected ? 0.38 : hovered ? 0.2 : 0;
     for (const mat of this.visual.materials) {
       mat.emissive.setHex(color);
       mat.emissiveIntensity = emit;
@@ -465,7 +486,7 @@ export class SandboxNpc {
         this.rapier.RigidBodyDesc.dynamic()
           .setLinearDamping(RAGDOLL.linearDamping)
           .setAngularDamping(RAGDOLL.angularDamping)
-          .setCcdEnabled(id === 'head' || id === 'torso' || id === 'pelvis')
+          .setCcdEnabled(true)
           .setCanSleep(true),
       );
       body.userData = { kind: 'sandboxNpc', npcId: this.id, part: id } satisfies NpcUserData;
@@ -510,6 +531,54 @@ export class SandboxNpc {
     link('upperLegR', 'lowerLegR', [0, -0.18, 0], [0, 0.17, 0], [1, 0, 0], [0.02, 2.2]);
     link('lowerLegR', 'footR', [0, -0.17, 0], [0, 0.04, -0.02]);
   }
+
+  attachHumanoid(): void {
+    if (this.gltf) return;
+    const inst = instantiateNpcHumanoid(this.visual.look);
+    if (!inst) return;
+    this.gltf = inst;
+    this.root.add(inst.root);
+    this.visual.materials.push(...inst.materials);
+    for (const part of Object.values(this.visual.parts)) {
+      part.mesh.visible = false;
+      part.group.traverse((obj) => {
+        if (obj === part.group || obj === part.mesh) return;
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const keep = mesh.name === 'hair' || mesh.name === 'bun' || mesh.name === 'collar' || mesh.name === 'belt';
+        mesh.visible = keep;
+      });
+    }
+    this.applyFk(this.pose, 1);
+    this.root.updateMatrixWorld(true);
+    captureBoneBind(inst, this.visual.parts);
+    this.driveGltf();
+  }
+
+  private driveGltf(): void {
+    if (!this.gltf) return;
+    if (!this.gltf.captured) {
+      this.root.updateMatrixWorld(true);
+      captureBoneBind(this.gltf, this.visual.parts);
+    }
+    driveBonesFromParts(this.gltf, this.visual.parts);
+  }
+
+  private sampleImpact(dt: number): void {
+    this.impactCool = Math.max(0, this.impactCool - dt);
+    const speed =
+      this.state === 'Ragdoll' ? this.speed : Math.hypot(this.locator.linvel().x, this.locator.linvel().y, this.locator.linvel().z);
+    const drop = this.lastSpeed - speed;
+    this.lastSpeed = speed;
+    if (drop > 5.5) this.emitImpact(drop);
+  }
+
+  private emitImpact(speed: number): void {
+    if (this.impactCool > 0 || !this.onImpact) return;
+    this.impactCool = 0.16;
+    const p = this.feet;
+    this.onImpact(p.x, p.y + 0.15, p.z, 0, 1, 0, speed);
+  }
 }
 
 function colliderFromDef(rapier: typeof RAPIER, def: PartPhysDef): RAPIER.ColliderDesc {
@@ -526,8 +595,8 @@ function colliderFromDef(rapier: typeof RAPIER, def: PartPhysDef): RAPIER.Collid
   }
   return desc
     .setMass(def.mass)
-    .setFriction(RAGDOLL.friction)
-    .setRestitution(RAGDOLL.restitution)
+    .setFriction(def.friction ?? RAGDOLL.friction)
+    .setRestitution(def.restitution ?? RAGDOLL.restitution)
     .setCollisionGroups(SANDBOX_GROUPS);
 }
 

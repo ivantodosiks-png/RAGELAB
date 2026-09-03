@@ -40,8 +40,7 @@ export class InputController {
     if (isTypingTarget(event.target)) return;
     this.pressed.add(event.code);
     this.handleActionEdge(event.code);
-    // Prevent the browser eating gameplay keys while playing.
-    if (this.locked && GAMEPLAY_KEYS.has(event.code)) event.preventDefault();
+    if (this.locked && shouldBlockBrowserDefault(event)) event.preventDefault();
   };
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
@@ -78,8 +77,12 @@ export class InputController {
   private readonly onPointerLockChange = (): void => {
     this.locked = document.pointerLockElement === this.canvas;
     if (!this.locked) {
+      const heldModifiers = [...this.pressed].filter((code) =>
+        code.startsWith('Control') || code.startsWith('Shift') || code.startsWith('Alt'),
+      );
       this.pressed.clear();
       this.mouseButtons.clear();
+      for (const code of heldModifiers) this.pressed.add(code);
     }
     this.lockListeners.forEach((fn) => fn(this.locked));
   };
@@ -105,8 +108,8 @@ export class InputController {
   attach(): void {
     if (this.enabled) return;
     this.enabled = true;
-    window.addEventListener('keydown', this.onKeyDown);
-    window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('keydown', this.onKeyDown, true);
+    window.addEventListener('keyup', this.onKeyUp, true);
     window.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('mousemove', this.onMouseMove);
@@ -119,8 +122,8 @@ export class InputController {
   detach(): void {
     if (!this.enabled) return;
     this.enabled = false;
-    window.removeEventListener('keydown', this.onKeyDown);
-    window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('keydown', this.onKeyDown, true);
+    window.removeEventListener('keyup', this.onKeyUp, true);
     window.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('mousemove', this.onMouseMove);
@@ -210,6 +213,10 @@ export class InputController {
     return true;
   }
 
+  peekEdge(action: string): boolean {
+    return this.uiEdges.has(action);
+  }
+
   clearEdges(): void {
     this.uiEdges.clear();
   }
@@ -269,7 +276,11 @@ const GAMEPLAY_KEYS = new Set([
   'KeyS',
   'KeyD',
   'ControlLeft',
+  'ControlRight',
   'ShiftLeft',
+  'ShiftRight',
+  'AltLeft',
+  'AltRight',
   'Digit1',
   'Digit2',
   'Digit3',
@@ -278,6 +289,14 @@ const GAMEPLAY_KEYS = new Set([
   'F3',
   'KeyB',
 ]);
+
+function shouldBlockBrowserDefault(event: KeyboardEvent): boolean {
+  if (event.code === 'Escape' || event.code === 'F5' || event.code === 'F12') return false;
+  if (event.ctrlKey && (event.code === 'KeyR' || event.code === 'KeyT' || event.code === 'KeyW' || event.code === 'KeyN')) {
+    return false;
+  }
+  return GAMEPLAY_KEYS.has(event.code) || event.ctrlKey || event.altKey;
+}
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;

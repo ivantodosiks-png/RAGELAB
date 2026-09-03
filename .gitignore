@@ -20,3 +20,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local asset scratch (downloads, gltf-transform, FBX sources)
+tmp-assets/

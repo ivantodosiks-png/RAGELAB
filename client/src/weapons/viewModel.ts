@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { clamp, lerp, type Vec3, type WeaponDefinition } from '@ragelab/shared';
 import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
 import { buildWeaponMesh, ejectOffsetFor, muzzleOffsetFor } from './weaponMeshes';
+import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual, weaponModelUrl } from './weaponAssets';
 
 /**
  * First-person weapon model.
@@ -65,6 +66,7 @@ export class WeaponViewModel {
     const built = buildWeaponMesh(def, this.disposables);
     this.model.add(built.root);
     this.magRestY = built.magRestY;
+    this.attachGltf(def);
 
     this.muzzlePoint.position.set(...muzzleOffsetFor(def));
     this.ejectPoint.position.set(...ejectOffsetFor(def));
@@ -224,6 +226,37 @@ export class WeaponViewModel {
     this.model.clear();
     this.model.add(this.muzzlePoint);
     this.model.add(this.ejectPoint);
+  }
+
+  private attachGltf(def: WeaponDefinition): void {
+    const url = weaponModelUrl(def.id);
+    if (!url) return;
+    const length = Math.max(def.visual.size[2], 0.2);
+    const apply = (visual: THREE.Object3D): void => {
+      if (this.def?.id !== def.id) {
+        visual.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const mat of mats) mat.dispose();
+        });
+        return;
+      }
+      const procedural = this.model.children.find((child) => child !== this.muzzlePoint && child !== this.ejectPoint);
+      if (procedural) this.model.remove(procedural);
+      visual.name = 'weaponGltf';
+      visual.position.z += 0.04;
+      this.model.add(visual);
+    };
+    const ready = instantiateWeaponVisual(def.id, length, { lod: false, shadows: false });
+    if (ready) {
+      apply(ready);
+      return;
+    }
+    void loadWeaponModel(def.id).then((clone) => {
+      if (!clone) return;
+      apply(prepareWeaponVisual(clone, length, { lod: false, shadows: false }));
+    });
   }
 
   dispose(): void {

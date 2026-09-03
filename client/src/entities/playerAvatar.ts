@@ -16,6 +16,7 @@ import {
 import type { InterpolatedPlayer } from '../networking/snapshotInterpolator';
 import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
 import { buildWeaponMesh, muzzleOffsetFor } from '../weapons/weaponMeshes';
+import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual } from '../weapons/weaponAssets';
 
 const TEAM_COLORS = [0xf05b4a, 0x4a9df0, 0x67e08a, 0xf0c14a];
 
@@ -267,6 +268,29 @@ export class PlayerAvatar {
     built.root.scale.setScalar(0.92);
     this.weaponHolder.add(built.root);
     this.muzzlePoint.position.set(...muzzleOffsetFor(def));
+    this.attachAvatarWeapon(def.id, def.visual.size[2]);
+  }
+
+  private attachAvatarWeapon(id: string, length: number): void {
+    const token = this.currentWeapon;
+    const apply = (visual: THREE.Object3D): void => {
+      if (token !== this.currentWeapon) return;
+      const keep = new Set<THREE.Object3D>([this.muzzlePoint]);
+      for (const child of [...this.weaponHolder.children]) {
+        if (!keep.has(child)) this.weaponHolder.remove(child);
+      }
+      visual.scale.setScalar(0.92);
+      this.weaponHolder.add(visual);
+    };
+    const ready = instantiateWeaponVisual(id, length, { lod: false, shadows: true });
+    if (ready) {
+      apply(ready);
+      return;
+    }
+    void loadWeaponModel(id).then((clone) => {
+      if (!clone || token !== this.currentWeapon) return;
+      apply(prepareWeaponVisual(clone, length, { lod: false, shadows: true }));
+    });
   }
 
   dispose(): void {

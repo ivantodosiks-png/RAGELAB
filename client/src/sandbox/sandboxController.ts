@@ -18,7 +18,10 @@ import {
 import { doorTransform, doorWidthAxis } from '../physics/clientWorld';
 import type { SnapshotInterpolator } from '../networking/snapshotInterpolator';
 import { SandboxNpc, type NpcUserData } from './sandboxNpc';
+import { SandboxWeapon, type WeaponUserData } from './sandboxWeapon';
 import { SharedNpcAssets } from './npcModel';
+import { preloadNpcHumanoid } from './npcGltf';
+import { SANDBOX_WEAPON_KINDS, type SandboxWeaponKind } from '../weapons/weaponAssets';
 import {
   EFFECTS_MAX_BY_QUALITY,
   NPC_MAX_BY_QUALITY,
@@ -70,14 +73,17 @@ export class SandboxController {
   private readonly assets = new SharedNpcAssets();
   private readonly pool: SandboxNpc[] = [];
   private readonly live: SandboxNpc[] = [];
+  private readonly weaponPool: SandboxWeapon[] = [];
+  private readonly liveWeapons: SandboxWeapon[] = [];
+  private heldWeapon: SandboxWeapon | null = null;
   private readonly propBodies: RAPIER.RigidBody[] = [];
   private readonly doorBodies: RAPIER.RigidBody[] = [];
   private playerProxy: RAPIER.RigidBody;
   private playerCollider: RAPIER.Collider;
   private readonly marker: THREE.Mesh;
   private readonly inspectRing: THREE.Mesh;
-  private readonly hoverBox: THREE.Box3Helper;
-  private readonly hoverBounds = new THREE.Box3();
+  onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
+    null;
 
   private selected: SandboxNpc | null = null;
   private hovered: SandboxNpc | null = null;
@@ -136,15 +142,11 @@ export class SandboxController {
     this.inspectRing = new THREE.Mesh(ringGeo, ringMat);
     this.inspectRing.rotation.x = -Math.PI / 2;
     this.inspectRing.visible = false;
+    this.inspectRing.renderOrder = 8;
     this.root.add(this.inspectRing);
 
-    this.hoverBox = new THREE.Box3Helper(this.hoverBounds, 0xffffff);
-    (this.hoverBox.material as THREE.LineBasicMaterial).transparent = true;
-    (this.hoverBox.material as THREE.LineBasicMaterial).opacity = 0.9;
-    this.hoverBox.visible = false;
-    this.root.add(this.hoverBox);
-
     this.warmPool(Math.min(8, this.settings.maxNpcs));
+    void this.bootHumanoids();
   }
 
   onChange(fn: () => void): () => void {
@@ -160,6 +162,10 @@ export class SandboxController {
 
   get liveCount(): number {
     return this.live.length;
+  }
+
+  get weaponCount(): number {
+    return this.liveWeapons.length;
   }
 
   get selectedNpc(): SandboxInspect | null {
@@ -178,7 +184,7 @@ export class SandboxController {
 
   setTool(tool: SandboxTool): void {
     this.tool = tool;
-    this.marker.visible = tool === 'spawn';
+    this.marker.visible = tool === 'spawn' || tool === 'spawnWeapon';
     this.emit();
   }
 
@@ -202,6 +208,7 @@ export class SandboxController {
     this.settings.npcCount = clampInt(this.settings.npcCount, 1, this.settings.maxNpcs);
     this.settings.maxNpcs = clampInt(this.settings.maxNpcs, 1, 64);
     this.settings.maxEffects = clampInt(this.settings.maxEffects, 20, 800);
+    this.settings.maxWeapons = clampInt(this.settings.maxWeapons ?? 32, 1, 64);
     if (this.settings.autoCleanup) this.enforceCap();
     this.emit();
   }
@@ -237,9 +244,26 @@ export class SandboxController {
       this.spawnBurst(point, Math.atan2(-aim.dir.x, -aim.dir.z));
       return true;
     }
+    if (this.tool === 'spawnWeapon') {
+      const point = this.groundPoint(aim.origin, aim.dir);
+      if (!point) return true;
+      this.spawnWeaponAt(point, Math.atan2(-aim.dir.x, -aim.dir.z));
+      return true;
+    }
+    if (this.tool === 'grab') {
+      if (this.heldWeapon?.active) {
+        this.throwHeld(aim.dir);
+        return true;
+      }
+      const weapon = this.pickWeapon(camera, aim.origin, aim.dir);
+      if (weapon) this.holdWeapon(weapon);
+      return true;
+    }
     const npc = this.pickNpc(camera, aim.origin, aim.dir);
+    const weapon = this.pickWeapon(camera, aim.origin, aim.dir);
     if (this.tool === 'delete') {
-      if (npc) this.removeNpc(npc);
+      if (weapon) this.removeWeapon(weapon);
+      else if (npc) this.removeNpc(npc);
       else this.removeNearest(aim.origin);
       return true;
     }
@@ -260,8 +284,15 @@ export class SandboxController {
     const hit = this.world.castRay(ray, range, true);
     if (!hit) return false;
     const body = hit.collider.parent();
-    const data = body?.userData as NpcUserData | undefined;
-    if (!data || data.kind !== 'sandboxNpc') return false;
+    const data = body?.userData as NpcUserData | WeaponUserData | undefined;
+    if (!data) return false;
+    if (data.kind === 'sandboxWeapon') {
+      const weapon = this.liveWeapons.find((w) => w.id === data.weaponId);
+      weapon?.applyImpulse(dir, RAGDOLL.shotImpulse * 0.55);
+      this.emit();
+      return true;
+    }
+    if (data.kind !== 'sandboxNpc') return false;
     const npc = this.live.find((n) => n.id === data.npcId);
     if (!npc) return false;
     const part = data.part === 'locator' ? 'torso' : data.part;
@@ -320,6 +351,78 @@ export class SandboxController {
     for (const npc of [...this.live]) this.removeNpc(npc);
   }
 
+  spawnWeaponAtLook(aimOrigin: Vec3, aimDir: Vec3): boolean {
+    const point = this.groundPoint(aimOrigin, aimDir) ?? {
+      x: aimOrigin.x + aimDir.x * 3,
+      y: aimOrigin.y,
+      z: aimOrigin.z + aimDir.z * 3,
+    };
+    return this.spawnWeaponAt(point, Math.atan2(-aimDir.x, -aimDir.z));
+  }
+
+  spawnWeaponAt(point: { x: number; y: number; z: number }, yaw: number): boolean {
+    if (this.liveWeapons.length >= this.settings.maxWeapons) {
+      if (this.settings.autoCleanup) this.removeOldestWeapon();
+      else return false;
+    }
+    const kind = (SANDBOX_WEAPON_KINDS as readonly string[]).includes(this.settings.weaponKind)
+      ? this.settings.weaponKind
+      : 'pistol';
+    const weapon = this.acquireWeapon();
+    weapon.spawn(kind as SandboxWeaponKind, point.x, point.y + this.settings.spawnHeight, point.z, yaw);
+    this.emit();
+    return true;
+  }
+
+  removeWeapon(weapon: SandboxWeapon): void {
+    if (this.heldWeapon === weapon) this.heldWeapon = null;
+    weapon.despawn();
+    const index = this.liveWeapons.indexOf(weapon);
+    if (index >= 0) this.liveWeapons.splice(index, 1);
+    this.emit();
+  }
+
+  removeAllWeapons(): void {
+    this.heldWeapon = null;
+    for (const weapon of [...this.liveWeapons]) this.removeWeapon(weapon);
+  }
+
+  private holdWeapon(weapon: SandboxWeapon): void {
+    if (this.heldWeapon && this.heldWeapon !== weapon) this.throwHeld({ x: 0, y: 0.2, z: 1 });
+    this.heldWeapon = weapon;
+    weapon.hold();
+    this.emit();
+  }
+
+  private throwHeld(dir: Vec3): void {
+    const weapon = this.heldWeapon;
+    if (!weapon) return;
+    this.heldWeapon = null;
+    weapon.throw(dir);
+    this.emit();
+  }
+
+  private acquireWeapon(): SandboxWeapon {
+    let weapon = this.weaponPool.find((w) => !w.active);
+    if (!weapon) {
+      weapon = new SandboxWeapon(this.rapier, this.world);
+      this.weaponPool.push(weapon);
+      this.root.add(weapon.root);
+      weapon.onImpact = (x, y, z, nx, ny, nz, speed) => this.onImpact?.(x, y, z, nx, ny, nz, speed);
+    }
+    this.liveWeapons.push(weapon);
+    return weapon;
+  }
+
+  private removeOldestWeapon(): void {
+    let oldest = this.liveWeapons[0];
+    if (!oldest) return;
+    for (const weapon of this.liveWeapons) {
+      if (weapon.spawnedAt < oldest.spawnedAt) oldest = weapon;
+    }
+    this.removeWeapon(oldest);
+  }
+
   ragdollSelected(): void {
     this.selected?.enterRagdoll({ x: 0, y: 4, z: 0 });
     this.emit();
@@ -370,6 +473,27 @@ export class SandboxController {
     }
 
     for (const npc of this.live) npc.update(ctx.dt);
+    for (const weapon of this.liveWeapons) {
+      weapon.update(ctx.dt, ctx.camera);
+      weapon.contactsNpc((npcId, part, impulse) => {
+        const npc = this.live.find((n) => n.id === npcId);
+        npc?.enterRagdoll(impulse, (part === 'locator' ? 'torso' : part) as NpcPartId);
+        const p = weapon.translation;
+        this.onImpact?.(p.x, p.y, p.z, 0, 1, 0, Math.hypot(impulse.x, impulse.y, impulse.z));
+        this.emit();
+      });
+    }
+
+    if (this.heldWeapon?.active) {
+      const hold = {
+        x: ctx.camera.position.x + ctx.aimDir.x * 1.15,
+        y: ctx.camera.position.y + ctx.aimDir.y * 1.15 - 0.12,
+        z: ctx.camera.position.z + ctx.aimDir.z * 1.15,
+      };
+      this.heldWeapon.follow(hold, Math.atan2(-ctx.aimDir.x, -ctx.aimDir.z));
+    } else if (this.heldWeapon && !this.heldWeapon.active) {
+      this.heldWeapon = null;
+    }
 
     const lookOrigin = {
       x: ctx.camera.position.x,
@@ -379,7 +503,7 @@ export class SandboxController {
     const dir = ctx.cursorMode ? this.dirFromNdc(ctx.camera) : ctx.aimDir;
     const origin = lookOrigin;
 
-    if (this.tool === 'spawn') {
+    if (this.tool === 'spawn' || this.tool === 'spawnWeapon') {
       const point = this.groundPoint(origin, dir);
       if (point) {
         this.marker.visible = true;
@@ -397,35 +521,30 @@ export class SandboxController {
     }
 
     const outlined = this.selected?.active ? this.selected : this.hovered;
+    const ringMat = this.inspectRing.material as THREE.MeshBasicMaterial;
     if (outlined?.active) {
-      this.hoverBox.visible = true;
-      this.hoverBounds.setFromObject(outlined.root);
-      this.hoverBox.updateMatrixWorld(true);
-    } else {
-      this.hoverBox.visible = false;
-    }
-
-    if (this.selected?.active) {
-      const p = this.selected.position;
+      const p = outlined.position;
       this.inspectRing.visible = true;
       this.inspectRing.position.set(p.x, p.y + 0.03, p.z);
+      ringMat.opacity = this.selected?.active && this.selected === outlined ? 0.9 : 0.45;
     } else {
       this.inspectRing.visible = false;
-      if (this.selected && !this.selected.active) this.selected = null;
     }
+    if (this.selected && !this.selected.active) this.selected = null;
   }
 
   dispose(): void {
     this.removeAllNpcs();
+    this.removeAllWeapons();
     for (const npc of this.pool) npc.dispose();
     this.pool.length = 0;
+    for (const weapon of this.weaponPool) weapon.dispose();
+    this.weaponPool.length = 0;
     this.assets.dispose();
     (this.marker.material as THREE.Material).dispose();
     this.marker.geometry.dispose();
     (this.inspectRing.material as THREE.Material).dispose();
     this.inspectRing.geometry.dispose();
-    (this.hoverBox.material as THREE.Material).dispose();
-    this.hoverBox.geometry.dispose();
     this.world.free();
     this.root.removeFromParent();
   }
@@ -442,7 +561,7 @@ export class SandboxController {
     if (!npc) {
       npc = new SandboxNpc(this.rapier, this.world, this.assets, Math.random);
       this.pool.push(npc);
-      this.root.add(npc.root);
+      this.bindNpc(npc);
     }
     this.live.push(npc);
     return npc;
@@ -452,8 +571,22 @@ export class SandboxController {
     for (let i = 0; i < count; i++) {
       const npc = new SandboxNpc(this.rapier, this.world, this.assets, Math.random);
       this.pool.push(npc);
-      this.root.add(npc.root);
+      this.bindNpc(npc);
     }
+  }
+
+  private bindNpc(npc: SandboxNpc): void {
+    this.root.add(npc.root);
+    npc.onImpact = (x, y, z, nx, ny, nz, speed) => {
+      this.onImpact?.(x, y, z, nx, ny, nz, speed);
+    };
+  }
+
+  private async bootHumanoids(): Promise<void> {
+    const gltf = await preloadNpcHumanoid();
+    if (!gltf) return;
+    for (const npc of this.pool) npc.attachHumanoid();
+    for (const npc of this.live) npc.attachHumanoid();
   }
 
   private enforceCap(): void {
@@ -534,6 +667,21 @@ export class SandboxController {
     if (hits.length === 0) return null;
     const obj = hits[0]!.object;
     return this.live.find((n) => n.matchesObject(obj)) ?? null;
+  }
+
+  private pickWeapon(camera: THREE.Camera, origin: Vec3, dir: Vec3): SandboxWeapon | null {
+    if (this.cursorMode) {
+      raycaster.setFromCamera(ndc.set(this.lastPointer.x, this.lastPointer.y), camera);
+    } else {
+      raycaster.set(pickOrigin.set(origin.x, origin.y, origin.z), pickDir.set(dir.x, dir.y, dir.z));
+    }
+    const hits = raycaster.intersectObjects(
+      this.liveWeapons.map((w) => w.root),
+      true,
+    );
+    if (hits.length === 0) return null;
+    const obj = hits[0]!.object;
+    return this.liveWeapons.find((w) => w.matchesObject(obj)) ?? null;
   }
 
   private dirFromNdc(camera: THREE.Camera): Vec3 {
