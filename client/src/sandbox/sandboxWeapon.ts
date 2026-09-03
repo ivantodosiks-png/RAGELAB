@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
-import { SANDBOX_GROUPS } from '@ragelab/shared';
+import { SANDBOX_PHYSICAL_GROUPS } from '@ragelab/shared';
 import {
   WEAPON_PHYSICS,
   instantiateWeaponVisual,
@@ -61,7 +61,7 @@ export class SandboxWeapon {
         .setMass(phys.mass)
         .setFriction(0.58)
         .setRestitution(0.12)
-        .setCollisionGroups(SANDBOX_GROUPS),
+        .setCollisionGroups(SANDBOX_PHYSICAL_GROUPS),
       this.body,
     );
     this.body.setEnabled(false);

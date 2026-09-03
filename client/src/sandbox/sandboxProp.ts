@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PROP_GROUPS, colliderDescForProp, getArchetype, type PropKind } from '@ragelab/shared';
+import { SANDBOX_PROP_GROUPS, colliderDescForProp, getArchetype, type PropKind } from '@ragelab/shared';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { propGeometry, propMaterial } from '../maps/mapMeshBuilder';
 
@@ -70,7 +70,7 @@ export class SandboxProp {
         .setMass(24)
         .setFriction(0.7)
         .setRestitution(0.12)
-        .setCollisionGroups(PROP_GROUPS),
+        .setCollisionGroups(SANDBOX_PROP_GROUPS),
       this.body,
     );
     this.body.setEnabled(false);
@@ -196,7 +196,7 @@ export class SandboxProp {
         .setMass(a.mass)
         .setFriction(a.friction)
         .setRestitution(a.restitution)
-        .setCollisionGroups(PROP_GROUPS),
+        .setCollisionGroups(SANDBOX_PROP_GROUPS),
       this.body,
     );
     this.collider.setEnabled(enabled);

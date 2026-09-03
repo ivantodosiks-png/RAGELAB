@@ -24,11 +24,13 @@ import {
   type Vec3,
   type WeaponId,
   type WelcomePayload,
+  animationStateFor,
 } from '@ragelab/shared';
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
 import { MapMeshBuilder } from '../maps/mapMeshBuilder';
 import { LocalPlayer } from '../player/localPlayer';
+import { LocalCharacter, clipFromAnimation } from '../player/localCharacter';
 import { InputController, TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { CameraRig } from '../player/cameraRig';
 import { NetClient, type ConnectOptions } from '../networking/netClient';
@@ -92,6 +94,7 @@ export class GameSession {
   private sandbox!: SandboxController;
   private spawnMenu!: SpawnMenu;
   private toolGunView!: ToolGunView;
+  private localCharacter: LocalCharacter | null = null;
 
   private localId = 0;
   private loadout: WeaponId[] = [...DEFAULT_LOADOUT];
@@ -197,6 +200,8 @@ export class GameSession {
           for (const id of payload.players) this.identities.set(id.id, id);
           this.entities.setIdentities(payload.players);
           this.scores = payload.scores;
+          const self = payload.players.find((p) => p.id === this.localId);
+          if (self) this.localCharacter?.setIdentity(self);
         },
         onError: (payload) => {
           this.ui.toast(payload.message);
@@ -252,6 +257,13 @@ export class GameSession {
     this.sandbox.onImpact = (x, y, z, nx, ny, nz, speed) => {
       this.effects.physicsImpact({ x, y, z }, { x: nx, y: ny, z: nz }, speed);
     };
+    this.sandbox.onNpcHit = (x, y, z, nx, ny, nz, zone, killed) => {
+      this.effects.npcHitEffect({ x, y, z }, { x: nx, y: ny, z: nz }, performance.now(), zone, killed);
+      this.audio.playAt('impact_flesh', { x, y, z }, killed || zone === 'head' ? 0.85 : 0.55, 36, 0.05);
+    };
+    this.localCharacter?.dispose();
+    this.localCharacter = new LocalCharacter(this.identities.get(this.localId) ?? welcome.players.find((p) => p.id === welcome.playerId));
+    this.renderer.scene.add(this.localCharacter.root);
     this.effects.setSoftCap(this.sandbox.settings.maxEffects);
     this.sandbox.onChange(() => this.effects.setSoftCap(this.sandbox.settings.maxEffects));
 
@@ -529,7 +541,7 @@ export class GameSession {
 
     if (this.weapon.didFire) {
       this.spawnPredictedTracer();
-      this.sandbox.tryShot(muzzlePos, muzzleDir, this.weapon.definition.range);
+      this.sandbox.tryShot(muzzlePos, muzzleDir, this.weapon.definition.range, this.weapon.definition);
     }
 
     if (this.local.footstepThisFrame) {
@@ -554,6 +566,15 @@ export class GameSession {
     this.interp.sample(now, this.localId);
     this.syncPhysicsFromInterp();
     this.entities.update(this.interp, dt, now, this.renderer.camera.position);
+    const localFlags =
+      (predicted.grounded ? PlayerFlag.Grounded : 0) | (predicted.crouching ? PlayerFlag.Crouching : 0);
+    this.localCharacter?.update(
+      dt,
+      predicted.position,
+      this.input.yaw,
+      clipFromAnimation(animationStateFor({ flags: localFlags, velocity: predicted.velocity }), predicted.speed),
+      this.local.alive,
+    );
     this.playRemoteFootsteps(dt);
     MapMeshBuilder.animatePickups(this.mapBuilder.root, now / 1000);
 
@@ -865,6 +886,8 @@ export class GameSession {
     this.net?.disconnect();
     this.weapon?.dispose();
     this.toolGunView?.dispose();
+    this.localCharacter?.dispose();
+    this.localCharacter = null;
     this.entities?.dispose();
     this.sandbox?.dispose();
     this.spawnMenu?.dispose();

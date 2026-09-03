@@ -15,6 +15,8 @@ export const Group = {
   Door: 0x0008,
   /** Client-only ragdoll / sandbox NPCs. Never replicated. */
   Sandbox: 0x0010,
+  /** Sensor/query group for NPC limb hitboxes (shots). Locator capsules omit this. */
+  SandboxHit: 0x0020,
 } as const;
 
 export function groups(membership: number, filter: number): number {
@@ -39,6 +41,30 @@ export const SANDBOX_GROUPS = groups(
   Group.Sandbox,
   Group.World | Group.Prop | Group.Door | Group.Sandbox,
 );
+
+/** Limb hitboxes: raycasts hit these; the walking locator capsule does not. */
+export const SANDBOX_HITBOX_GROUPS = groups(
+  Group.SandboxHit,
+  Group.World | Group.Prop | Group.Door | Group.Sandbox | Group.SandboxHit,
+);
+
+/**
+ * Ragdoll parts and spawned weapons: collide physically and remain shootable.
+ * Membership includes SandboxHit so shots that ignore the locator still connect.
+ */
+export const SANDBOX_PHYSICAL_GROUPS = groups(
+  Group.Sandbox | Group.SandboxHit,
+  Group.World | Group.Prop | Group.Door | Group.Sandbox | Group.SandboxHit,
+);
+
+/** Client sandbox props that should also take hitscan shots. */
+export const SANDBOX_PROP_GROUPS = groups(
+  Group.Prop | Group.SandboxHit,
+  Group.World | Group.Prop | Group.Player | Group.Door | Group.Sandbox | Group.SandboxHit,
+);
+
+/** Client sandbox bullets: limb sensors, ragdolls, spawned weapons and props. */
+export const SANDBOX_SHOT_FILTER = groups(Group.SandboxHit, Group.SandboxHit);
 
 /** Filter used by bullet raycasts: geometry only, players are tested analytically. */
 export const BULLET_FILTER_GROUPS = groups(

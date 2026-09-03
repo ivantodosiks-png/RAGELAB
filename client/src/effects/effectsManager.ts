@@ -195,11 +195,11 @@ export class EffectsManager {
     this.decals.spawn(look.decal, position, normal, 0.14 + strength * 0.1, nowMs);
   }
 
-  bloodEffect(position: Vec3, normal: Vec3, nowMs: number): void {
-    const count = Math.max(3, Math.round(9 * this.effectsScale));
+  bloodEffect(position: Vec3, normal: Vec3, nowMs: number, scale = 1): void {
+    const count = Math.max(2, Math.round(8 * this.effectsScale * scale));
     for (let i = 0; i < count; i++) {
       const dir = scatter(normal, 1.1);
-      const speed = 2 + Math.random() * 5;
+      const speed = 2 + Math.random() * 5 * scale;
       this.particles.spawn({
         x: position.x,
         y: position.y,
@@ -207,18 +207,41 @@ export class EffectsManager {
         vx: dir.x * speed,
         vy: dir.y * speed + 1,
         vz: dir.z * speed,
-        life: 0.35 + Math.random() * 0.3,
-        size: 0.04 + Math.random() * 0.035,
-        sizeEnd: 0.012,
+        life: 0.32 + Math.random() * 0.28,
+        size: 0.035 + Math.random() * 0.03 * scale,
+        sizeEnd: 0.01,
         color: 0xb4232a,
         colorEnd: 0x5c0d12,
         gravity: 1.4,
         drag: 1.1,
       });
     }
-    // A decal only lands if the shot was close to a surface; the caller passes
-    // the impact normal so the splat sits flat against it.
-    this.decals.spawn('blood', position, normal, 0.4, nowMs);
+    this.decals.spawn('blood', position, normal, 0.28 + 0.18 * scale, nowMs);
+  }
+
+  npcHitEffect(position: Vec3, normal: Vec3, nowMs: number, zone: string, killed: boolean): void {
+    const head = zone === 'head';
+    const scale = killed ? (head ? 1.45 : 1.15) : head ? 0.9 : 0.55;
+    this.bloodEffect(position, normal, nowMs, scale);
+    const sparks = killed ? 4 : 2;
+    for (let i = 0; i < sparks; i++) {
+      const dir = scatter(normal, 0.55);
+      this.particles.spawn({
+        x: position.x,
+        y: position.y,
+        z: position.z,
+        vx: dir.x * 3.5,
+        vy: dir.y * 3.5 + 0.6,
+        vz: dir.z * 3.5,
+        life: 0.12 + Math.random() * 0.1,
+        size: 0.028,
+        sizeEnd: 0.006,
+        color: 0xffe8c8,
+        colorEnd: 0x8a2a2a,
+        gravity: 0.4,
+        drag: 2.4,
+      });
+    }
   }
 
   explosion(position: Vec3, radius: number, nowMs: number): void {

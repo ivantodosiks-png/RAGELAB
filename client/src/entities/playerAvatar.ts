@@ -17,6 +17,12 @@ import type { InterpolatedPlayer } from '../networking/snapshotInterpolator';
 import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
 import { buildWeaponMesh, muzzleOffsetFor } from '../weapons/weaponMeshes';
 import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual } from '../weapons/weaponAssets';
+import {
+  instantiateCharacter,
+  preloadCharacter,
+  type SkinnedCharacter,
+} from '../characters/skinnedHumanoid';
+import { clipFromAnimation, lookFromIdentity } from '../player/localCharacter';
 
 const TEAM_COLORS = [0xf05b4a, 0x4a9df0, 0x67e08a, 0xf0c14a];
 
@@ -56,6 +62,11 @@ export class PlayerAvatar {
   private readonly muzzleLight: THREE.PointLight;
   private currentWeapon = -1;
   private readonly weaponDisposables: Array<{ dispose(): void }> = [];
+  private skinned: SkinnedCharacter | null = null;
+  private readonly proxyMeshes: THREE.Object3D[] = [];
+  private readonly handWorld = new THREE.Vector3();
+  private readonly handQuat = new THREE.Quaternion();
+  private readonly parentInv = new THREE.Quaternion();
 
   constructor(
     readonly playerId: number,
@@ -75,17 +86,20 @@ export class PlayerAvatar {
     torso.castShadow = true;
     torso.receiveShadow = true;
     this.torsoPivot.add(torso);
+    this.proxyMeshes.push(torso);
 
     this.headPivot.position.y = 1.5;
     this.torsoPivot.add(this.headPivot);
     const head = new THREE.Mesh(shared.headGeometry, shared.headMaterial);
     head.castShadow = true;
     this.headPivot.add(head);
+    this.proxyMeshes.push(head);
 
     // Visor so you can tell which way a player is facing at a glance.
     const visor = new THREE.Mesh(shared.visorGeometry, shared.visorMaterial);
     visor.position.set(0, 0.02, -0.15);
     this.headPivot.add(visor);
+    this.proxyMeshes.push(visor);
 
     for (const side of [-1, 1]) {
       const pivot = new THREE.Object3D();
@@ -96,6 +110,7 @@ export class PlayerAvatar {
       mesh.castShadow = true;
       pivot.add(mesh);
       this.legs.push({ pivot, mesh });
+      this.proxyMeshes.push(mesh);
     }
 
     for (const side of [-1, 1]) {
@@ -107,6 +122,7 @@ export class PlayerAvatar {
       mesh.castShadow = true;
       pivot.add(mesh);
       this.arms.push({ pivot, mesh });
+      this.proxyMeshes.push(mesh);
     }
 
     this.weaponHolder.position.set(0.04, -0.3, -0.16);
@@ -153,6 +169,8 @@ export class PlayerAvatar {
     this.healthBar = makeHealthSprite();
     this.healthBar.position.y = PLAYER_HEIGHT_STAND + 0.25;
     this.root.add(this.healthBar);
+
+    void preloadCharacter('soldier').then(() => this.attachSkinned(identity));
   }
 
   setIdentity(identity: PlayerIdentity): void {
@@ -191,33 +209,42 @@ export class PlayerAvatar {
     const state2d = animationStateFor({ flags: state.flags, velocity: state.velocity });
     this.currentState = state2d;
 
-    const speed = Math.hypot(state.velocity.x, state.velocity.z);
-    const strideRate = state2d === AnimationState.Run ? 9.5 : 6.4;
-    this.phase += dt * strideRate * clamp(speed / 5.2, 0, 1.6);
+    if (this.skinned) {
+      this.skinned.play(dead ? 'idle' : clipFromAnimation(state2d, speedForClip(state.velocity)));
+      this.skinned.update(dt, this.root.position.distanceTo(cameraPos));
+      this.skinned.root.scale.y = scaleY;
+      this.skinned.root.rotation.x = this.deathBlend * (Math.PI / 2) * 0.92;
+      this.skinned.root.position.y = -this.deathBlend * 0.55;
+      this.syncWeaponToHand();
+    } else {
+      const speed = Math.hypot(state.velocity.x, state.velocity.z);
+      const strideRate = state2d === AnimationState.Run ? 9.5 : 6.4;
+      this.phase += dt * strideRate * clamp(speed / 5.2, 0, 1.6);
 
-    const swing = clamp(speed / 5.2, 0, 1.3) * (dead ? 0 : 1);
-    const legSwing = Math.sin(this.phase) * 0.62 * swing;
-    this.legs[0]!.pivot.rotation.x = legSwing;
-    this.legs[1]!.pivot.rotation.x = -legSwing;
+      const swing = clamp(speed / 5.2, 0, 1.3) * (dead ? 0 : 1);
+      const legSwing = Math.sin(this.phase) * 0.62 * swing;
+      this.legs[0]!.pivot.rotation.x = legSwing;
+      this.legs[1]!.pivot.rotation.x = -legSwing;
 
-    if (state2d === AnimationState.Jump || state2d === AnimationState.Fall) {
-      this.legs[0]!.pivot.rotation.x = -0.35;
-      this.legs[1]!.pivot.rotation.x = 0.2;
+      if (state2d === AnimationState.Jump || state2d === AnimationState.Fall) {
+        this.legs[0]!.pivot.rotation.x = -0.35;
+        this.legs[1]!.pivot.rotation.x = 0.2;
+      }
+
+      // Arms hold the weapon toward the aim pitch; the off hand supports it.
+      const pitch = clamp(state.pitch, -1.2, 1.2);
+      this.arms[1]!.pivot.rotation.x = -1.35 - pitch * (dead ? 0 : 1);
+      this.arms[0]!.pivot.rotation.x = -1.15 - pitch * 0.9 * (dead ? 0 : 1);
+      this.arms[0]!.pivot.rotation.z = 0.32;
+      this.arms[1]!.pivot.rotation.z = -0.22;
+
+      if (dead) {
+        this.arms[0]!.pivot.rotation.x = -0.2;
+        this.arms[1]!.pivot.rotation.x = -0.2;
+      }
+
+      this.headPivot.rotation.x = pitch * 0.55;
     }
-
-    // Arms hold the weapon toward the aim pitch; the off hand supports it.
-    const pitch = clamp(state.pitch, -1.2, 1.2);
-    this.arms[1]!.pivot.rotation.x = -1.35 - pitch * (dead ? 0 : 1);
-    this.arms[0]!.pivot.rotation.x = -1.15 - pitch * 0.9 * (dead ? 0 : 1);
-    this.arms[0]!.pivot.rotation.z = 0.32;
-    this.arms[1]!.pivot.rotation.z = -0.22;
-
-    if (dead) {
-      this.arms[0]!.pivot.rotation.x = -0.2;
-      this.arms[1]!.pivot.rotation.x = -0.2;
-    }
-
-    this.headPivot.rotation.x = pitch * 0.55;
 
     this.equipWeapon(state.weapon);
 
@@ -252,6 +279,32 @@ export class PlayerAvatar {
 
   get animationState(): AnimationStateId {
     return this.currentState;
+  }
+
+  private attachSkinned(identity: PlayerIdentity | undefined): void {
+    if (this.skinned) return;
+    const inst = instantiateCharacter('soldier', lookFromIdentity(identity));
+    if (!inst) return;
+    this.skinned = inst;
+    this.root.add(inst.root);
+    this.weaponHolder.removeFromParent();
+    this.root.add(this.weaponHolder);
+    this.torsoPivot.visible = false;
+    for (const mesh of this.proxyMeshes) mesh.visible = false;
+  }
+
+  private syncWeaponToHand(): void {
+    const hand = this.skinned?.bones.handR;
+    if (!hand) return;
+    hand.updateWorldMatrix(true, false);
+    hand.getWorldPosition(this.handWorld);
+    hand.getWorldQuaternion(this.handQuat);
+    this.root.worldToLocal(this.handWorld);
+    this.weaponHolder.position.copy(this.handWorld);
+    this.root.getWorldQuaternion(this.parentInv);
+    this.parentInv.invert();
+    this.weaponHolder.quaternion.copy(this.parentInv).multiply(this.handQuat);
+    this.weaponHolder.rotation.x += 1.2;
   }
 
   private equipWeapon(index: number): void {
@@ -294,6 +347,8 @@ export class PlayerAvatar {
   }
 
   dispose(): void {
+    this.skinned?.dispose();
+    this.skinned = null;
     this.bodyMaterial.dispose();
     for (const item of this.weaponDisposables) item.dispose();
     (this.muzzleCore.material as THREE.SpriteMaterial).dispose();
@@ -393,4 +448,8 @@ function makeHealthSprite(): THREE.Sprite {
   const sprite = new THREE.Sprite(material);
   sprite.scale.set(1, 0.1, 1);
   return sprite;
+}
+
+function speedForClip(velocity: { x: number; y: number; z: number }): number {
+  return Math.hypot(velocity.x, velocity.z);
 }

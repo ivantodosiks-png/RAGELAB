@@ -2,6 +2,15 @@
 
 Third-party 3D assets shipped with RAGELAB. Only files under `client/public/` are bundled. Scratch downloads in `tmp-assets/` are not part of the game.
 
+## Player / NPC character — `client/public/models/characters/soldier.glb`
+
+- **Source:** three.js example `models/gltf/Soldier.glb` (Mixamo “Vanguard” by Adobe Mixamo).
+- **Author:** Adobe Mixamo; redistributed as a three.js example asset.
+- **URL:** https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Soldier.glb
+- **License:** Mixamo characters may be used **inside a game or real-time experience**. They must not be resold or redistributed as a standalone character pack. This repo ships a single runtime GLB for in-engine use only (player avatar + sandbox NPCs). See [Mixamo FAQ / terms](https://www.mixamo.com).
+- **Contents:** PBR-textured rigged humanoid (~2.1 MB) with Idle, Walk, Run (and T-Pose) Mixamo clips. Loaded once through AssetManager and cloned per instance; not preloaded onto the NPC pool.
+- **Use:** Local first-person body, remote player avatars, and the majority of spawned sandbox NPCs. Clothing tint, visor visibility, hair and cap overlays are original RAGELAB extras.
+
 ## NPC humanoid — `client/public/models/npc/humanoid.glb`
 
 - **Source:** Quaternius — Universal Animation Library character (glTF mannequin).
@@ -40,6 +49,8 @@ Third-party 3D assets shipped with RAGELAB. Only files under `client/public/` ar
 ## Evaluated, not shipped
 
 - **Kenney Animated Characters 3** — [CC0](https://creativecommons.org/publicdomain/zero/1.0/), https://kenney.nl. FBX-only; not converted for the browser client.
+- **Kenney Blocky / Mini Characters** — CC0. Too stylized / tiny for this FPS; not shipped.
+- **three.js Xbot.glb** — Mixamo Xbot (~2.9 MB, untextured). Heavier than Soldier with a worse look; not shipped.
 - **Kenney Blaster Kit** — CC0 sci-fi blasters. Lower poly than the gun pack, but a worse fit for this FPS; kept as a fallback candidate only.
 - **FantasySword.glb** — evaluated as a melee option; replaced by Pichuliru’s matching katana (no large texture).
 

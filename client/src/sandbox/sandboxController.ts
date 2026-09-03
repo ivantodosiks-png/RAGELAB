@@ -7,13 +7,17 @@ import {
   PLAYER_HEIGHT_STAND,
   PLAYER_RADIUS,
   SANDBOX_GROUPS,
+  SANDBOX_SHOT_FILTER,
   TICK_DT,
   buildMapColliders,
   createDoorBody,
   createReplicatedProp,
   groups,
+  npcHitDamage,
+  npcZoneForPart,
   type MapDefinition,
   type Vec3,
+  type WeaponDefinition,
 } from '@ragelab/shared';
 import { doorTransform, doorWidthAxis } from '../physics/clientWorld';
 import type { SnapshotInterpolator } from '../networking/snapshotInterpolator';
@@ -100,6 +104,9 @@ export class SandboxController {
   private readonly inspectRing: THREE.Mesh;
   onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
     null;
+  onNpcHit:
+    | ((x: number, y: number, z: number, nx: number, ny: number, nz: number, zone: string, killed: boolean) => void)
+    | null = null;
 
   private selected: SandboxNpc | null = null;
   private hovered: SandboxNpc | null = null;
@@ -361,30 +368,37 @@ export class SandboxController {
     return true;
   }
 
-  tryShot(origin: Vec3, dir: Vec3, range: number): boolean {
+  tryShot(origin: Vec3, dir: Vec3, range: number, weapon?: WeaponDefinition): boolean {
     const ray = new this.rapier.Ray(origin, dir);
-    const hit = this.world.castRay(ray, range, true);
+    const hit = this.world.castRay(ray, range, true, undefined, SANDBOX_SHOT_FILTER);
     if (!hit) return false;
     const body = hit.collider.parent();
     const data = body?.userData as NpcUserData | WeaponUserData | PropUserData | undefined;
     if (!data) return false;
     if (data.kind === 'sandboxWeapon') {
-      const weapon = this.liveWeapons.find((w) => w.id === data.weaponId);
-      weapon?.applyImpulse(dir, RAGDOLL.shotImpulse * 0.55);
+      const spawned = this.liveWeapons.find((w) => w.id === data.weaponId);
+      spawned?.applyImpulse(dir, (weapon?.impactImpulse ?? RAGDOLL.shotImpulse * 0.25) * 4);
       this.emit();
       return true;
     }
     if (data.kind === 'sandboxProp') {
       const prop = this.liveProps.find((p) => p.id === data.propId);
-      prop?.applyImpulse(dir, RAGDOLL.shotImpulse * 0.7);
+      prop?.applyImpulse(dir, (weapon?.impactImpulse ?? RAGDOLL.shotImpulse * 0.3) * 5);
       this.emit();
       return true;
     }
     if (data.kind !== 'sandboxNpc') return false;
     const npc = this.live.find((n) => n.id === data.npcId);
     if (!npc) return false;
-    const part = data.part === 'locator' ? 'torso' : data.part;
-    npc.applyShot(dir, part as NpcPartId, RAGDOLL.shotImpulse);
+    const part = (data.part === 'locator' ? 'torso' : data.part) as NpcPartId;
+    const zone = npcZoneForPart(part);
+    const distance = hit.timeOfImpact;
+    const damage = weapon ? npcHitDamage(weapon, zone, distance) : 34;
+    const killed = !npc.dead && npc.health - damage <= 0;
+    const impulse =
+      (weapon?.impactImpulse ?? 3.5) * (killed || npc.dead ? RAGDOLL.deathImpulse / 3.2 : 0.55);
+    npc.applyHit(dir, part, damage, impulse);
+    this.trimRagdolls();
     this.emit();
     return true;
   }
@@ -625,7 +639,14 @@ export class SandboxController {
       steps += 1;
     }
 
-    for (const npc of this.live) npc.update(ctx.dt);
+    for (const npc of this.live) {
+      const p = npc.position;
+      npc.setCameraDistance(
+        Math.hypot(p.x - ctx.camera.position.x, p.y - ctx.camera.position.y, p.z - ctx.camera.position.z),
+      );
+      npc.update(ctx.dt);
+    }
+    this.cleanupCorpses();
     for (const weapon of this.liveWeapons) {
       weapon.update(ctx.dt, ctx.camera);
       weapon.contactsNpc((npcId, part, impulse) => {
@@ -757,13 +778,35 @@ export class SandboxController {
     npc.onImpact = (x, y, z, nx, ny, nz, speed) => {
       this.onImpact?.(x, y, z, nx, ny, nz, speed);
     };
+    npc.onHit = (x, y, z, nx, ny, nz, zone, killed) => {
+      this.onNpcHit?.(x, y, z, nx, ny, nz, zone, killed);
+    };
   }
 
   private async bootHumanoids(): Promise<void> {
-    const gltf = await preloadNpcHumanoid();
-    if (!gltf) return;
-    for (const npc of this.pool) npc.attachHumanoid();
-    for (const npc of this.live) npc.attachHumanoid();
+    await preloadNpcHumanoid();
+  }
+
+  private cleanupCorpses(): void {
+    if (!this.settings.autoCleanup) return;
+    const now = performance.now();
+    const expired = this.live.filter((npc) => npc.dead && now - npc.corpseAt > RAGDOLL.corpseSec * 1000);
+    for (const npc of expired) this.removeNpc(npc);
+    this.trimRagdolls();
+  }
+
+  private trimRagdolls(): void {
+    const ragdolls = this.live.filter((npc) => npc.npcState === 'Ragdoll' || npc.dead);
+    while (ragdolls.length > RAGDOLL.maxLiveRagdolls) {
+      let oldest = ragdolls[0]!;
+      for (const npc of ragdolls) {
+        if (npc.dead && !oldest.dead) oldest = npc;
+        else if (npc.dead === oldest.dead && npc.spawnedAt < oldest.spawnedAt) oldest = npc;
+      }
+      this.removeNpc(oldest);
+      const idx = ragdolls.indexOf(oldest);
+      if (idx >= 0) ragdolls.splice(idx, 1);
+    }
   }
 
   private enforceCap(): void {

@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
-import { SANDBOX_GROUPS } from '@ragelab/shared';
+import {
+  NPC_MAX_HEALTH,
+  SANDBOX_GROUPS,
+  SANDBOX_HITBOX_GROUPS,
+  SANDBOX_PHYSICAL_GROUPS,
+  npcZoneForPart,
+} from '@ragelab/shared';
 import {
   PART_IDS,
   PART_PHYSICS,
@@ -19,11 +25,13 @@ import {
   randomNpcLook,
 } from './npcModel';
 import {
-  captureBoneBind,
   driveBonesFromParts,
   instantiateNpcHumanoid,
+  pickNpcKind,
   type NpcGltfInstance,
 } from './npcGltf';
+import type { CharacterKind, LocoClip } from '../characters/skinnedHumanoid';
+import { preloadCharacter } from '../characters/skinnedHumanoid';
 
 export interface NpcUserData {
   kind: 'sandboxNpc';
@@ -76,7 +84,15 @@ export class SandboxNpc {
   private gltf: NpcGltfInstance | null = null;
   private lastSpeed = 0;
   private impactCool = 0;
+  private flinch = 0;
+  private camDist = 0;
+  health = NPC_MAX_HEALTH;
+  dead = false;
+  corpseAt = 0;
+  private kind: CharacterKind;
   onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
+    null;
+  onHit: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, zone: string, killed: boolean) => void) | null =
     null;
 
   constructor(
@@ -88,11 +104,15 @@ export class SandboxNpc {
     this.id = nextId++;
     this.rapier = rapier;
     this.world = world;
+    this.kind = pickNpcKind(rng);
     this.visual = buildNpcVisual(assets, randomNpcLook(rng));
     this.root = this.visual.root;
     this.root.visible = false;
     this.buildPhysics();
     this.setPhysicsEnabled(false);
+    void preloadCharacter(this.kind).then(() => {
+      if (this.alive) this.attachHumanoid();
+    });
   }
 
   get npcState(): NpcState {
@@ -115,7 +135,7 @@ export class SandboxNpc {
   }
 
   get speed(): number {
-    if (this.state === 'Ragdoll') {
+    if (this.state === 'Ragdoll' || this.state === 'Dead') {
       const pelvis = this.parts.get('pelvis')?.body;
       if (!pelvis) return 0;
       const v = pelvis.linvel();
@@ -128,6 +148,14 @@ export class SandboxNpc {
   spawn(x: number, y: number, z: number, yaw: number, ragdoll: boolean): void {
     this.spawnedAt = performance.now();
     this.alive = true;
+    this.dead = false;
+    this.health = NPC_MAX_HEALTH;
+    this.corpseAt = 0;
+    this.flinch = 0;
+    this.kind = pickNpcKind(() => Math.random());
+    Object.assign(this.visual.look, randomNpcLook(() => Math.random()));
+    this.gltf?.character.dispose();
+    this.gltf = null;
     this.root.visible = true;
     this.yaw = yaw;
     this.wanderYaw = yaw;
@@ -154,6 +182,9 @@ export class SandboxNpc {
   despawn(): void {
     if (!this.alive) return;
     this.alive = false;
+    this.dead = false;
+    this.health = NPC_MAX_HEALTH;
+    this.gltf?.character.stop();
     this.root.visible = false;
     this.setPhysicsEnabled(false);
     this.locator.setLinvel({ x: 0, y: 0, z: 0 }, true);
@@ -162,7 +193,10 @@ export class SandboxNpc {
 
   resetToSpawnPose(): void {
     if (!this.alive) return;
-    if (this.state === 'Ragdoll') {
+    this.dead = false;
+    this.health = NPC_MAX_HEALTH;
+    this.corpseAt = 0;
+    if (this.state === 'Ragdoll' || this.state === 'Dead') {
       const pelvis = this.parts.get('pelvis')?.body.translation();
       if (pelvis) this.feet = { x: pelvis.x, y: Math.max(0, pelvis.y - 0.98), z: pelvis.z };
     } else {
@@ -172,11 +206,12 @@ export class SandboxNpc {
     this.enterLocomotion('Idle');
     this.applyFk(idlePose(), 1);
     this.snapRagdollToVisual();
-    this.driveGltf();
+    this.driveGltf(0);
   }
 
   enterRagdoll(impulse?: { x: number; y: number; z: number }, atPart: NpcPartId = 'torso'): void {
     if (!this.alive) return;
+    this.gltf?.character.stop();
     this.snapRagdollToVisual();
     this.setLocatorEnabled(false);
     this.setRagdollEnabled(true);
@@ -189,7 +224,7 @@ export class SandboxNpc {
       const target = this.parts.get(atPart)?.body ?? this.parts.get('torso')?.body;
       target?.applyImpulse(impulse, true);
     }
-    this.state = 'Ragdoll';
+    this.state = this.dead ? 'Dead' : 'Ragdoll';
     this.stillTimer = 0;
     this.lastSpeed = Math.hypot(locVel.x, locVel.y, locVel.z);
     this.emitImpact(6 + (impulse ? Math.hypot(impulse.x, impulse.y, impulse.z) * 0.2 : 0));
@@ -212,6 +247,38 @@ export class SandboxNpc {
     );
   }
 
+  applyHit(
+    dir: { x: number; y: number; z: number },
+    part: NpcPartId,
+    damage: number,
+    impulse: number,
+  ): { killed: boolean; zone: string; health: number; alreadyDead: boolean } {
+    const zone = npcZoneForPart(part);
+    const origin = this.visual.parts[part]?.group.position ?? this.position;
+    if (this.dead) {
+      const target = this.parts.get(part)?.body ?? this.parts.get('torso')?.body;
+      target?.applyImpulse({ x: dir.x * impulse * 0.45, y: dir.y * impulse * 0.45 + 1.2, z: dir.z * impulse * 0.45 }, true);
+      this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, false);
+      return { killed: false, zone, health: 0, alreadyDead: true };
+    }
+    this.health = Math.max(0, this.health - damage);
+    this.flinch = 0.18;
+    const killed = this.health <= 0;
+    if (killed) {
+      this.dead = true;
+      this.corpseAt = performance.now();
+      this.enterRagdoll(
+        { x: dir.x * impulse, y: dir.y * impulse + 2.4, z: dir.z * impulse },
+        part,
+      );
+    } else {
+      const v = this.locator.linvel();
+      this.locator.setLinvel({ x: v.x + dir.x * 1.15, y: v.y + 0.15, z: v.z + dir.z * 1.15 }, true);
+    }
+    this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, killed);
+    return { killed, zone, health: this.health, alreadyDead: false };
+  }
+
   matchesObject(obj: THREE.Object3D): boolean {
     let cursor: THREE.Object3D | null = obj;
     while (cursor) {
@@ -221,12 +288,17 @@ export class SandboxNpc {
     return false;
   }
 
+  setCameraDistance(dist: number): void {
+    this.camDist = dist;
+  }
+
   update(dt: number): void {
     if (!this.alive) return;
+    this.flinch = Math.max(0, this.flinch - dt);
 
-    if (this.state === 'Ragdoll') {
+    if (this.state === 'Ragdoll' || this.state === 'Dead') {
       this.syncVisualFromRagdoll();
-      this.driveGltf();
+      this.driveGltf(dt);
       this.sampleImpact(dt);
       const pelvis = this.parts.get('pelvis')?.body;
       if (pelvis) {
@@ -237,7 +309,7 @@ export class SandboxNpc {
         const v = pelvis.linvel();
         const speed = Math.hypot(v.x, v.y, v.z);
         this.stillTimer = speed < 0.55 ? this.stillTimer + dt : 0;
-        if (this.stillTimer > RAGDOLL.recoverStillSec) this.beginRecover();
+        if (!this.dead && this.stillTimer > RAGDOLL.recoverStillSec) this.beginRecover();
       }
       return;
     }
@@ -246,7 +318,7 @@ export class SandboxNpc {
       this.recoverTimer += dt;
       const k = Math.min(1, this.recoverTimer / RAGDOLL.recoverBlendSec);
       this.applyFk(idlePose(), k);
-      this.driveGltf();
+      this.driveGltf(dt);
       if (k >= 1) this.enterLocomotion('Idle');
       return;
     }
@@ -273,7 +345,7 @@ export class SandboxNpc {
     blendPose(this.pose, target, 1 - Math.exp(-14 * dt));
     this.applyFk(this.pose, 1);
     this.snapRagdollToVisual();
-    this.driveGltf();
+    this.driveGltf(dt);
     this.sampleImpact(dt);
   }
 
@@ -288,11 +360,14 @@ export class SandboxNpc {
     }
     this.parts.clear();
     if (this.locator.isValid()) this.world.removeRigidBody(this.locator);
+    this.gltf?.character.dispose();
+    this.gltf = null;
     for (const mat of this.visual.materials) mat.dispose();
     this.root.removeFromParent();
   }
 
   private beginRecover(): void {
+    if (this.dead) return;
     this.syncVisualFromRagdoll();
     const pelvis = this.parts.get('pelvis')?.body;
     if (pelvis) {
@@ -422,8 +497,19 @@ export class SandboxNpc {
   }
 
   private setPhysicsEnabled(on: boolean): void {
-    this.setLocatorEnabled(on);
-    this.setRagdollEnabled(on);
+    if (on) {
+      this.setLocatorEnabled(true);
+      this.setRagdollEnabled(false);
+      return;
+    }
+    this.setLocatorEnabled(false);
+    for (const part of this.parts.values()) {
+      part.collider.setEnabled(false);
+      part.body.setBodyType(this.rapier.RigidBodyType.KinematicPositionBased, true);
+      part.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      part.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      part.body.sleep();
+    }
   }
 
   private setLocatorEnabled(on: boolean): void {
@@ -437,7 +523,9 @@ export class SandboxNpc {
 
   private setRagdollEnabled(on: boolean): void {
     for (const part of this.parts.values()) {
-      part.collider.setEnabled(on);
+      part.collider.setEnabled(true);
+      part.collider.setSensor(!on);
+      part.collider.setCollisionGroups(on ? SANDBOX_PHYSICAL_GROUPS : SANDBOX_HITBOX_GROUPS);
       part.body.setBodyType(
         on ? this.rapier.RigidBodyType.Dynamic : this.rapier.RigidBodyType.KinematicPositionBased,
         true,
@@ -459,6 +547,7 @@ export class SandboxNpc {
       mat.emissive.setHex(color);
       mat.emissiveIntensity = emit;
     }
+    this.gltf?.character.setHighlight(color, emit);
   }
 
   private buildPhysics(): void {
@@ -534,40 +623,71 @@ export class SandboxNpc {
 
   attachHumanoid(): void {
     if (this.gltf) return;
-    const inst = instantiateNpcHumanoid(this.visual.look);
-    if (!inst) return;
+    const inst = instantiateNpcHumanoid(this.visual.look, this.kind);
+    if (!inst) {
+      void preloadCharacter(this.kind).then(() => {
+        if (this.alive && !this.gltf) this.attachHumanoid();
+      });
+      return;
+    }
     this.gltf = inst;
-    this.root.add(inst.root);
-    this.visual.materials.push(...inst.materials);
+    this.root.add(inst.character.root);
+    const keepOverlays = inst.kind === 'humanoid';
     for (const part of Object.values(this.visual.parts)) {
       part.mesh.visible = false;
       part.group.traverse((obj) => {
         if (obj === part.group || obj === part.mesh) return;
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh) return;
-        const keep = mesh.name === 'hair' || mesh.name === 'bun' || mesh.name === 'collar' || mesh.name === 'belt';
+        const keep =
+          keepOverlays &&
+          (mesh.name === 'hair' || mesh.name === 'bun' || mesh.name === 'collar' || mesh.name === 'belt');
         mesh.visible = keep;
       });
     }
     this.applyFk(this.pose, 1);
     this.root.updateMatrixWorld(true);
-    captureBoneBind(inst, this.visual.parts);
-    this.driveGltf();
+    this.driveGltf(0);
   }
 
-  private driveGltf(): void {
+  private driveGltf(dt: number): void {
     if (!this.gltf) return;
-    if (!this.gltf.captured) {
-      this.root.updateMatrixWorld(true);
-      captureBoneBind(this.gltf, this.visual.parts);
+    const ragdoll = this.state === 'Ragdoll' || this.state === 'Dead';
+    const char = this.gltf.character;
+    if (ragdoll || !char.hasMixer) {
+      char.root.position.set(0, 0, 0);
+      char.root.rotation.set(0, 0, 0);
+      driveBonesFromParts(this.gltf, this.visual.parts);
+      return;
     }
-    driveBonesFromParts(this.gltf, this.visual.parts);
+    char.root.position.set(this.feet.x, this.feet.y, this.feet.z);
+    char.root.rotation.set(0, this.yaw, 0);
+    const clip: LocoClip =
+      this.state === 'Falling' ? 'fall' : this.state === 'Walking' && this.flinch <= 0 ? 'walk' : 'idle';
+    char.play(clip);
+    char.update(dt, this.camDist);
+    this.snapHitboxesFromBones();
+  }
+
+  private snapHitboxesFromBones(): void {
+    if (!this.gltf) return;
+    for (const [id, bone] of Object.entries(this.gltf.character.bones) as Array<[NpcPartId, THREE.Object3D]>) {
+      const part = this.parts.get(id);
+      if (!part || !bone) continue;
+      bone.updateWorldMatrix(true, false);
+      bone.getWorldPosition(tmpPos);
+      bone.getWorldQuaternion(tmpQuat);
+      part.body.setTranslation({ x: tmpPos.x, y: tmpPos.y, z: tmpPos.z }, true);
+      part.body.setRotation({ x: tmpQuat.x, y: tmpQuat.y, z: tmpQuat.z, w: tmpQuat.w }, true);
+    }
   }
 
   private sampleImpact(dt: number): void {
     this.impactCool = Math.max(0, this.impactCool - dt);
     const speed =
-      this.state === 'Ragdoll' ? this.speed : Math.hypot(this.locator.linvel().x, this.locator.linvel().y, this.locator.linvel().z);
+      this.state === 'Ragdoll' || this.state === 'Dead'
+        ? this.speed
+        : Math.hypot(this.locator.linvel().x, this.locator.linvel().y, this.locator.linvel().z);
     const drop = this.lastSpeed - speed;
     this.lastSpeed = speed;
     if (drop > 5.5) this.emitImpact(drop);
@@ -597,7 +717,8 @@ function colliderFromDef(rapier: typeof RAPIER, def: PartPhysDef): RAPIER.Collid
     .setMass(def.mass)
     .setFriction(def.friction ?? RAGDOLL.friction)
     .setRestitution(def.restitution ?? RAGDOLL.restitution)
-    .setCollisionGroups(SANDBOX_GROUPS);
+    .setCollisionGroups(SANDBOX_HITBOX_GROUPS)
+    .setSensor(true);
 }
 
 function vec(v: [number, number, number]): { x: number; y: number; z: number } {

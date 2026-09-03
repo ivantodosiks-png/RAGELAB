@@ -1,4 +1,4 @@
-export type NpcState = 'Idle' | 'Walking' | 'Falling' | 'Ragdoll' | 'Recovering';
+export type NpcState = 'Idle' | 'Walking' | 'Falling' | 'Ragdoll' | 'Recovering' | 'Dead';
 
 export type SandboxTool = 'none' | 'spawn' | 'delete' | 'select' | 'ragdoll' | 'spawnWeapon' | 'grab' | 'toolGun';
 
@@ -71,10 +71,13 @@ export const RAGDOLL = {
   recoverBlendSec: 0.7,
   ragdollImpactSpeed: 8.5,
   shotImpulse: 22,
-  friction: 0.78,
-  restitution: 0.06,
-  linearDamping: 0.22,
-  angularDamping: 0.58,
+  deathImpulse: 16,
+  friction: 0.82,
+  restitution: 0.04,
+  linearDamping: 0.28,
+  angularDamping: 0.72,
+  corpseSec: 12,
+  maxLiveRagdolls: 8,
 } as const;
 
 export interface PartPhysDef {

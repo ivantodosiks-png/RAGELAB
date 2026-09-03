@@ -100,6 +100,11 @@ export interface WeaponDefinition {
   projectileSpeed: number;
   /** How much a hit pushes physics props. */
   impactImpulse: number;
+  /** NPC hitbox multipliers. Headshots on firearms should exceed 100 HP. */
+  headMultiplier: number;
+  chestMultiplier: number;
+  bodyMultiplier: number;
+  limbMultiplier: number;
   /** Movement speed multiplier while holding this weapon. */
   moveSpeedMultiplier: number;
   /** Multiplier applied while aiming down sights. */
