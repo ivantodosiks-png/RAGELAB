@@ -199,7 +199,10 @@ export class GameSession {
 
   private connect(options: ConnectOptions): Promise<WelcomePayload> {
     return new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error('Timed out waiting for the game server')), 25_000);
+      const timeout = window.setTimeout(
+        () => reject(new Error('Не удалось подключиться к игровому серверу.')),
+        25_000,
+      );
       this.net.setHandlers({
         onWelcome: (payload) => {
           window.clearTimeout(timeout);

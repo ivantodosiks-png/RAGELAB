@@ -30,44 +30,58 @@ export class ServerRegistry {
       return;
     }
 
-    const rows = rooms.map((room) => {
-      const row: Record<string, unknown> = {
-        id: this.rowId(room.id),
-        name: room.name,
+    const rows = [
+      {
+        id: this.rowId('hub'),
+        name: config.name,
         region: config.region,
-        map_id: room.mapId,
-        mode: room.mode,
-        player_count: room.playerCount,
-        max_players: room.maxPlayers,
-        has_password: room.hasPassword,
-        tick_ms: room.tickMs,
+        map_id: rooms[0]?.mapId ?? 'harborlane',
+        mode: rooms[0]?.mode ?? 'sandbox',
+        player_count: 0,
+        max_players: 0,
+        has_password: false,
+        tick_ms: 0,
         ws_url: publicUrl,
         heartbeat_at: new Date().toISOString(),
-      };
-      if (!this.omitJoinCode) row.join_code = room.joinCode ?? null;
-      return row;
-    });
+        ...(this.omitJoinCode ? {} : { join_code: null }),
+      },
+      ...rooms.map((room) => {
+        const row: Record<string, unknown> = {
+          id: this.rowId(room.id),
+          name: room.name,
+          region: config.region,
+          map_id: room.mapId,
+          mode: room.mode,
+          player_count: room.playerCount,
+          max_players: room.maxPlayers,
+          has_password: room.hasPassword,
+          tick_ms: room.tickMs,
+          ws_url: publicUrl,
+          heartbeat_at: new Date().toISOString(),
+        };
+        if (!this.omitJoinCode) row.join_code = room.joinCode ?? null;
+        return row;
+      }),
+    ];
 
     try {
-      if (rows.length > 0) {
-        const { error } = await client.from('game_servers').upsert(rows as never, { onConflict: 'id' });
-        if (error) {
-          if (!this.omitJoinCode && /join_code/i.test(error.message)) {
-            this.omitJoinCode = true;
-            log.warn('game_servers.join_code missing — apply supabase/migrations/0003_lobby_codes.sql');
-            const stripped = rows.map((row) => {
-              const copy = { ...row };
-              delete copy.join_code;
-              return copy;
-            });
-            const { error: retry } = await client.from('game_servers').upsert(stripped as never, { onConflict: 'id' });
-            if (retry) throw new Error(retry.message);
-          } else {
-            throw new Error(error.message);
-          }
+      const { error } = await client.from('game_servers').upsert(rows as never, { onConflict: 'id' });
+      if (error) {
+        if (!this.omitJoinCode && /join_code/i.test(error.message)) {
+          this.omitJoinCode = true;
+          log.warn('game_servers.join_code missing — apply supabase/migrations/0003_lobby_codes.sql');
+          const stripped = rows.map((row) => {
+            const copy = { ...row };
+            delete copy.join_code;
+            return copy;
+          });
+          const { error: retry } = await client.from('game_servers').upsert(stripped as never, { onConflict: 'id' });
+          if (retry) throw new Error(retry.message);
+        } else {
+          throw new Error(error.message);
         }
-        for (const row of rows) this.known.add(String(row.id));
       }
+      for (const row of rows) this.known.add(String(row.id));
 
       // Remove rows for rooms that no longer exist.
       const live = new Set(rows.map((r) => String(r.id)));
