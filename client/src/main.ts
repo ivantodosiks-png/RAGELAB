@@ -18,13 +18,13 @@ let joining = false;
 let backdrop: MenuBackdrop | null = null;
 
 function startMenuWorld(): void {
-  backdrop?.stop();
+  backdrop?.dispose();
   backdrop = new MenuBackdrop(canvas);
   backdrop.start();
 }
 
 function stopMenuWorld(): void {
-  backdrop?.stop();
+  backdrop?.dispose();
   backdrop = null;
 }
 
@@ -60,22 +60,24 @@ async function boot(): Promise<void> {
 async function join(request: JoinRequest): Promise<void> {
   if (joining) return;
   joining = true;
-    stopMenuWorld();
-    ui.setConnecting(true, request.offline ? 'Starting offline…' : 'Connecting to game server…');
-    try {
-      const token = request.offline ? null : await authService.freshAccessToken();
-      const next = await GameSession.start(canvas, ui, {
-        username: request.username,
-        token: token ?? undefined,
-        roomId: request.roomId,
-        mapId: request.mapId,
-        password: request.password,
-        wsUrl: request.wsUrl,
-        roomCode: request.roomCode,
-        offline: request.offline,
-        team: request.team,
-        create: request.create,
-      });
+  stopMenuWorld();
+  ui.setConnecting(true, request.offline ? 'Starting offline…' : 'Connecting to game server…');
+  try {
+    // Let the previous WebGL renderer fully release the canvas before creating a new one.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const token = request.offline ? null : await authService.freshAccessToken();
+    const next = await GameSession.start(canvas, ui, {
+      username: request.username,
+      token: token ?? undefined,
+      roomId: request.roomId,
+      mapId: request.mapId,
+      password: request.password,
+      wsUrl: request.wsUrl,
+      roomCode: request.roomCode,
+      offline: request.offline,
+      team: request.team,
+      create: request.create,
+    });
     session?.dispose();
     session = next;
   } catch (err) {

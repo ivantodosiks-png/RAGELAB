@@ -190,12 +190,15 @@ body {
   place-items: center;
   background: #030405;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.85s ease;
+  transition: opacity 0.85s ease, visibility 0s linear 0.85s;
 }
 
 .mm-root.is-intro .mm-intro {
   opacity: 1;
+  visibility: visible;
+  transition: opacity 0.85s ease;
 }
 
 .mm-intro-core {

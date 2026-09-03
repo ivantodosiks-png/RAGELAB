@@ -121,9 +121,9 @@ export class MenuBackdrop {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
+    // Do NOT force-lose the WebGL context — the same #viewport canvas is reused
+    // by GameSession. Losing it makes the next renderer fail to start.
     this.renderer?.dispose();
-    const gl = this.renderer?.getContext();
-    gl?.getExtension('WEBGL_lose_context')?.loseContext();
     this.renderer = null;
   }
 
@@ -165,7 +165,7 @@ export class MenuBackdrop {
 
   private async dressSet(): Promise<void> {
     for (const piece of SET_PIECES) {
-      if (this.disposed) return;
+      if (this.disposed || !this.running) return;
       let clone: THREE.Object3D | null = null;
       try {
         const url = cityModelUrl(piece.id);
@@ -173,7 +173,7 @@ export class MenuBackdrop {
       } catch {
         continue;
       }
-      if (!clone || this.disposed) continue;
+      if (!clone || this.disposed || !this.running) continue;
       const scale = cityModelScale(piece.id) * 0.42;
       clone.scale.setScalar(scale);
       clone.position.set(...piece.pos);

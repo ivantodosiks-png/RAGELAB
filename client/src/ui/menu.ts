@@ -332,13 +332,12 @@ export class MainMenu {
     play.addEventListener('click', () => {
       play.classList.add('is-pressed');
       const username = this.commitName(name);
-      window.setTimeout(() => {
-        this.callbacks.play({
-          username,
-          mapId: (map.input as HTMLSelectElement).value,
-          team: this.teamFor(map),
-        });
-      }, 140);
+      // Keep this in the click gesture so AudioContext / pointer lock can start.
+      this.callbacks.play({
+        username,
+        mapId: (map.input as HTMLSelectElement).value,
+        team: this.teamFor(map),
+      });
     });
 
     form.append(name.wrap, map.wrap, side.wrap);
