@@ -57,7 +57,6 @@ import { NPC_MENU_ENABLED } from '../sandbox/spawnCatalog';
 import { ToolGunView } from '../sandbox/toolGunView';
 import { resolveJoinWsUrl } from '../supabase/client';
 import { assetManager } from '../assets/assetManager';
-import { preloadFpsView } from '../weapons/fpsAssets';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
 
@@ -164,7 +163,6 @@ export class GameSession {
     const rapier = await loadRapier();
     this.audio = new AudioEngine(settingsStore.audio);
     await this.audio.resume();
-    void preloadFpsView();
 
     this.renderer = new GameRenderer(this.canvas, settingsStore.graphics);
     this.effects = new EffectsManager(settingsStore.graphics);

@@ -686,7 +686,7 @@ function shortWeaponName(name: string): string {
 function weaponBlurb(id: string): string {
   switch (id) {
     case 'pistol':
-      return 'Glock 17. 9mm sidearm, first-person kit.';
+      return 'Compact sidearm. Fast draw, close range.';
     case 'smg':
       return 'High cyclic rate. Close-range pressure.';
     case 'rifle':

@@ -174,7 +174,7 @@ export const TOOL_ENTRIES: SpawnEntry[] = [
 ];
 
 const WEAPON_FALLBACK: Record<SandboxWeaponKind, { name: string; swatch: number }> = {
-  pistol: { name: 'Glock 17', swatch: 0x8a9099 },
+  pistol: { name: 'RL-9 Sidearm', swatch: 0x8a9099 },
   smg: { name: 'VX-4 Ripper', swatch: 0xff7a3d },
   rifle: { name: 'AR-7 Vesper', swatch: 0x3a3f46 },
   shotgun: { name: 'BR-12 Breaker', swatch: 0x9a6b3f },
