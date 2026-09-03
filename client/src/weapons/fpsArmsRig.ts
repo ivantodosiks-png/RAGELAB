@@ -4,9 +4,12 @@ import { GLOCK_17_URL, FPS_ARMS_URL, cloneFpsAsset, preloadFpsView } from './fps
 /**
  * Local first-person Glock kit.
  *
- * Both J-Toastie GLBs are untextured FBX→glTF (solid Phong colors only) with
- * Unity scale on the nodes. Fit the visible bind-pose mesh, not the tiny
- * bone cluster — otherwise the Glock explodes to half the screen.
+ * Authored rest pose reaches +X with the hands split on Z; barrel bones point
+ * +Z. We yaw the arms +90° so they reach camera-forward (−Z), yaw the Glock
+ * 180° so the muzzle joins them, then snap the socket to the palms.
+ *
+ * Neither GLB has image textures — only FBX solid colors. View-model lights
+ * blow those out to white if they stay MeshStandard, so they become Basic.
  */
 export class FpsPistolRig {
   readonly root = new THREE.Group();
@@ -15,6 +18,9 @@ export class FpsPistolRig {
 
   private readonly arms = new THREE.Group();
   private readonly glock = new THREE.Group();
+  private readonly leftHand = { current: null as THREE.Object3D | null };
+  private readonly rightHand = { current: null as THREE.Object3D | null };
+  private readonly barrelBone = { current: null as THREE.Object3D | null };
   private assembled = false;
 
   constructor() {
@@ -42,36 +48,46 @@ export class FpsPistolRig {
     prepareViewMesh(armsScene);
     prepareViewMesh(glockScene);
     hideNamed(glockScene, 'Glock19.001');
-    tuneViewMaterials(armsScene, 'arms');
-    tuneViewMaterials(glockScene, 'glock');
+    flattenViewMaterials(armsScene);
+    flattenViewMaterials(glockScene);
 
     const armsFit = new THREE.Group();
     armsFit.name = 'fpsArmsFit';
     armsFit.add(armsScene);
+    // Reach +X, hands split on Z → reach −Z, right hand on +X.
+    armsFit.rotation.y = Math.PI / 2;
     this.arms.add(armsFit);
     refreshSkins(armsFit);
-    fitByMesh(armsFit, 0.4);
+    fitByMesh(armsFit, 0.36);
     centerByMesh(armsFit);
-    this.arms.position.set(0.04, -0.24, -0.34);
+    this.arms.position.set(0.03, -0.2, -0.3);
 
     const glockFit = new THREE.Group();
     glockFit.name = 'glockFit';
     glockFit.add(glockScene);
+    // Barrel bone +Z → camera forward −Z.
+    glockFit.rotation.y = Math.PI;
     this.glock.add(glockFit);
     refreshSkins(glockFit);
-    fitByMesh(glockFit, 0.18);
+    fitByMesh(glockFit, 0.15);
     centerByMesh(glockFit);
 
-    this.weaponSocket.position.set(0.09, -0.13, -0.26);
-    this.weaponSocket.rotation.set(0.02, 0.04, 0.02);
-    this.muzzleAnchor.position.set(0, 0.014, -0.09);
-    this.muzzleAnchor.rotation.set(0, 0, 0);
+    this.leftHand.current = this.arms.getObjectByName('Hand.L') ?? null;
+    this.rightHand.current = this.arms.getObjectByName('Hand.R.001') ?? null;
+    this.barrelBone.current = this.glock.getObjectByName('Barrel') ?? null;
+
+    this.root.updateMatrixWorld(true);
+    this.placeInHands();
+    this.placeMuzzleOnBarrel();
 
     this.assembled = true;
     return true;
   }
 
   syncMuzzle(muzzlePoint: THREE.Object3D): void {
+    if (!this.assembled) return;
+    this.placeInHands();
+    this.placeMuzzleOnBarrel();
     if (!muzzlePoint.parent) return;
     this.muzzleAnchor.updateWorldMatrix(true, false);
     this.muzzleAnchor.getWorldPosition(tmpPos);
@@ -85,11 +101,44 @@ export class FpsPistolRig {
   dispose(): void {
     this.root.removeFromParent();
     this.root.clear();
+    this.leftHand.current = null;
+    this.rightHand.current = null;
+    this.barrelBone.current = null;
     this.assembled = false;
+  }
+
+  private placeInHands(): void {
+    const left = this.leftHand.current;
+    const right = this.rightHand.current;
+    if (!left || !right) return;
+    left.getWorldPosition(tmpLeft);
+    right.getWorldPosition(tmpRight);
+    // Two-handed pistol: right palm owns the grip, left supports.
+    tmpGrip.lerpVectors(tmpLeft, tmpRight, 0.72);
+    this.root.worldToLocal(tmpGrip);
+    this.weaponSocket.position.copy(tmpGrip);
+    this.weaponSocket.position.y -= 0.012;
+    this.weaponSocket.position.z += 0.018;
+    this.weaponSocket.rotation.set(0.06, 0.1, 0.04);
+  }
+
+  private placeMuzzleOnBarrel(): void {
+    const barrel = this.barrelBone.current;
+    if (!barrel) {
+      this.muzzleAnchor.position.set(0, 0.012, -0.075);
+      return;
+    }
+    barrel.getWorldPosition(tmpPos);
+    this.weaponSocket.worldToLocal(tmpPos);
+    this.muzzleAnchor.position.copy(tmpPos);
+    this.muzzleAnchor.rotation.set(0, 0, 0);
   }
 }
 
 const tmpPos = new THREE.Vector3();
+const tmpGrip = new THREE.Vector3();
+const tmpLeft = new THREE.Vector3();
+const tmpRight = new THREE.Vector3();
 const tmpQuat = new THREE.Quaternion();
 const tmpParentQuat = new THREE.Quaternion();
 const tmpMat = new THREE.Matrix4();
@@ -115,24 +164,21 @@ function hideNamed(root: THREE.Object3D, name: string): void {
   });
 }
 
-/** These GLBs have no maps — keep the FBX colors from blowing out under view lights. */
-function tuneViewMaterials(root: THREE.Object3D, kind: 'arms' | 'glock'): void {
+function flattenViewMaterials(root: THREE.Object3D): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
-    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const raw of list) {
-      if (!(raw instanceof THREE.MeshStandardMaterial)) continue;
-      raw.metalness = kind === 'glock' ? 0.12 : 0.04;
-      raw.roughness = kind === 'glock' ? Math.max(raw.roughness, 0.55) : Math.max(raw.roughness, 0.7);
-      raw.envMapIntensity = 0.15;
-      if (raw.name === 'White') {
-        raw.color.setRGB(0.72, 0.74, 0.7);
-        raw.metalness = 0;
-        raw.roughness = 0.85;
+    const src = mesh.material;
+    const list = Array.isArray(src) ? src : [src];
+    const next = list.map((mat) => {
+      const color = new THREE.Color(0x2a2d32);
+      if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial) {
+        color.copy(mat.color);
       }
-      raw.needsUpdate = true;
-    }
+      const basic = new THREE.MeshBasicMaterial({ color, name: mat.name });
+      return basic;
+    });
+    mesh.material = Array.isArray(src) ? next : next[0]!;
   });
 }
 
@@ -144,7 +190,6 @@ function refreshSkins(root: THREE.Object3D): void {
   });
 }
 
-/** Bind-pose geometry × mesh matrix. Skinned AABB double-counts bone worlds. */
 function expandMeshBox(root: THREE.Object3D, box: THREE.Box3): boolean {
   let any = false;
   box.makeEmpty();
