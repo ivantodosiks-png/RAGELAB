@@ -13,9 +13,16 @@ export interface HudScoreRow {
 export interface HudSlotInfo {
   id: string;
   name: string;
+  blurb?: string;
+  mag?: number;
+  reserve?: number;
+  magSize?: number;
 }
 
 export type ToolGunKind = 'NPC' | 'Prop' | 'Tool' | 'Weapon';
+
+const WHEEL_SLOTS = 6;
+const WHEEL_DEADZONE = 36;
 
 export class Hud {
   readonly root: HTMLElement;
@@ -33,6 +40,8 @@ export class Hud {
   private readonly chatInput: HTMLInputElement;
   private readonly net: HTMLElement;
   private readonly interact: HTMLElement;
+  private readonly interactKey: HTMLElement;
+  private readonly interactAction: HTMLElement;
   private readonly hitmarker: HTMLElement;
   private readonly hurt: HTMLElement;
   private readonly dirHit: HTMLElement;
@@ -54,6 +63,16 @@ export class Hud {
   private readonly slotNodes: HTMLElement[] = [];
   private readonly slotIcons: HTMLElement[] = [];
   private readonly slotNames: HTMLElement[] = [];
+  private readonly wheel: HTMLElement;
+  private readonly wheelSlots: HTMLElement[] = [];
+  private readonly wheelIcons: HTMLElement[] = [];
+  private readonly wheelNames: HTMLElement[] = [];
+  private readonly wheelCenterName: HTMLElement;
+  private readonly wheelCenterBlurb: HTMLElement;
+  private readonly wheelCenterAmmo: HTMLElement;
+  private readonly wheelCenterIcon: HTMLElement;
+  private readonly wheelCursor: HTMLElement;
+  private readonly vitals: HTMLElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -70,8 +89,13 @@ export class Hud {
   private lastSlot = -1;
   private lastToolGun = '';
   private lastCross = '';
+  private lastWheel = '';
   private slotPopTimer = 0;
   private loadoutKey = '';
+  private loadout: HudSlotInfo[] = [];
+  private wheelHighlight = 0;
+  private wheelOpen = false;
+  private wheelCancel = false;
 
   constructor(host: HTMLElement) {
     this.root = el('div', 'hud');
@@ -83,16 +107,13 @@ export class Hud {
     this.hairE = el('i', 'ch-tick e');
     this.hairS = el('i', 'ch-tick s');
     this.hairW = el('i', 'ch-tick w');
-    this.crosshair.append(this.hairN, this.hairE, this.hairS, this.hairW, el('i', 'ch-ring'));
+    this.crosshair.append(this.hairN, this.hairE, this.hairS, this.hairW);
 
-    this.toolGunHud = el('div', 'toolgun-hud hud-glass');
-    this.toolGunHud.append(el('div', 'toolgun-title', 'TOOL GUN'));
-    this.toolGunSelected = el('div', 'toolgun-selected', 'Selected: NPC');
+    this.toolGunHud = el('div', 'toolgun-hud');
+    this.toolGunHud.append(el('div', 'toolgun-title', 'Tool Gun'));
+    this.toolGunSelected = el('div', 'toolgun-selected', 'NPC');
     this.toolGunHint = el('div', 'toolgun-hint');
-    this.toolGunHint.append(
-      hintRow('LMB', 'Spawn'),
-      hintRow('RMB', 'Spawn Menu'),
-    );
+    this.toolGunHint.append(hintRow('LMB', 'Spawn'), hintRow('RMB', 'Menu'));
     this.toolGunHud.append(this.toolGunSelected, this.toolGunHint);
     this.toolGunHud.hidden = true;
 
@@ -103,31 +124,31 @@ export class Hud {
     this.dirHit = el('div', 'dir-hit');
     this.dirHit.append(el('i'));
 
-    const vitals = el('div', 'hud-vitals hud-glass');
-    const hpRow = el('div', 'vital-meta');
-    hpRow.append(el('span', '', 'VITALS'), (this.healthText = el('span', '', '100')));
+    this.vitals = el('div', 'hud-vitals');
+    const hpLabel = el('div', 'vital-meta');
+    hpLabel.append(el('span', '', 'Health'), (this.healthText = el('span', '', '100')));
     const hpBar = el('div', 'bar');
     this.healthFill = el('span');
     hpBar.append(this.healthFill);
-    vitals.append(hpRow, hpBar);
+    this.vitals.append(hpLabel, hpBar);
 
-    this.ammoPanel = el('div', 'hud-weapon hud-glass');
+    this.ammoPanel = el('div', 'hud-weapon');
     this.ammoName = el('div', 'name', '—');
     this.ammoBig = el('div', 'ammo', '0');
     const magRow = el('div', 'vital-meta');
-    magRow.append(el('span', '', 'MAG'), (this.ammoText = el('span', '', '0 / 0')));
+    magRow.append(el('span', '', 'Reserve'), (this.ammoText = el('span', '', '0')));
     const magBar = el('div', 'bar ammo');
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);
     this.ammoPanel.append(this.ammoName, this.ammoBig, magRow, magBar);
 
     this.weaponBar = el('div', 'weapon-bar');
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < WHEEL_SLOTS; i++) {
       const slot = el('div', 'weapon-slot');
       const num = el('div', 'slot-num', String(i + 1));
       const icon = el('div', 'slot-icon');
       icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : 'pistol');
-      const name = el('div', 'slot-name', i === TOOL_GUN_UI_SLOT ? 'TOOL GUN' : '—');
+      const name = el('div', 'slot-name', i === TOOL_GUN_UI_SLOT ? 'Tool Gun' : '—');
       slot.append(num, icon, name);
       this.weaponBar.append(slot);
       this.slotNodes.push(slot);
@@ -135,30 +156,40 @@ export class Hud {
       this.slotNames.push(name);
     }
 
+    this.wheel = this.buildWheel();
+    this.wheelCenterIcon = this.wheel.querySelector('.ww-center-icon') as HTMLElement;
+    this.wheelCenterName = this.wheel.querySelector('.ww-center-name') as HTMLElement;
+    this.wheelCenterBlurb = this.wheel.querySelector('.ww-center-blurb') as HTMLElement;
+    this.wheelCenterAmmo = this.wheel.querySelector('.ww-center-ammo') as HTMLElement;
+    this.wheelCursor = this.wheel.querySelector('.ww-cursor') as HTMLElement;
+
     this.killfeed = el('div', 'killfeed');
     this.chatLog = el('div', 'chat-log');
     this.chatBox = el('div', 'chat-box');
     this.chatInput = document.createElement('input');
     this.chatInput.maxLength = 160;
-    this.chatInput.placeholder = 'say something';
+    this.chatInput.placeholder = 'Message';
     this.chatBox.append(this.chatInput);
 
     this.net = el('div', 'hud-net', '');
     this.net.hidden = true;
-    this.interact = el('div', 'interact', '');
+    this.interact = el('div', 'interact');
+    this.interactKey = el('kbd', '', 'E');
+    this.interactAction = el('span', '', '');
+    this.interact.append(this.interactKey, this.interactAction);
     this.debug = el('div', 'debug-overlay');
-    this.toast = el('div', 'toast hud-glass');
+    this.toast = el('div', 'toast');
 
     this.death = el('div', 'death');
-    this.death.append(el('h2', '', 'ELIMINATED'));
+    this.death.append(el('h2', '', 'Eliminated'));
     this.deathSub = el('p', '', '');
     this.death.append(this.deathSub);
 
-    this.scoreboard = el('div', 'scoreboard hud-glass');
+    this.scoreboard = el('div', 'scoreboard');
 
     this.pause = el('div', 'pause');
     const card = el('div', 'pause-card');
-    card.append(el('h2', '', 'PAUSED'));
+    card.append(el('h2', '', 'Paused'));
     const resume = el('button', 'rl-btn primary', 'Resume');
     const settings = el('button', 'rl-btn', 'Settings');
     const leave = el('button', 'rl-btn', 'Leave match');
@@ -174,9 +205,10 @@ export class Hud {
       this.crosshair,
       this.toolGunHud,
       this.hitmarker,
-      vitals,
+      this.vitals,
       this.ammoPanel,
       this.weaponBar,
+      this.wheel,
       this.killfeed,
       this.chatLog,
       this.chatBox,
@@ -210,8 +242,17 @@ export class Hud {
   onChat: ((text: string) => void) | null = null;
   onRespawn: (() => void) | null = null;
 
+  get weaponWheelOpen(): boolean {
+    return this.wheelOpen;
+  }
+
+  get wheelSelectedSlot(): number {
+    return this.wheelHighlight;
+  }
+
   setVisible(visible: boolean): void {
     this.root.style.display = visible ? '' : 'none';
+    this.root.classList.toggle('hud-ready', visible);
   }
 
   setHealth(current: number, max = 100): void {
@@ -221,6 +262,7 @@ export class Hud {
     const t = Math.max(0, Math.min(1, current / max));
     this.healthFill.style.transform = `scaleX(${t})`;
     this.healthText.textContent = String(rounded);
+    this.vitals.classList.toggle('critical', t <= 0.28);
   }
 
   setAmmo(mag: number, reserve: number, magSize: number): void {
@@ -228,18 +270,27 @@ export class Hud {
     if (key === this.lastAmmo) return;
     this.lastAmmo = key;
     this.ammoFill.style.transform = `scaleX(${magSize > 0 ? mag / magSize : 0})`;
-    this.ammoText.textContent = `${mag} / ${reserve}`;
+    this.ammoText.textContent = String(reserve);
     this.ammoBig.innerHTML = `${mag}<small> / ${reserve}</small>`;
+    if (this.loadout[this.lastSlot]) {
+      this.loadout[this.lastSlot]!.mag = mag;
+      this.loadout[this.lastSlot]!.reserve = reserve;
+      this.loadout[this.lastSlot]!.magSize = magSize;
+    }
+    if (this.wheelOpen) this.paintWheelCenter(this.wheelHighlight);
   }
 
   setWeapon(name: string): void {
     if (name === this.lastWeapon) return;
     this.lastWeapon = name;
     this.ammoName.textContent = name;
+    this.ammoPanel.classList.add('switching');
+    window.setTimeout(() => this.ammoPanel.classList.remove('switching'), 180);
   }
 
   setLoadout(slots: HudSlotInfo[]): void {
     const key = slots.map((s) => `${s.id}:${s.name}`).join('|');
+    this.loadout = slots.slice();
     if (key === this.loadoutKey) return;
     this.loadoutKey = key;
     for (let i = 0; i < TOOL_GUN_UI_SLOT; i++) {
@@ -249,11 +300,19 @@ export class Hud {
       if (!name || !icon) continue;
       name.textContent = info ? shortWeaponName(info.name) : '—';
       icon.innerHTML = slotGlyph(info?.id ?? 'pistol');
+      const wName = this.wheelNames[i];
+      const wIcon = this.wheelIcons[i];
+      if (wName) wName.textContent = info ? shortWeaponName(info.name) : '—';
+      if (wIcon) wIcon.innerHTML = slotGlyph(info?.id ?? 'pistol');
     }
     const toolName = this.slotNames[TOOL_GUN_UI_SLOT];
     const toolIcon = this.slotIcons[TOOL_GUN_UI_SLOT];
-    if (toolName) toolName.textContent = 'TOOL GUN';
+    if (toolName) toolName.textContent = 'Tool Gun';
     if (toolIcon) toolIcon.innerHTML = slotGlyph('toolgun');
+    const wToolName = this.wheelNames[TOOL_GUN_UI_SLOT];
+    const wToolIcon = this.wheelIcons[TOOL_GUN_UI_SLOT];
+    if (wToolName) wToolName.textContent = 'Tool Gun';
+    if (wToolIcon) wToolIcon.innerHTML = slotGlyph('toolgun');
   }
 
   setActiveSlot(slot: number): void {
@@ -264,7 +323,8 @@ export class Hud {
     }
     this.weaponBar.classList.add('switching');
     window.clearTimeout(this.slotPopTimer);
-    this.slotPopTimer = window.setTimeout(() => this.weaponBar.classList.remove('switching'), 220);
+    this.slotPopTimer = window.setTimeout(() => this.weaponBar.classList.remove('switching'), 200);
+    if (this.wheelOpen) this.setWheelHighlight(slot);
   }
 
   setToolGun(active: boolean, kind: ToolGunKind, spawnable: boolean): void {
@@ -275,13 +335,13 @@ export class Hud {
     this.ammoPanel.hidden = active;
     this.crosshair.classList.toggle('toolgun', active);
     if (!active) return;
-    this.toolGunSelected.textContent = `Selected: ${kind}`;
+    this.toolGunSelected.textContent = kind;
     const lmb = this.toolGunHint.firstElementChild?.lastElementChild;
     if (lmb) lmb.textContent = spawnable ? 'Spawn' : 'Unavailable';
   }
 
   setSpread(radians: number): void {
-    const px = Math.round(5 + radians * 380);
+    const px = Math.round(4 + radians * 340);
     if (px === this.lastSpread) return;
     this.lastSpread = px;
     this.crosshair.style.setProperty('--gap', `${px}px`);
@@ -289,12 +349,57 @@ export class Hud {
 
   setCrosshairMotion(speedRatio: number, hover: boolean, spawnReady: boolean): void {
     const moving = speedRatio > 0.12;
-    const key = `${moving}|${hover}|${spawnReady}`;
+    const key = `${moving}|${hover}|${spawnReady}|${this.wheelOpen}`;
     if (key === this.lastCross) return;
     this.lastCross = key;
     this.crosshair.classList.toggle('moving', moving);
     this.crosshair.classList.toggle('hover', hover);
     this.crosshair.classList.toggle('ready', spawnReady);
+    this.crosshair.classList.toggle('is-hidden', this.wheelOpen);
+  }
+
+  setCrosshairVisible(visible: boolean): void {
+    this.crosshair.classList.toggle('is-hidden', !visible);
+  }
+
+  openWeaponWheel(activeSlot: number): void {
+    this.wheelOpen = true;
+    this.wheelCancel = false;
+    this.wheelHighlight = activeSlot;
+    this.wheel.classList.add('open');
+    this.crosshair.classList.add('is-hidden');
+    this.vitals.classList.add('dim');
+    this.ammoPanel.classList.add('dim');
+    this.weaponBar.classList.add('dim');
+    this.setWheelHighlight(activeSlot);
+    this.paintWheelCenter(activeSlot);
+    this.wheelCursor.style.transform = 'translate(-50%, -50%)';
+  }
+
+  closeWeaponWheel(commit: boolean): number {
+    this.wheelOpen = false;
+    this.wheel.classList.remove('open');
+    this.crosshair.classList.remove('is-hidden');
+    this.vitals.classList.remove('dim');
+    this.ammoPanel.classList.remove('dim');
+    this.weaponBar.classList.remove('dim');
+    const slot = this.wheelCancel || !commit ? -1 : this.wheelHighlight;
+    this.wheelCancel = false;
+    this.lastWheel = '';
+    return slot;
+  }
+
+  cancelWeaponWheel(): void {
+    this.wheelCancel = true;
+    this.closeWeaponWheel(false);
+  }
+
+  updateWeaponWheel(cursorX: number, cursorY: number, equippedSlot: number): void {
+    if (!this.wheelOpen) return;
+    const slot = slotFromCursor(cursorX, cursorY, WHEEL_SLOTS, WHEEL_DEADZONE);
+    const highlight = slot < 0 ? equippedSlot : slot;
+    this.setWheelHighlight(highlight);
+    this.wheelCursor.style.transform = `translate(calc(-50% + ${cursorX * 0.42}px), calc(-50% + ${cursorY * 0.42}px))`;
   }
 
   setNet(fps: number, ping: number, debug: boolean): void {
@@ -317,7 +422,18 @@ export class Hud {
     const text = label ?? '';
     if (text === this.lastInteract) return;
     this.lastInteract = text;
-    this.interact.textContent = text;
+    const show = text.length > 0;
+    this.interact.classList.toggle('show', show);
+    if (!show) return;
+    const split = text.match(/^(\S+)\s{2,}(.+)$/);
+    if (split) {
+      this.interactKey.hidden = false;
+      this.interactKey.textContent = split[1]!;
+      this.interactAction.textContent = split[2]!;
+    } else {
+      this.interactKey.hidden = true;
+      this.interactAction.textContent = text;
+    }
   }
 
   setDebug(text: string, open: boolean): void {
@@ -334,22 +450,23 @@ export class Hud {
     const body = rows
       .map(
         (r) =>
-          `<tr${r.self ? ' style="color:var(--accent)"' : ''}><td>${escapeHtml(r.name)}</td><td>${r.kills}</td><td>${r.deaths}</td><td>${r.ping}</td></tr>`,
+          `<tr${r.self ? ' class="self"' : ''}><td>${escapeHtml(r.name)}</td><td>${r.kills}</td><td>${r.deaths}</td><td>${r.ping}</td></tr>`,
       )
       .join('');
-    this.scoreboard.innerHTML = `<h3 style="margin:0 0 8px;letter-spacing:.18em">ROSTER</h3>
+    this.scoreboard.innerHTML = `<h3>Roster</h3>
       <table class="rl-table"><thead><tr><th>Player</th><th>K</th><th>D</th><th>Ping</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
   addKill(killer: string, victim: string, weapon: string, head: boolean): void {
-    const row = el('div', '', `${killer}  [${weapon}${head ? ' HS' : ''}]  ${victim}`);
+    const row = el('div', '');
+    row.innerHTML = `${escapeHtml(killer)} <em>${escapeHtml(weapon)}${head ? ' · HS' : ''}</em> ${escapeHtml(victim)}`;
     this.killfeed.prepend(row);
     while (this.killfeed.childElementCount > 6) this.killfeed.lastElementChild?.remove();
-    window.setTimeout(() => row.remove(), 6000);
+    window.setTimeout(() => row.remove(), 5600);
   }
 
   addChat(name: string, message: string): void {
-    this.chatLines.push(`<span>${escapeHtml(name)}</span>: ${escapeHtml(message)}`);
+    this.chatLines.push(`<span>${escapeHtml(name)}</span> ${escapeHtml(message)}`);
     if (this.chatLines.length > 8) this.chatLines.shift();
     this.chatLog.innerHTML = this.chatLines.map((l) => `<div>${l}</div>`).join('');
   }
@@ -372,6 +489,7 @@ export class Hud {
   showHit(head: boolean): void {
     this.hitmarker.classList.add('show');
     this.hitmarker.classList.toggle('head', head);
+    this.crosshair.classList.add('hit');
     this.hitTimer = 0.12;
   }
 
@@ -399,13 +517,12 @@ export class Hud {
   private updateDeath(now: number): void {
     const remain = Math.max(0, this.deathEndsAt - now);
     this.deathSub.textContent =
-      remain > 0
-        ? `Respawn in ${(remain / 1000).toFixed(1)}s`
-        : 'Click or jump to respawn';
+      remain > 0 ? `Respawn in ${(remain / 1000).toFixed(1)}s` : 'Click or jump to respawn';
   }
 
   setPaused(open: boolean): void {
     this.pause.classList.toggle('open', open);
+    if (open && this.wheelOpen) this.cancelWeaponWheel();
   }
 
   showToast(text: string): void {
@@ -417,7 +534,10 @@ export class Hud {
   update(dt: number, nowMs: number): void {
     if (this.hitTimer > 0) {
       this.hitTimer -= dt;
-      if (this.hitTimer <= 0) this.hitmarker.classList.remove('show');
+      if (this.hitTimer <= 0) {
+        this.hitmarker.classList.remove('show');
+        this.crosshair.classList.remove('hit');
+      }
     }
     if (this.hurtTimer > 0) {
       this.hurtTimer -= dt;
@@ -433,6 +553,75 @@ export class Hud {
     }
     if (this.death.classList.contains('show')) this.updateDeath(nowMs);
   }
+
+  private buildWheel(): HTMLElement {
+    const root = el('div', 'weapon-wheel');
+    const disc = el('div', 'ww-disc');
+    disc.innerHTML = `<svg class="ww-ring" viewBox="0 0 200 200" aria-hidden="true">
+      <circle cx="100" cy="100" r="78" />
+      <circle cx="100" cy="100" r="36" />
+    </svg>`;
+    const cursor = el('div', 'ww-cursor');
+    disc.append(cursor);
+    for (let i = 0; i < WHEEL_SLOTS; i++) {
+      const deg = -90 + i * 60;
+      const slot = el('div', 'ww-slot');
+      slot.style.setProperty('--deg', `${deg}deg`);
+      const num = el('div', 'ww-num', String(i + 1));
+      const icon = el('div', 'ww-icon');
+      icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : 'pistol');
+      const name = el('div', 'ww-name', i === TOOL_GUN_UI_SLOT ? 'Tool Gun' : '—');
+      slot.append(num, icon, name);
+      disc.append(slot);
+      this.wheelSlots.push(slot);
+      this.wheelIcons.push(icon);
+      this.wheelNames.push(name);
+    }
+    const center = el('div', 'ww-center');
+    center.innerHTML =
+      '<div class="ww-center-icon"></div><div class="ww-center-name">—</div><div class="ww-center-blurb"></div><div class="ww-center-ammo"></div>';
+    disc.append(center);
+    const hint = el('div', 'ww-hint', 'Release to equip  ·  Esc cancel');
+    root.append(disc, hint);
+    return root;
+  }
+
+  private setWheelHighlight(slot: number): void {
+    if (slot === this.wheelHighlight && this.lastWheel === `h${slot}`) return;
+    this.wheelHighlight = slot;
+    this.lastWheel = `h${slot}`;
+    for (let i = 0; i < this.wheelSlots.length; i++) {
+      this.wheelSlots[i]!.classList.toggle('hot', i === slot);
+    }
+    this.paintWheelCenter(slot);
+  }
+
+  private paintWheelCenter(slot: number): void {
+    const tool = slot === TOOL_GUN_UI_SLOT;
+    const info = tool
+      ? { id: 'toolgun', name: 'Tool Gun', blurb: 'Spawn, grab and inspect the sandbox.', mag: undefined, reserve: undefined }
+      : this.loadout[slot];
+    this.wheelCenterIcon.innerHTML = slotGlyph(info?.id ?? 'pistol');
+    this.wheelCenterName.textContent = info?.name ?? 'Empty';
+    this.wheelCenterBlurb.textContent = info?.blurb ?? (tool ? 'Sandbox manipulator.' : weaponBlurb(info?.id ?? ''));
+    if (tool) {
+      this.wheelCenterAmmo.textContent = 'Slot 6';
+    } else if (info && info.mag !== undefined) {
+      this.wheelCenterAmmo.textContent = `${info.mag}  /  ${info.reserve ?? 0}`;
+    } else if (info?.magSize) {
+      this.wheelCenterAmmo.textContent = `${info.magSize} mag`;
+    } else {
+      this.wheelCenterAmmo.textContent = '';
+    }
+  }
+}
+
+function slotFromCursor(x: number, y: number, count: number, deadzone: number): number {
+  if (Math.hypot(x, y) < deadzone) return -1;
+  let ang = Math.atan2(x, -y);
+  if (ang < 0) ang += Math.PI * 2;
+  const slice = (Math.PI * 2) / count;
+  return Math.round(ang / slice) % count;
 }
 
 function hintRow(key: string, action: string): HTMLElement {
@@ -446,8 +635,28 @@ function shortWeaponName(name: string): string {
   return cut.length > 10 ? cut.slice(0, 10) : cut;
 }
 
+function weaponBlurb(id: string): string {
+  switch (id) {
+    case 'pistol':
+      return 'Compact sidearm. Fast draw, close range.';
+    case 'smg':
+      return 'High cyclic rate. Close-range pressure.';
+    case 'rifle':
+      return 'Balanced automatic carbine.';
+    case 'shotgun':
+      return 'Devastating inside a few metres.';
+    case 'sniper':
+      return 'Bolt-action. Long-range precision.';
+    case 'toolgun':
+      return 'Spawn, grab and inspect the sandbox.';
+    default:
+      return 'Equipped firearm.';
+  }
+}
+
 function slotGlyph(id: string): string {
-  const common = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+  const common =
+    'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
   switch (id) {
     case 'toolgun':
       return `<svg ${common}><path d="M14 7l3-3 3 3-3 3"/><path d="M11 10L4 17v3h3l7-7"/><circle cx="16.5" cy="7.5" r="1"/></svg>`;

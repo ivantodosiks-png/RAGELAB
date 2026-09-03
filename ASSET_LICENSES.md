@@ -19,14 +19,19 @@ Compact downtown scenery for the Harbor Lane sandbox map. Kenney tiles are scale
 
 ## Player / NPC characters — `client/public/models/characters/*.glb`
 
-KayKit Adventurers (CC0): `knight.glb`, `mage.glb`, `rogue.glb`, `rogue-hooded.glb`, `barbarian.glb`.
+Civilian humans (not fantasy classes). Each file is self-contained (embedded textures + Idle / Walk / Run).
 
-- **Author:** Kay Lousberg
-- **URL:** https://kaylousberg.itch.io/kaykit-adventurers
-- **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
-- **Use:** Local first-person body (gameplay camera uses a dedicated layer so the head never fills the view), remote player avatars, and sandbox NPCs. Each file is a complete humanoid with matching Idle / Walk / Run clips. Accessory weapons in the GLB are hidden at runtime.
+| File | Mesh | Locomotion |
+| --- | --- | --- |
+| `man.glb` | Ready Player Me full-body example avatar (from three.js examples) | Ready Player Me Animation Library clips, baked in |
+| `woman.glb` | Mixamo Michelle | Mixamo Idle / Walk / Run (clips only; the Vanguard visor mesh is not shipped) |
 
-The previous Mixamo Vanguard visor soldier and UE mannequin are no longer shipped.
+- **Ready Player Me avatar:** https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/readyplayer.me.glb — use in games is allowed under Ready Player Me terms.
+- **Ready Player Me animations:** https://github.com/readyplayerme/animation-library — licensed for use with Ready Player Me avatars; clips are baked into `man.glb`, not redistributed as a library.
+- **Mixamo Michelle + locomotion:** Adobe Mixamo characters/animations may be used in games. Mesh from three.js `Michelle.glb`; Idle/Walk/Run tracks copied from three.js `Soldier.glb` (same Mixamo skeleton).
+- **Use:** Local first-person body (gameplay camera uses a dedicated layer so the head never fills the view), remote player avatars, and sandbox NPCs.
+
+KayKit Adventurers (knight / mage / rogue / barbarian) are no longer shipped. The Mixamo Vanguard visor mesh and UE mannequin are not shipped.
 
 ## Weapons — `client/public/models/weapons/*.glb`
 

@@ -16,6 +16,13 @@
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   --font: Bahnschrift, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --mono: "Cascadia Mono", Consolas, "Segoe UI Mono", ui-monospace, monospace;
+  --hud-bg: rgba(12, 16, 22, 0.46);
+  --hud-stroke: rgba(210, 224, 238, 0.1);
+  --hud-stroke-hot: rgba(186, 214, 246, 0.42);
+  --hud-text: #e8eef6;
+  --hud-muted: #8b97a8;
+  --hud-accent: #c5d8f0;
+  --hud-radius: 12px;
 }
 
 *,
@@ -367,57 +374,79 @@ input[type='range'] {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  color: var(--hud-text);
+  font-family: "Segoe UI Variable", "Segoe UI", Bahnschrift, system-ui, sans-serif;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-.hud-glass {
-  background: var(--glass);
-  border: 1px solid rgba(214, 255, 61, 0.14);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px) saturate(1.15);
-  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+.hud.hud-ready {
+  opacity: 1;
+  transform: none;
+}
+
+.hud-glass,
+.hud-vitals,
+.hud-weapon,
+.weapon-bar,
+.toolgun-hud,
+.toast,
+.scoreboard,
+.pause-card {
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-stroke);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
 }
 
 .crosshair {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   transform: translate(-50%, -50%);
-  --gap: 7px;
+  --gap: 6px;
+  transition: opacity 0.12s ease;
+}
+
+.crosshair.is-hidden {
+  opacity: 0;
 }
 
 .crosshair .ch-dot {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 3px;
-  height: 3px;
+  width: 2px;
+  height: 2px;
   border-radius: 50%;
-  background: rgba(231, 239, 228, 0.92);
-  box-shadow: 0 0 6px rgba(214, 255, 61, 0.35);
+  background: rgba(232, 238, 246, 0.92);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.55);
   transform: translate(-50%, -50%);
 }
 
 .crosshair .ch-tick {
   position: absolute;
-  background: rgba(231, 239, 228, 0.88);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+  background: rgba(232, 238, 246, 0.88);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
   transition: background 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
 }
 
 .crosshair .ch-tick.n,
 .crosshair .ch-tick.s {
-  width: 2px;
-  height: 7px;
+  width: 1.5px;
+  height: 6px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .crosshair .ch-tick.e,
 .crosshair .ch-tick.w {
-  width: 7px;
-  height: 2px;
+  width: 6px;
+  height: 1.5px;
   top: 50%;
   transform: translateY(-50%);
 }
@@ -427,68 +456,54 @@ input[type='range'] {
 .crosshair .ch-tick.e { left: calc(50% + var(--gap)); }
 .crosshair .ch-tick.w { right: calc(50% + var(--gap)); }
 
-.crosshair .ch-ring {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 18px;
-  height: 18px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity 0.14s ease, border-color 0.14s ease, width 0.14s ease, height 0.14s ease;
-}
-
 .crosshair.moving .ch-tick.n { bottom: calc(50% + var(--gap) + 3px); }
 .crosshair.moving .ch-tick.s { top: calc(50% + var(--gap) + 3px); }
 .crosshair.moving .ch-tick.e { left: calc(50% + var(--gap) + 3px); }
 .crosshair.moving .ch-tick.w { right: calc(50% + var(--gap) + 3px); }
 
 .crosshair.toolgun .ch-dot {
-  width: 4px;
-  height: 4px;
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(214, 255, 61, 0.55);
+  width: 3px;
+  height: 3px;
+  background: var(--hud-accent);
 }
 
 .crosshair.hover .ch-tick,
-.crosshair.ready .ch-tick {
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(214, 255, 61, 0.45);
-}
-
-.crosshair.hover .ch-ring,
-.crosshair.ready .ch-ring {
-  opacity: 1;
-  border-color: rgba(214, 255, 61, 0.7);
-}
-
-.crosshair.ready .ch-ring {
-  width: 22px;
-  height: 22px;
-}
-
-.crosshair.hit i {
+.crosshair.ready .ch-tick,
+.crosshair.hit .ch-tick,
+.crosshair.hit .ch-dot {
   background: var(--rage);
+}
+
+.hud-vitals,
+.hud-weapon {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.hud-vitals.dim,
+.hud-weapon.dim,
+.weapon-bar.dim {
+  opacity: 0.28;
 }
 
 .hud-vitals {
   position: absolute;
-  left: max(16px, env(safe-area-inset-left, 0px));
-  bottom: 92px;
-  width: min(220px, 28vw);
+  left: max(18px, env(safe-area-inset-left, 0px));
+  bottom: 86px;
+  width: min(210px, 26vw);
   padding: 10px 12px 12px;
-  border-radius: 10px;
+  border-radius: var(--hud-radius);
+}
+
+.hud-vitals.critical .bar > span {
+  background: var(--rage);
 }
 
 .bar {
-  height: 6px;
-  background: rgba(12, 16, 14, 0.7);
-  border: 1px solid rgba(214, 255, 61, 0.12);
-  margin-top: 6px;
+  height: 4px;
+  background: rgba(8, 12, 16, 0.55);
   overflow: hidden;
   border-radius: 99px;
+  margin-top: 7px;
 }
 
 .bar > span {
@@ -496,49 +511,55 @@ input[type='range'] {
   height: 100%;
   width: 100%;
   transform-origin: left center;
-  background: var(--health);
+  background: linear-gradient(90deg, #5fd49a, #b6f0c8);
 }
 
 .bar.ammo > span {
-  background: var(--ammo);
+  background: linear-gradient(90deg, #d7c48a, #f0e2b8);
 }
 
 .vital-meta {
   display: flex;
   justify-content: space-between;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hud-muted);
 }
 
 .hud-weapon {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: 92px;
-  width: min(200px, 26vw);
+  right: max(18px, env(safe-area-inset-right, 0px));
+  bottom: 86px;
+  width: min(190px, 24vw);
   padding: 10px 12px 12px;
-  border-radius: 10px;
+  border-radius: var(--hud-radius);
   text-align: right;
 }
 
+.hud-weapon.switching .ammo {
+  animation: ammo-swap 0.18s ease;
+}
+
 .hud-weapon .name {
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 11px;
-  color: var(--muted);
+  font-size: 10px;
+  color: var(--hud-muted);
 }
 
 .hud-weapon .ammo {
   font-family: var(--mono);
-  font-size: 28px;
+  font-size: 26px;
+  font-weight: 500;
   line-height: 1.05;
-  margin: 2px 0 6px;
+  margin: 3px 0 6px;
+  letter-spacing: 0.02em;
 }
 
 .hud-weapon .ammo small {
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 12px;
+  color: var(--hud-muted);
 }
 
 .weapon-bar {
@@ -547,40 +568,37 @@ input[type='range'] {
   bottom: max(14px, env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   display: flex;
-  gap: 6px;
+  gap: 5px;
   padding: 6px;
-  border-radius: 12px;
-  background: rgba(8, 12, 10, 0.38);
-  border: 1px solid rgba(214, 255, 61, 0.12);
-  backdrop-filter: blur(12px) saturate(1.1);
-  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border-radius: 14px;
+  transition: opacity 0.18s ease;
 }
 
 .weapon-slot {
-  width: 62px;
-  min-height: 58px;
-  padding: 5px 4px 6px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(12, 16, 14, 0.35);
-  color: var(--muted);
+  width: 54px;
+  min-height: 52px;
+  padding: 5px 3px 6px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--hud-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 
 .weapon-slot .slot-num {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.08em;
-  opacity: 0.75;
+  opacity: 0.7;
 }
 
 .weapon-slot .slot-icon {
-  width: 22px;
-  height: 16px;
+  width: 20px;
+  height: 15px;
   color: inherit;
 }
 
@@ -591,7 +609,7 @@ input[type='range'] {
 }
 
 .weapon-slot .slot-name {
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   max-width: 100%;
@@ -601,38 +619,51 @@ input[type='range'] {
 }
 
 .weapon-slot.selected {
-  color: var(--accent);
-  border-color: rgba(214, 255, 61, 0.55);
-  background: rgba(214, 255, 61, 0.1);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 18px rgba(214, 255, 61, 0.12);
+  color: var(--hud-text);
+  border-color: var(--hud-stroke-hot);
+  background: rgba(197, 216, 240, 0.1);
+  transform: translateY(-3px);
 }
 
 .weapon-bar.switching .weapon-slot.selected {
-  animation: slot-pop 0.22s ease;
+  animation: slot-pop 0.2s ease;
 }
 
 @keyframes slot-pop {
-  0% { transform: translateY(6px) scale(0.94); opacity: 0.55; }
-  100% { transform: translateY(-4px) scale(1); opacity: 1; }
+  0% { transform: translateY(4px) scale(0.94); opacity: 0.55; }
+  100% { transform: translateY(-3px) scale(1); opacity: 1; }
+}
+
+@keyframes ammo-swap {
+  0% { opacity: 0.35; transform: translateY(4px); }
+  100% { opacity: 1; transform: none; }
 }
 
 .killfeed {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right, 0px));
-  top: 72px;
+  right: max(18px, env(safe-area-inset-right, 0px));
+  top: 64px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   align-items: flex-end;
-  font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
+  color: var(--hud-muted);
 }
 
 .killfeed div {
-  background: rgba(8, 10, 9, 0.7);
-  border-left: 3px solid var(--rage);
-  padding: 4px 10px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-stroke);
+  border-radius: 8px;
+  padding: 5px 10px;
+  backdrop-filter: blur(12px);
+  animation: toast-in 0.22s ease;
+}
+
+.killfeed em {
+  font-style: normal;
+  color: var(--hud-accent);
+  padding: 0 6px;
 }
 
 .chat-log {
@@ -648,7 +679,7 @@ input[type='range'] {
 }
 
 .chat-log span {
-  color: var(--accent);
+  color: var(--hud-accent);
 }
 
 .chat-box {
@@ -666,9 +697,10 @@ input[type='range'] {
 .chat-box input {
   width: min(420px, 46vw);
   font: inherit;
-  color: var(--text);
-  background: rgba(8, 10, 9, 0.9);
-  border: 1px solid var(--accent);
+  color: var(--hud-text);
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-stroke-hot);
+  border-radius: 8px;
   padding: 8px 10px;
   outline: none;
 }
@@ -689,12 +721,35 @@ input[type='range'] {
   position: absolute;
   left: 50%;
   top: 58%;
-  transform: translateX(-50%);
-  letter-spacing: 0.18em;
+  transform: translateX(-50%) translateY(6px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-size: 12px;
-  color: var(--accent);
-  text-shadow: 0 0 12px rgba(214, 255, 61, 0.35);
+  font-size: 11px;
+  color: var(--hud-text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.interact.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.interact kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--hud-accent);
+  border: 1px solid var(--hud-stroke-hot);
+  background: rgba(197, 216, 240, 0.08);
+  border-radius: 5px;
+  padding: 2px 7px;
+  min-width: 22px;
+  text-align: center;
 }
 
 .hitmarker {
@@ -714,8 +769,8 @@ input[type='range'] {
 
 .hitmarker i {
   position: absolute;
-  background: #fff;
-  box-shadow: 0 0 8px #fff;
+  background: var(--hud-text);
+  box-shadow: 0 0 6px rgba(232, 238, 246, 0.35);
 }
 
 .hitmarker.head i {
@@ -790,14 +845,26 @@ input[type='range'] {
   top: 12%;
   transform: translateX(-50%);
   width: min(640px, 90vw);
-  background: var(--panel);
-  border: 1px solid var(--line);
   display: none;
   padding: 16px 18px;
+  border-radius: 14px;
 }
 
 .scoreboard.open {
   display: block;
+}
+
+.scoreboard h3 {
+  margin: 0 0 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hud-muted);
+}
+
+.scoreboard tr.self {
+  color: var(--hud-accent);
 }
 
 .debug-overlay {
@@ -845,20 +912,21 @@ input[type='range'] {
 
 .toast {
   position: absolute;
-  top: 20px;
+  top: 22px;
   left: 50%;
-  transform: translateX(-50%);
-  background: var(--panel-solid);
-  border: 1px solid var(--accent);
+  transform: translateX(-50%) translateY(-8px);
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border-radius: 10px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 .toast.show {
   opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .connecting {
@@ -878,25 +946,26 @@ input[type='range'] {
 
 .toolgun-hud {
   position: absolute;
-  left: max(16px, env(safe-area-inset-left, 0px));
-  bottom: 168px;
-  min-width: 168px;
-  max-width: min(220px, 36vw);
+  left: max(18px, env(safe-area-inset-left, 0px));
+  bottom: 162px;
+  min-width: 150px;
+  max-width: min(200px, 34vw);
   padding: 10px 12px;
-  border-radius: 10px;
-  border-left: 2px solid var(--accent);
+  border-radius: var(--hud-radius);
   pointer-events: none;
 }
 
 .toolgun-title {
   font-size: 10px;
-  letter-spacing: 0.22em;
-  color: var(--accent);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--hud-muted);
 }
 
 .toolgun-selected {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 13px;
+  color: var(--hud-text);
 }
 
 .toolgun-hint {
@@ -911,19 +980,175 @@ input[type='range'] {
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--hud-muted);
 }
 
 .toolgun-bind kbd {
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--accent);
-  border: 1px solid rgba(214, 255, 61, 0.28);
+  color: var(--hud-accent);
+  border: 1px solid var(--hud-stroke-hot);
   border-radius: 4px;
   padding: 1px 5px;
   min-width: 32px;
   text-align: center;
+}
+
+.weapon-wheel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92);
+  transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: radial-gradient(circle at center, rgba(6, 10, 16, 0.28), rgba(4, 6, 10, 0.45) 62%);
+}
+
+.weapon-wheel.open {
+  opacity: 1;
+  transform: none;
+}
+
+.ww-disc {
+  position: relative;
+  width: min(420px, 72vw);
+  height: min(420px, 72vw);
+  --orbit: min(148px, 34vw);
+}
+
+.ww-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ww-ring circle {
+  fill: none;
+  stroke: rgba(210, 224, 238, 0.16);
+  stroke-width: 1.1;
+}
+
+.ww-cursor {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hud-accent);
+  box-shadow: 0 0 12px rgba(197, 216, 240, 0.55);
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
+.ww-slot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88px;
+  transform: translate(-50%, -50%) rotate(var(--deg)) translateY(calc(var(--orbit) * -1)) rotate(calc(var(--deg) * -1));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  color: var(--hud-muted);
+  background: rgba(12, 16, 22, 0.35);
+  backdrop-filter: blur(10px);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ww-slot.hot {
+  color: var(--hud-text);
+  border-color: var(--hud-stroke-hot);
+  background: rgba(197, 216, 240, 0.14);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28), 0 0 18px rgba(180, 210, 245, 0.12);
+  transform: translate(-50%, -50%) rotate(var(--deg)) translateY(calc(var(--orbit) * -1)) rotate(calc(var(--deg) * -1)) scale(1.08);
+}
+
+.ww-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.ww-icon {
+  width: 28px;
+  height: 20px;
+}
+
+.ww-icon svg,
+.ww-center-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ww-name {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ww-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 148px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 2;
+}
+
+.ww-center-icon {
+  width: 32px;
+  height: 24px;
+  margin: 0 auto 8px;
+  color: var(--hud-accent);
+}
+
+.ww-center-name {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--hud-text);
+}
+
+.ww-center-blurb {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--hud-muted);
+}
+
+.ww-center-ammo {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--hud-accent);
+}
+
+.ww-hint {
+  position: absolute;
+  bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hud-muted);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 .spawn-menu {
@@ -1227,16 +1452,19 @@ input[type='range'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .weapon-slot {
-    width: 52px;
-    min-height: 52px;
+    width: 48px;
+    min-height: 48px;
   }
   .hud-vitals,
   .hud-weapon {
     width: min(180px, 42vw);
-    bottom: 82px;
+    bottom: 78px;
   }
   .toolgun-hud {
     bottom: 148px;
+  }
+  .ww-center {
+    width: 120px;
   }
 }
 
@@ -1249,12 +1477,12 @@ input[type='range'] {
     display: none;
   }
   .weapon-slot {
-    width: 40px;
-    min-height: 44px;
+    width: 38px;
+    min-height: 42px;
   }
   .hud-vitals,
   .hud-weapon {
-    bottom: 70px;
+    bottom: 66px;
     width: min(150px, 44vw);
   }
   .spawn-grid {
@@ -1262,6 +1490,9 @@ input[type='range'] {
   }
   .spawn-tabs {
     font-size: 10px;
+  }
+  .ww-name {
+    display: none;
   }
 }
 

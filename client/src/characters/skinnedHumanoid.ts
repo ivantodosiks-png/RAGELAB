@@ -8,29 +8,26 @@ import type { NpcLook } from '../sandbox/npcModel';
 const BASE = import.meta.env.BASE_URL;
 
 /**
- * KayKit Adventurers (CC0). Real humanoid meshes with faces, hair, clothes and
- * a matching skeleton + locomotion clips. The old Mixamo Vanguard / UE mannequin
- * assets are gone — they looked like robots and their +Z bind fought the game's -Z forward.
+ * Civilian humans (Ready Player Me man + Mixamo Michelle). Faces, hair, clothes,
+ * and locomotion clips. KayKit fantasy classes are gone. Facing is applied on an
+ * un-animated parent so Mixamo +Z bind cannot overwrite game yaw (-Z).
  */
-export const CHARACTER_KINDS = ['knight', 'mage', 'rogue', 'rogueHooded', 'barbarian'] as const;
+export const CHARACTER_KINDS = ['man', 'woman'] as const;
 export type CharacterKind = (typeof CHARACTER_KINDS)[number];
 export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'getup';
 
 const KIND_FILE: Record<CharacterKind, string> = {
-  knight: 'knight.glb',
-  mage: 'mage.glb',
-  rogue: 'rogue.glb',
-  rogueHooded: 'rogue-hooded.glb',
-  barbarian: 'barbarian.glb',
+  man: 'man.glb',
+  woman: 'woman.glb',
 };
 
 const CLIP_ALIASES: Record<LocoClip, string[]> = {
-  idle: ['idle', 'unarmed_idle'],
-  walk: ['walking_a', 'walking_b', 'walking_c', 'walk'],
-  run: ['running_a', 'running_b', 'run'],
-  jump: ['jump_start', 'jump_full_short', 'jump'],
-  fall: ['jump_idle', 'jump_land', 'fall'],
-  getup: ['lie_standup', 'sit_floor_standup', 'standup'],
+  idle: ['idle', 'standing_idle', 'unarmed_idle'],
+  walk: ['walk', 'walking_a', 'walking_b'],
+  run: ['run', 'running_a'],
+  jump: ['jump', 'jump_start', 'walk_jump'],
+  fall: ['fall', 'falling_idle', 'jump_idle'],
+  getup: ['getup', 'lie_standup', 'standup'],
 };
 
 const BONE_ALIASES: Record<NpcPartId, string[]> = {
@@ -72,7 +69,7 @@ export function kindFromSeed(seed: number): CharacterKind {
   return CHARACTER_KINDS[i]!;
 }
 
-export async function preloadCharacter(kind: CharacterKind = 'knight'): Promise<GLTF | null> {
+export async function preloadCharacter(kind: CharacterKind = 'man'): Promise<GLTF | null> {
   try {
     return await assetManager.loadGltf(characterUrl(kind));
   } catch {
@@ -106,7 +103,7 @@ export class SkinnedCharacter {
   constructor(kind: CharacterKind, look: NpcLook) {
     this.kind = kind;
     this.animRate = look.animRate ?? 1;
-    this.walkNames = look.walkVariant === 1 ? ['walking_b', 'walking_c', 'walking_a'] : ['walking_a', 'walking_b'];
+    this.walkNames = look.walkVariant === 1 ? ['walking_b', 'walk', 'walking_a'] : ['walk', 'walking_b'];
     this.root = new THREE.Group();
     this.root.name = `skinned:${kind}`;
     this.facing.name = 'facing';
@@ -135,8 +132,8 @@ export class SkinnedCharacter {
         const clones = list.map((mat) => {
           const next = (mat as THREE.Material).clone();
           if (next instanceof THREE.MeshStandardMaterial) {
-            if (look.gltfTint && look.gltfTint !== 0xffffff) {
-              next.color.lerp(new THREE.Color(look.gltfTint), 0.12);
+            if (isOutfitMesh(mesh.name) && look.gltfTint && look.gltfTint !== 0xffffff) {
+              next.color.lerp(new THREE.Color(look.gltfTint), 0.18);
             }
             next.envMapIntensity = 1.05;
             next.emissive.setHex(0x000000);
@@ -146,7 +143,7 @@ export class SkinnedCharacter {
           return next;
         });
         mesh.material = Array.isArray(src) ? clones : clones[0]!;
-        if (/head|helmet|hood|hair|hat/i.test(mesh.name)) this.headMeshes.push(mesh);
+        if (isHeadMesh(mesh.name)) this.headMeshes.push(mesh);
       }
       const key = normalizeBone(obj.name);
       if (key === 'head') this.headBone = obj;
@@ -292,6 +289,17 @@ function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null 
   return found;
 }
 
+const HEAD_MESH = /head|helmet|hood|hair|hat|beard|teeth|eyeleft|eyeright|headwear|glasses/i;
+const OUTFIT_MESH = /outfit|footwear/i;
+
+function isHeadMesh(name: string): boolean {
+  return HEAD_MESH.test(name);
+}
+
+function isOutfitMesh(name: string): boolean {
+  return OUTFIT_MESH.test(name);
+}
+
 function hideGear(root: THREE.Object3D): void {
   root.traverse((obj) => {
     if (WEAPON_NAME.test(obj.name) && !/head|hood|hair|hat|helmet|cape|body/i.test(obj.name)) {
@@ -305,10 +313,12 @@ function stripRootMotion(clip: THREE.AnimationClip): THREE.AnimationClip {
   const next = clip.clone();
   for (const track of next.tracks) {
     if (!/\.position$/.test(track.name)) continue;
-    if (!/(^|\.)(root|hips|armature|characterarmature)$/i.test(track.name.replace(/\.position$/, ''))) continue;
+    const node = track.name.replace(/\.position$/i, '');
+    const joint = node.split(/[.:/]/).pop() ?? node;
+    if (!/^(root|hips|armature|characterarmature)$/i.test(joint)) continue;
     const values = track.values;
     if (values.length < 3) continue;
-    const rootTrack = /root$/i.test(track.name.replace(/\.position$/i, ''));
+    const rootTrack = /^root$/i.test(joint);
     for (let i = 0; i < values.length; i += 3) {
       values[i] = 0;
       values[i + 2] = 0;

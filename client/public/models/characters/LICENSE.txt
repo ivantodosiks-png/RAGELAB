@@ -1,0 +1,16 @@
+RAGELAB character licenses
+==========================
+
+man.glb
+- Mesh: Ready Player Me example avatar shipped with three.js
+  https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/readyplayer.me.glb
+  Ready Player Me avatars may be used in games and apps.
+- Clips: Ready Player Me Animation Library (Idle, Walk, Run, Jump, Fall)
+  https://github.com/readyplayerme/animation-library
+  Licensed for use with Ready Player Me avatars. Baked into this file.
+
+woman.glb
+- Mesh: Mixamo "Michelle" via three.js examples
+  https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Michelle.glb
+- Clips: Mixamo Idle / Walk / Run via three.js Soldier.glb (animation tracks only)
+  Adobe Mixamo content may be used in games. The visor soldier mesh is not included.

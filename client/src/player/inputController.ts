@@ -36,6 +36,10 @@ export class InputController {
   uiSlotCount = TOOL_GUN_UI_SLOT + 1;
   /** While the spawn menu is open, number keys / wheel must not switch tools. */
   freezeSlots = false;
+  /** Radial weapon wheel: look is frozen, mouse drives the selector. */
+  weaponWheelOpen = false;
+  wheelCursorX = 0;
+  wheelCursorY = 0;
 
   /** Latched toggle states for toggle-style sprint/crouch/aim. */
   private toggleSprint = false;
@@ -73,6 +77,17 @@ export class InputController {
 
   private readonly onMouseMove = (event: MouseEvent): void => {
     if (!this.locked) return;
+    if (this.weaponWheelOpen) {
+      this.wheelCursorX += event.movementX;
+      this.wheelCursorY += event.movementY;
+      const max = 140;
+      const len = Math.hypot(this.wheelCursorX, this.wheelCursorY);
+      if (len > max) {
+        this.wheelCursorX = (this.wheelCursorX / len) * max;
+        this.wheelCursorY = (this.wheelCursorY / len) * max;
+      }
+      return;
+    }
     // Pointer lock reports raw deltas; 0.0022 rad per unit at sensitivity 1
     // matches the feel of mainstream shooters at 800 DPI.
     const scale = 0.0022 * this.controls.sensitivity * (this.aimingNow() ? this.controls.aimSensitivityMultiplier : 1);
@@ -218,6 +233,8 @@ export class InputController {
           if (this.freezeSlots) break;
           this.uiSlot = TOOL_GUN_UI_SLOT;
           break;
+        case 'weaponWheel':
+          break;
         default:
           this.uiEdges.add(action);
       }
@@ -247,6 +264,26 @@ export class InputController {
     return this.uiSlot === TOOL_GUN_UI_SLOT;
   }
 
+  openWeaponWheel(): void {
+    this.weaponWheelOpen = true;
+    this.wheelCursorX = 0;
+    this.wheelCursorY = 0;
+  }
+
+  closeWeaponWheel(): void {
+    this.weaponWheelOpen = false;
+    this.wheelCursorX = 0;
+    this.wheelCursorY = 0;
+  }
+
+  selectUiSlot(slot: number): void {
+    if (slot === TOOL_GUN_UI_SLOT) {
+      this.uiSlot = TOOL_GUN_UI_SLOT;
+      return;
+    }
+    this.selectFirearm(slot);
+  }
+
   private selectFirearm(slot: number): void {
     const max = Math.max(0, this.loadoutSize - 1);
     this.firearmSlot = clamp(slot, 0, max);
@@ -256,7 +293,7 @@ export class InputController {
   /** Called once per simulation tick to build the command payload. */
   sample(): { moveX: number; moveZ: number; buttons: number; weaponSlot: number } {
     if (this.wheelDelta !== 0) {
-      if (!this.freezeSlots) {
+      if (!this.freezeSlots && !this.weaponWheelOpen) {
         const steps = this.wheelDelta > 0 ? 1 : -1;
         const count = Math.max(1, this.uiSlotCount);
         this.uiSlot = (this.uiSlot + steps + count) % count;
@@ -280,8 +317,8 @@ export class InputController {
     if (this.controls.toggleCrouch ? this.toggleCrouch : this.isDown('crouch')) {
       buttons |= Button.Crouch;
     }
-    if (this.isDown('fire')) buttons |= Button.Fire;
-    if (this.aimingNow()) buttons |= Button.Aim;
+    if (!this.weaponWheelOpen && this.isDown('fire')) buttons |= Button.Fire;
+    if (!this.weaponWheelOpen && this.aimingNow()) buttons |= Button.Aim;
     if (this.isDown('reload')) buttons |= Button.Reload;
     if (this.isDown('interact')) buttons |= Button.Interact;
     if (this.isDown('dropProp')) buttons |= Button.Drop;

@@ -105,6 +105,7 @@ export class GameSession {
   private scores: PlayerScore[] = [];
   private lastButtons = 0;
   private lastUiSlot = 0;
+  private wheelIgnoreHold = false;
   private lastYaw = 0;
   private lastPitch = 0;
   private respawnAt = 0;
@@ -293,7 +294,7 @@ export class GameSession {
     this.sandbox.onCannotSpawnWeapon = () => {
       this.ui.hud.showToast('Weapons are not spawnable with Tool Gun');
     };
-    this.ui.hud.setLoadout(this.loadout.map((id) => ({ id, name: getWeapon(id).name })));
+    this.ui.hud.setLoadout(this.loadoutRows());
     this.ui.hud.setActiveSlot(this.input.uiSlot);
 
     this.identities.clear();
@@ -339,7 +340,7 @@ export class GameSession {
     this.localId = welcome.playerId;
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : this.loadout;
     this.input.loadoutSize = this.loadout.length;
-    this.ui.hud.setLoadout(this.loadout.map((id) => ({ id, name: getWeapon(id).name })));
+    this.ui.hud.setLoadout(this.loadoutRows());
     this.interp.reset();
     this.identities.clear();
     for (const id of welcome.players) this.identities.set(id.id, id);
@@ -412,6 +413,10 @@ export class GameSession {
 
   private openSpawnMenu(): void {
     if (!this.sandbox.toolGunActive || this.spawnMenu.isOpen) return;
+    if (this.input.weaponWheelOpen) {
+      this.input.closeWeaponWheel();
+      this.ui.hud.cancelWeaponWheel();
+    }
     this.spawnMenu.open();
     this.sandbox.setMenuOpen(true);
     this.input.freezeSlots = true;
@@ -431,7 +436,10 @@ export class GameSession {
     if (paused) {
       this.spawnMenu?.close();
       this.sandbox?.setMenuOpen(false);
-      if (this.input) this.input.freezeSlots = false;
+      if (this.input) {
+        this.input.freezeSlots = false;
+        this.input.closeWeaponWheel();
+      }
       this.input.releaseLock();
     } else {
       this.input.requestLock();
@@ -459,7 +467,11 @@ export class GameSession {
       else this.input.requestLock();
     }
     if (this.input.consumeEdge('menu') && !this.ui.hud.chatting) {
-      if (this.spawnMenu?.isOpen) this.closeSpawnMenu();
+      if (this.ui.hud.weaponWheelOpen) {
+        this.input.closeWeaponWheel();
+        this.ui.hud.cancelWeaponWheel();
+        this.wheelIgnoreHold = true;
+      } else if (this.spawnMenu?.isOpen) this.closeSpawnMenu();
       else this.setPaused(!this.paused);
     }
     if (this.input.consumeEdge('debug')) {
@@ -468,6 +480,26 @@ export class GameSession {
     if (this.input.consumeEdge('chat') && !this.paused) {
       this.input.releaseLock();
       this.ui.hud.openChat();
+    }
+
+    if (!this.input.isActionHeld('weaponWheel')) this.wheelIgnoreHold = false;
+    const canWheel =
+      !this.paused &&
+      this.local.alive &&
+      !this.ui.hud.chatting &&
+      !this.spawnMenu?.isOpen &&
+      !this.sandbox.cursorMode &&
+      !this.wheelIgnoreHold;
+    const wantWheel = canWheel && this.input.isActionHeld('weaponWheel');
+    if (wantWheel && !this.input.weaponWheelOpen) {
+      this.input.openWeaponWheel();
+      this.ui.hud.openWeaponWheel(this.input.uiSlot);
+    } else if (this.input.weaponWheelOpen && !wantWheel) {
+      const slot = this.ui.hud.closeWeaponWheel(true);
+      this.input.closeWeaponWheel();
+      if (slot >= 0) this.input.selectUiSlot(slot);
+    } else if (this.input.weaponWheelOpen) {
+      this.ui.hud.updateWeaponWheel(this.input.wheelCursorX, this.input.wheelCursorY, this.input.uiSlot);
     }
 
     const predicted = this.local.update(dtMs, () => this.input.sample(), this.input.yaw, this.input.pitch, commands);
@@ -512,11 +544,12 @@ export class GameSession {
 
     directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
     const toolGun = this.sandbox.toolGunActive;
-    this.weapon.blockFire = this.sandbox.interceptsFire || this.sandbox.menuOpen;
-    this.weapon.blockAim = toolGun || this.sandbox.menuOpen;
+    this.weapon.blockFire = this.sandbox.interceptsFire || this.sandbox.menuOpen || this.input.weaponWheelOpen;
+    this.weapon.blockAim = toolGun || this.sandbox.menuOpen || this.input.weaponWheelOpen;
     this.weapon.hideViewModel = toolGun;
     const fireEdge = buttonPressed(localButtons, this.lastButtons, Button.Fire);
     const aimEdge = buttonPressed(localButtons, this.lastButtons, Button.Aim);
+    const interactEdge = buttonPressed(localButtons, this.lastButtons, Button.Interact);
 
     this.weapon.update(dt, {
       buttons: localButtons,
@@ -548,6 +581,9 @@ export class GameSession {
         }
       }
     }
+    if (interactEdge && !this.paused && !this.ui.hud.chatting) {
+      this.sandbox.inspectLookTarget();
+    }
 
     if (this.weapon.didFire) {
       this.spawnPredictedTracer();
@@ -567,6 +603,10 @@ export class GameSession {
     }
 
     if (!this.local.alive) {
+      if (this.input.weaponWheelOpen) {
+        this.input.closeWeaponWheel();
+        this.ui.hud.cancelWeaponWheel();
+      }
       if (this.input.isActionHeld('jump') && this.net.serverNowMs() >= this.respawnAt) {
         this.net.sendRespawnRequest();
       }
@@ -819,6 +859,9 @@ export class GameSession {
     }
     this.ui.hud.setNet(this.fps, this.net.rttMs, settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
+    this.ui.hud.setCrosshairVisible(
+      this.local.alive && !this.paused && !this.ui.hud.weaponWheelOpen && !this.spawnMenu?.isOpen,
+    );
     this.ui.hud.setScoreboard(this.scoreRows(), this.input.isActionHeld('scoreboard') && !this.ui.hud.chatting);
     this.ui.hud.setDebug(
       `tick ack ${this.net.ackTick}\n` +
@@ -830,6 +873,20 @@ export class GameSession {
       settingsStore.graphics.debugOverlay,
     );
     this.ui.hud.update(dt, this.net.serverNowMs());
+  }
+
+  private loadoutRows() {
+    return this.loadout.map((id, index) => {
+      const def = getWeapon(id);
+      const live = index === this.input.uiSlot && !this.input.toolGunEquipped;
+      return {
+        id,
+        name: def.name,
+        mag: live ? this.weapon.ammoInMag : def.magazineSize,
+        reserve: live ? this.weapon.ammoReserve : def.reserveAmmo,
+        magSize: def.magazineSize,
+      };
+    });
   }
 
   private scoreRows() {
@@ -846,6 +903,14 @@ export class GameSession {
   private interactPrompt(): string | null {
     if (!this.local.alive) return null;
     if (this.local.carrying) return 'LMB throw  ·  G drop  ·  E drop';
+    const npc = this.sandbox.hoveredNpc;
+    if (npc?.active && !npc.dead) {
+      const px = npc.position.x;
+      const pz = npc.position.z;
+      const dx = px - this.local.renderPosition.x;
+      const dz = pz - this.local.renderPosition.z;
+      if (dx * dx + dz * dz <= 3.6 * 3.6) return 'E  Inspect';
+    }
     const origin = {
       x: this.local.renderPosition.x,
       y: this.local.renderPosition.y + EYE_HEIGHT_STAND,

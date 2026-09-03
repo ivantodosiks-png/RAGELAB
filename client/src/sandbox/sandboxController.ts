@@ -745,7 +745,7 @@ export class SandboxController {
       this.preview.update(null, 0, false);
     }
 
-    const hover = this.tool === 'none' ? null : this.pickNpc(ctx.camera, origin, dir);
+    const hover = this.pickNpc(ctx.camera, origin, dir);
     if (this.hovered !== hover) {
       this.hovered?.setHovered(false);
       hover?.setHovered(true);
@@ -754,6 +754,16 @@ export class SandboxController {
     this.lookHint = this.resolveLookHint(ctx.camera, origin, dir, hover, spawnPoint);
 
     if (this.selected && !this.selected.active) this.selected = null;
+  }
+
+  get hoveredNpc(): SandboxNpc | null {
+    return this.hovered;
+  }
+
+  inspectLookTarget(): boolean {
+    if (!this.hovered?.active) return false;
+    this.select(this.hovered);
+    return true;
   }
 
   dispose(): void {
