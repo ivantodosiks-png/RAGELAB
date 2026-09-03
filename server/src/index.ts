@@ -6,6 +6,7 @@ import { log } from './logger';
 import { Gateway } from './net/gateway';
 import { startPublicTunnel, type PublicTunnel } from './net/publicTunnel';
 import { RoomManager } from './rooms/roomManager';
+import { resolveClientDist, StaticSite } from './http/staticSite';
 
 async function main(): Promise<void> {
   log.info('RAGELAB server starting', describeConfig());
@@ -14,8 +15,11 @@ async function main(): Promise<void> {
   log.info('Rapier physics initialised');
 
   const rooms = new RoomManager(RAPIER);
+  const clientDist = resolveClientDist();
+  const site = new StaticSite(clientDist);
+  if (clientDist) log.info('serving client', { dist: clientDist });
 
-  const httpServer = createServer((req, res) => handleHttp(req, res, rooms, gateway));
+  const httpServer = createServer((req, res) => handleHttp(req, res, rooms, gateway, site));
   const gateway = new Gateway(httpServer, rooms);
 
   rooms.start();
@@ -74,6 +78,7 @@ function handleHttp(
   res: ServerResponse,
   rooms: RoomManager,
   gateway: Gateway | undefined,
+  site: StaticSite,
 ): void {
   const origin = req.headers.origin;
   const allowOrigin =
@@ -129,6 +134,8 @@ function handleHttp(
     json(res, 200, { room: room.summary(), wsUrl: config.publicWsUrl || null });
     return;
   }
+
+  if (site.tryServe(req, res, url.pathname)) return;
 
   json(res, 404, { error: 'not_found' });
 }

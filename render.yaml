@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ragelab
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: GAME_SERVER_PUBLIC_TUNNEL
+        value: "false"
+      - key: GAME_SERVER_ALLOW_GUESTS
+        value: "true"
+      - key: GAME_SERVER_PERSIST
+        value: "true"
+      - key: GAME_SERVER_ALLOWED_ORIGINS
+        value: "*"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: RAGELAB_ADMIN_EMAILS
+        sync: false

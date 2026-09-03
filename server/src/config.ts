@@ -89,6 +89,21 @@ function inferredPublicWsUrl(): string {
   if (railway) return `wss://${railway}`;
   const fly = str('FLY_APP_NAME', '');
   if (fly) return `wss://${fly}.fly.dev`;
+  const renderUrl = str('RENDER_EXTERNAL_URL', '');
+  if (renderUrl) {
+    try {
+      const parsed = new URL(renderUrl);
+      parsed.protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+      parsed.pathname = '';
+      parsed.search = '';
+      parsed.hash = '';
+      return parsed.toString().replace(/\/$/, '');
+    } catch {
+      /* fall through */
+    }
+  }
+  const renderHost = str('RENDER_EXTERNAL_HOSTNAME', '');
+  if (renderHost) return `wss://${renderHost}`;
   return '';
 }
 

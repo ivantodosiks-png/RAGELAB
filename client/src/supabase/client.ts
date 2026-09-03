@@ -69,6 +69,10 @@ export function resolveJoinWsUrl(wsUrl?: string | null): string {
   }
 }
 
+function sameOriginPlay(): boolean {
+  return typeof window !== 'undefined' && Boolean(Reflect.get(window, '__RAGELAB_SAME_ORIGIN__'));
+}
+
 function resolveGameServerUrl(configured: string, kind: 'ws' | 'http'): string {
   if (typeof window === 'undefined' || !configured) return configured;
 
@@ -77,6 +81,11 @@ function resolveGameServerUrl(configured: string, kind: 'ws' | 'http'): string {
     return kind === 'ws'
       ? `${wsProto}//${window.location.host}/game-ws`
       : `${window.location.origin}/game-http`;
+  }
+
+  if (sameOriginPlay()) {
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return kind === 'ws' ? `${wsProto}//${window.location.host}` : window.location.origin;
   }
 
   try {
@@ -116,6 +125,7 @@ export function shouldQueryConfiguredGameHttp(): boolean {
 /** Vite / local page can talk to the Node process directly. */
 export function canDirectConnectToGameServer(): boolean {
   if (__GAME_SERVER_DEV_PROXY__) return true;
+  if (sameOriginPlay()) return true;
   if (isPublicGameServerUrl(GAME_SERVER_URL)) return true;
   if (typeof window !== 'undefined' && isLoopbackHost(window.location.hostname)) return true;
   return false;
