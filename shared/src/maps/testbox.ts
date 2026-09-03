@@ -5,7 +5,7 @@ const BOUNDS = 30;
 
 const materials: Record<string, MaterialDef> = {
   floor: {
-    color: 0x5a6068,
+    color: 0x8a9098,
     roughness: 0.9,
     metalness: 0.02,
     surface: 'concrete',
@@ -13,7 +13,7 @@ const materials: Record<string, MaterialDef> = {
     textureScale: 30,
   },
   wall: {
-    color: 0x6e747c,
+    color: 0x9aa0a8,
     roughness: 0.85,
     metalness: 0.05,
     surface: 'concrete',
@@ -67,15 +67,15 @@ export const TESTBOX: MapDefinition = {
   bounds: BOUNDS,
   killPlaneY: -12,
   environment: {
-    skyTop: 0x1a1e26,
-    skyBottom: 0x39424f,
+    skyTop: 0x86aee0,
+    skyBottom: 0xeaf0f8,
     sunColor: 0xffffff,
-    sunIntensity: 1.8,
+    sunIntensity: 3.4,
     sunDirection: [0.3, 0.85, 0.4],
-    ambientColor: 0x8090a8,
-    ambientIntensity: 0.9,
-    fogColor: 0x2a303a,
-    fogDensity: 0.008,
+    ambientColor: 0xd0dcec,
+    ambientIntensity: 1.45,
+    fogColor: 0xc8d2de,
+    fogDensity: 0.0018,
     ambience: 'indoor',
   },
   materials,

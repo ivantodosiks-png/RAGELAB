@@ -7,11 +7,15 @@ import {
   PlayerFlag,
   animationStateFor,
   clamp,
+  getWeapon,
   lerp,
+  weaponFromIndex,
   type AnimationStateId,
   type PlayerIdentity,
 } from '@ragelab/shared';
 import type { InterpolatedPlayer } from '../networking/snapshotInterpolator';
+import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
+import { buildWeaponMesh, muzzleOffsetFor } from '../weapons/weaponMeshes';
 
 const TEAM_COLORS = [0xf05b4a, 0x4a9df0, 0x67e08a, 0xf0c14a];
 
@@ -35,7 +39,10 @@ export class PlayerAvatar {
   private readonly headPivot = new THREE.Object3D();
   private readonly legs: Limb[] = [];
   private readonly arms: Limb[] = [];
-  private readonly weaponMesh: THREE.Mesh;
+  private readonly weaponHolder = new THREE.Group();
+  private readonly muzzlePoint = new THREE.Object3D();
+  private readonly muzzleCore: THREE.Sprite;
+  private readonly muzzleStar: THREE.Sprite;
   private readonly nameplate: THREE.Sprite;
   private readonly healthBar: THREE.Sprite;
 
@@ -46,6 +53,8 @@ export class PlayerAvatar {
   private deathBlend = 0;
   private muzzleFlashUntil = 0;
   private readonly muzzleLight: THREE.PointLight;
+  private currentWeapon = -1;
+  private readonly weaponDisposables: Array<{ dispose(): void }> = [];
 
   constructor(
     readonly playerId: number,
@@ -99,14 +108,42 @@ export class PlayerAvatar {
       this.arms.push({ pivot, mesh });
     }
 
-    this.weaponMesh = new THREE.Mesh(shared.weaponGeometry, shared.weaponMaterial);
-    this.weaponMesh.position.set(0, -0.34, -0.22);
-    this.weaponMesh.castShadow = true;
-    this.arms[1]!.pivot.add(this.weaponMesh);
+    this.weaponHolder.position.set(0.04, -0.3, -0.16);
+    this.weaponHolder.rotation.set(0.12, 0, 0.04);
+    this.arms[1]!.pivot.add(this.weaponHolder);
+    this.weaponHolder.add(this.muzzlePoint);
 
-    this.muzzleLight = new THREE.PointLight(0xffd8a0, 0, 7, 2);
-    this.muzzleLight.position.set(0, 0, -0.4);
-    this.weaponMesh.add(this.muzzleLight);
+    this.muzzleCore = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: muzzleCoreTexture(),
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    this.muzzleStar = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: muzzleStarTexture(),
+        color: 0xffe8a0,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    );
+    this.muzzleCore.visible = false;
+    this.muzzleStar.visible = false;
+    this.muzzleCore.scale.setScalar(0.22);
+    this.muzzleStar.scale.setScalar(0.45);
+    this.muzzlePoint.add(this.muzzleCore, this.muzzleStar);
+
+    this.muzzleLight = new THREE.PointLight(0xffd8a0, 0, 8, 2);
+    this.muzzlePoint.add(this.muzzleLight);
+    this.equipWeapon(0);
 
     this.nameplate = makeLabelSprite(identity?.username ?? `Player ${playerId}`);
     this.nameplate.position.y = PLAYER_HEIGHT_STAND + 0.42;
@@ -129,7 +166,8 @@ export class PlayerAvatar {
   }
 
   flashMuzzle(nowMs: number): void {
-    this.muzzleFlashUntil = nowMs + 55;
+    this.muzzleFlashUntil = nowMs + 90;
+    this.muzzleStar.material.rotation = Math.random() * Math.PI;
   }
 
   update(state: InterpolatedPlayer, dt: number, nowMs: number, cameraPos: THREE.Vector3): void {
@@ -180,8 +218,16 @@ export class PlayerAvatar {
 
     this.headPivot.rotation.x = pitch * 0.55;
 
+    this.equipWeapon(state.weapon);
+
     const flashing = nowMs < this.muzzleFlashUntil;
-    this.muzzleLight.intensity = flashing ? 18 : 0;
+    const flashLife = flashing ? clamp((this.muzzleFlashUntil - nowMs) / 90, 0, 1) : 0;
+    const pulse = flashLife ** 0.45;
+    this.muzzleLight.intensity = flashing ? 28 * pulse : 0;
+    this.muzzleCore.visible = flashing;
+    this.muzzleStar.visible = flashing;
+    (this.muzzleCore.material as THREE.SpriteMaterial).opacity = pulse;
+    (this.muzzleStar.material as THREE.SpriteMaterial).opacity = pulse * 0.9;
 
     // Nameplates face the camera and fade with distance.
     const top = PLAYER_HEIGHT_STAND * scaleY;
@@ -207,8 +253,27 @@ export class PlayerAvatar {
     return this.currentState;
   }
 
+  private equipWeapon(index: number): void {
+    if (index === this.currentWeapon) return;
+    this.currentWeapon = index;
+    const keep = new Set<THREE.Object3D>([this.muzzlePoint]);
+    for (const child of [...this.weaponHolder.children]) {
+      if (!keep.has(child)) this.weaponHolder.remove(child);
+    }
+    for (const item of this.weaponDisposables) item.dispose();
+    this.weaponDisposables.length = 0;
+    const def = getWeapon(weaponFromIndex(index));
+    const built = buildWeaponMesh(def, this.weaponDisposables);
+    built.root.scale.setScalar(0.92);
+    this.weaponHolder.add(built.root);
+    this.muzzlePoint.position.set(...muzzleOffsetFor(def));
+  }
+
   dispose(): void {
     this.bodyMaterial.dispose();
+    for (const item of this.weaponDisposables) item.dispose();
+    (this.muzzleCore.material as THREE.SpriteMaterial).dispose();
+    (this.muzzleStar.material as THREE.SpriteMaterial).dispose();
     (this.nameplate.material as THREE.SpriteMaterial).map?.dispose();
     (this.nameplate.material as THREE.SpriteMaterial).dispose();
     (this.healthBar.material as THREE.SpriteMaterial).dispose();

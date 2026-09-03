@@ -5,3 +5,8 @@ declare const __SUPABASE_URL__: string;
 declare const __SUPABASE_ANON_KEY__: string;
 declare const __GAME_SERVER_URL__: string;
 declare const __GAME_SERVER_HTTP_URL__: string;
+
+declare module '*.mp3?url' {
+  const src: string;
+  export default src;
+}

@@ -127,46 +127,56 @@ function renderGunshot(sampleRate: number, p: GunParams): Float32Array {
   const data = new Float32Array(n);
   const rand = mulberry32(p.seed);
 
-  // Body: a fast downward pitch sweep, the "thump".
   let phase = 0;
+  let phase2 = 0;
   for (let i = 0; i < n; i++) {
     const t = i / sampleRate;
     const freq = p.bodyFreq * Math.exp(-t * p.bodyDecay);
     phase += (freq * 2 * Math.PI) / sampleRate;
-    data[i] = Math.sin(phase) * Math.exp(-t * p.bodyDecay * 0.75);
+    phase2 += ((freq * 1.53 + 40) * 2 * Math.PI) / sampleRate;
+    data[i] =
+      Math.sin(phase) * Math.exp(-t * p.bodyDecay * 0.7) +
+      Math.sin(phase2) * 0.35 * Math.exp(-t * p.bodyDecay * 1.1);
   }
 
-  // Crack: short burst of bright noise at the very start.
-  const crackLen = Math.floor(sampleRate * 0.012);
+  const crackLen = Math.floor(sampleRate * 0.008);
   for (let i = 0; i < crackLen && i < n; i++) {
     const t = i / crackLen;
-    data[i]! += (rand() * 2 - 1) * p.crackAmount * (1 - t) ** 2;
+    data[i]! += (rand() * 2 - 1) * p.crackAmount * (1 - t) ** 1.6 * 1.35;
   }
 
-  // Blast noise, band limited so it reads as air rather than hiss.
   const noise = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const t = i / sampleRate;
-    noise[i] = (rand() * 2 - 1) * Math.exp(-t * 26) * p.noiseAmount;
+    noise[i] = (rand() * 2 - 1) * Math.exp(-t * 22) * p.noiseAmount;
   }
-  lowpass(noise, 0.35);
+  highpass(noise, 0.12);
+  lowpass(noise, 0.42);
   for (let i = 0; i < n; i++) data[i]! += noise[i]!;
 
-  // Tail: room reflections, longer and darker.
+  const mechLen = Math.floor(sampleRate * 0.035);
+  let mechPhase = 0;
+  for (let i = 0; i < mechLen && i < n; i++) {
+    const t = i / sampleRate;
+    mechPhase += (2100 * 2 * Math.PI) / sampleRate;
+    data[i]! += Math.sin(mechPhase) * Math.exp(-t * 90) * 0.28;
+    data[i]! += (rand() * 2 - 1) * Math.exp(-t * 70) * 0.22;
+  }
+
   const tail = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const t = i / sampleRate;
-    tail[i] = (rand() * 2 - 1) * Math.exp(-t * 5.5) * p.tailAmount;
+    tail[i] = (rand() * 2 - 1) * Math.exp(-t * 4.8) * p.tailAmount;
   }
-  lowpass(tail, 0.08);
+  lowpass(tail, 0.07);
   for (let i = 0; i < n; i++) data[i]! += tail[i]!;
 
   saturate(data, p.drive);
   applyEnvelope(data, sampleRate, {
-    attack: 0.0004,
-    decay: 0.02,
-    sustain: 0.55,
-    release: p.duration * 0.6,
+    attack: 0.00025,
+    decay: 0.016,
+    sustain: 0.5,
+    release: p.duration * 0.55,
   });
   normalize(data);
   return data;
@@ -190,6 +200,126 @@ function renderNoiseBurst(
   lowpass(data, cutoff);
   if (highpassCutoff > 0) highpass(data, highpassCutoff);
   normalize(data, 0.85);
+  return data;
+}
+
+type FootSurface = 'concrete' | 'metal' | 'wood' | 'dirt' | 'grass';
+
+/** Layered heel + grit + surface character. Playback-rate variation keeps each step unique. */
+function renderFootstep(sampleRate: number, surface: FootSurface, seed: number): Float32Array {
+  const duration = surface === 'metal' ? 0.34 : 0.28;
+  const n = Math.floor(duration * sampleRate);
+  const data = new Float32Array(n);
+  const rand = mulberry32(seed);
+
+  let heelFreq = 72;
+  let heelDecay = 32;
+  let gritCutoff = 0.26;
+  let gritGain = 0.62;
+  let soleGain = 0.4;
+  let toeDelay = 0.018;
+  if (surface === 'metal') {
+    heelFreq = 88;
+    heelDecay = 26;
+    gritCutoff = 0.5;
+    gritGain = 0.48;
+    soleGain = 0.72;
+    toeDelay = 0.014;
+  } else if (surface === 'wood') {
+    heelFreq = 118;
+    heelDecay = 24;
+    gritCutoff = 0.2;
+    gritGain = 0.5;
+    soleGain = 0.55;
+    toeDelay = 0.016;
+  } else if (surface === 'dirt') {
+    heelFreq = 58;
+    heelDecay = 18;
+    gritCutoff = 0.1;
+    gritGain = 0.95;
+    soleGain = 0.12;
+    toeDelay = 0.022;
+  } else if (surface === 'grass') {
+    heelFreq = 64;
+    heelDecay = 20;
+    gritCutoff = 0.38;
+    gritGain = 1.05;
+    soleGain = 0.1;
+    toeDelay = 0.024;
+  }
+
+  let heelPhase = 0;
+  const toeStart = Math.floor(toeDelay * sampleRate);
+  for (let i = 0; i < n; i++) {
+    const t = i / sampleRate;
+    heelPhase += ((heelFreq * Math.exp(-t * 7) + 28) * 2 * Math.PI) / sampleRate;
+    data[i] = Math.sin(heelPhase) * Math.exp(-t * heelDecay) * 1.25;
+  }
+
+  let toePhase = 0;
+  for (let i = toeStart; i < n; i++) {
+    const t = (i - toeStart) / sampleRate;
+    toePhase += ((heelFreq * 1.35 * Math.exp(-t * 9) + 40) * 2 * Math.PI) / sampleRate;
+    data[i]! += Math.sin(toePhase) * Math.exp(-t * (heelDecay + 6)) * 0.7;
+  }
+
+  const grit = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sampleRate;
+    const heelScuff = t < 0.03 ? 1 : Math.exp(-(t - 0.03) * 28);
+    const toeScuff = t > toeDelay && t < toeDelay + 0.05 ? 0.85 : 0;
+    grit[i] = (rand() * 2 - 1) * (heelScuff * 0.7 + toeScuff) * gritGain;
+  }
+  lowpass(grit, gritCutoff);
+  for (let i = 0; i < n; i++) data[i]! += grit[i]!;
+
+  const clickLen = Math.floor(sampleRate * 0.008);
+  for (let i = 0; i < clickLen && i < n; i++) {
+    data[i]! += (rand() * 2 - 1) * soleGain * (1 - i / clickLen);
+  }
+  for (let i = 0; i < clickLen && toeStart + i < n; i++) {
+    data[toeStart + i]! += (rand() * 2 - 1) * soleGain * 0.55 * (1 - i / clickLen);
+  }
+
+  if (surface === 'metal') {
+    let ring = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / sampleRate;
+      ring += ((1420 + 220 * Math.sin(t * 40)) * 2 * Math.PI) / sampleRate;
+      data[i]! += Math.sin(ring) * Math.exp(-t * 14) * 0.22;
+    }
+  } else if (surface === 'wood') {
+    let ring = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / sampleRate;
+      ring += (640 * 2 * Math.PI) / sampleRate;
+      data[i]! += Math.sin(ring) * Math.exp(-t * 22) * 0.16;
+    }
+  } else if (surface === 'grass') {
+    for (let i = 0; i < n; i++) {
+      const t = i / sampleRate;
+      data[i]! += (rand() * 2 - 1) * Math.exp(-t * 18) * 0.2 * Math.sin(t * 80);
+    }
+  }
+
+  saturate(data, 1.28);
+  normalize(data, 0.9);
+  return data;
+}
+
+function renderLand(sampleRate: number, seed: number): Float32Array {
+  const n = Math.floor(0.38 * sampleRate);
+  const data = new Float32Array(n);
+  const rand = mulberry32(seed);
+  let phase = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / sampleRate;
+    phase += ((70 * Math.exp(-t * 6) + 28) * 2 * Math.PI) / sampleRate;
+    data[i] = Math.sin(phase) * Math.exp(-t * 14);
+    data[i]! += (rand() * 2 - 1) * Math.exp(-t * 16) * 0.55;
+  }
+  lowpass(data, 0.22);
+  normalize(data, 0.9);
   return data;
 }
 
@@ -310,53 +440,53 @@ function renderAmbience(sampleRate: number, seed: number): Float32Array {
 
 const GUN_PRESETS: Record<string, GunParams> = {
   pistol: {
-    duration: 0.42,
-    bodyFreq: 240,
-    bodyDecay: 34,
-    noiseAmount: 0.85,
-    crackAmount: 0.9,
-    tailAmount: 0.22,
-    drive: 2.6,
+    duration: 0.48,
+    bodyFreq: 210,
+    bodyDecay: 30,
+    noiseAmount: 0.95,
+    crackAmount: 1.15,
+    tailAmount: 0.2,
+    drive: 2.8,
     seed: 0x51a7,
   },
   smg: {
-    duration: 0.3,
-    bodyFreq: 300,
-    bodyDecay: 46,
-    noiseAmount: 0.7,
-    crackAmount: 0.95,
-    tailAmount: 0.16,
-    drive: 2.4,
+    duration: 0.28,
+    bodyFreq: 280,
+    bodyDecay: 42,
+    noiseAmount: 0.78,
+    crackAmount: 1.05,
+    tailAmount: 0.12,
+    drive: 2.5,
     seed: 0x77c3,
   },
   rifle: {
-    duration: 0.55,
-    bodyFreq: 190,
-    bodyDecay: 26,
-    noiseAmount: 0.95,
-    crackAmount: 1.0,
-    tailAmount: 0.34,
-    drive: 3.0,
+    duration: 0.62,
+    bodyFreq: 168,
+    bodyDecay: 22,
+    noiseAmount: 1.05,
+    crackAmount: 1.2,
+    tailAmount: 0.38,
+    drive: 3.15,
     seed: 0x1f0d,
   },
   shotgun: {
-    duration: 0.85,
-    bodyFreq: 120,
-    bodyDecay: 15,
-    noiseAmount: 1.25,
-    crackAmount: 0.8,
-    tailAmount: 0.55,
-    drive: 3.4,
+    duration: 0.95,
+    bodyFreq: 96,
+    bodyDecay: 12,
+    noiseAmount: 1.4,
+    crackAmount: 0.95,
+    tailAmount: 0.62,
+    drive: 3.6,
     seed: 0x9b21,
   },
   sniper: {
-    duration: 1.25,
-    bodyFreq: 132,
-    bodyDecay: 12,
-    noiseAmount: 1.1,
-    crackAmount: 1.2,
-    tailAmount: 0.75,
-    drive: 3.6,
+    duration: 1.35,
+    bodyFreq: 108,
+    bodyDecay: 9.5,
+    noiseAmount: 1.2,
+    crackAmount: 1.35,
+    tailAmount: 0.82,
+    drive: 3.8,
     seed: 0x3e45,
   },
 };
@@ -426,14 +556,14 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
     ),
   );
 
-  bank.set('footstep_concrete', renderNoiseBurst(sampleRate, 0.16, 42, 0.34, 0x1101, 0.05));
-  bank.set('footstep_metal', renderNoiseBurst(sampleRate, 0.22, 34, 0.72, 0x1102, 0.12));
-  bank.set('footstep_wood', renderNoiseBurst(sampleRate, 0.18, 40, 0.24, 0x1103, 0.04));
-  bank.set('footstep_dirt', renderNoiseBurst(sampleRate, 0.2, 38, 0.14, 0x1104));
-  bank.set('footstep_grass', renderNoiseBurst(sampleRate, 0.22, 34, 0.5, 0x1105, 0.2));
+  bank.set('footstep_concrete', renderFootstep(sampleRate, 'concrete', 0x1101));
+  bank.set('footstep_metal', renderFootstep(sampleRate, 'metal', 0x1102));
+  bank.set('footstep_wood', renderFootstep(sampleRate, 'wood', 0x1103));
+  bank.set('footstep_dirt', renderFootstep(sampleRate, 'dirt', 0x1104));
+  bank.set('footstep_grass', renderFootstep(sampleRate, 'grass', 0x1105));
 
-  bank.set('jump', renderNoiseBurst(sampleRate, 0.2, 30, 0.2, 0x1201));
-  bank.set('land', renderNoiseBurst(sampleRate, 0.35, 18, 0.12, 0x1202));
+  bank.set('jump', renderFootstep(sampleRate, 'dirt', 0x1201));
+  bank.set('land', renderLand(sampleRate, 0x1202));
 
   bank.set('impact_concrete', renderNoiseBurst(sampleRate, 0.24, 40, 0.4, 0x1301, 0.1));
   bank.set('impact_metal', mixBuffers(

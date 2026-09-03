@@ -232,6 +232,7 @@ export class WeaponController {
     this.camera.addRecoil(def.recoil.vertical * 0.35, horizontal * 0.4, def.recoil.cameraPunch);
     this.viewModel.kick(def.recoil.viewKick);
     this.didFire = true;
+    this.viewModel.triggerFlash(def.visual.muzzleFlashScale);
     this.viewModel.root.updateMatrixWorld(true);
 
     this.viewModel.muzzleTransform(muzzle);
@@ -239,10 +240,11 @@ export class WeaponController {
     this.toWorldDir(muzzle.direction, muzzle.direction);
     this.effects.muzzleFlash(muzzle.position, muzzle.direction, def);
 
+    const recorded = def.id === 'rifle';
     this.audio.play(def.audio.fire as SoundKey, {
-      volume: 0.85,
+      volume: recorded ? 1.05 : 0.9,
       rate: def.audio.pitch,
-      variation: 0.04,
+      variation: recorded ? 0.014 : 0.035,
     });
 
     if (def.visual.shellEjection) {

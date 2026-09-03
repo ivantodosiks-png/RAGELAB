@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import { clamp, lerp, type Vec3, type WeaponDefinition } from '@ragelab/shared';
+import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
+import { buildWeaponMesh, ejectOffsetFor, muzzleOffsetFor } from './weaponMeshes';
 
 /**
  * First-person weapon model.
  *
- * Built procedurally from the weapon definition so a new weapon needs no art:
- * body, barrel, grip, magazine, stock and sight are proportioned from
- * `visual.size` and coloured from `visual.color`/`accentColor`. Rendered in the
- * dedicated view-model scene, so it never clips into geometry.
+ * Built procedurally from the weapon definition so a new weapon needs no art.
+ * The muzzle flash lives *on the barrel* in the view-model scene — otherwise
+ * the overlay pass would hide a world-space sprite behind the gun.
  */
 export class WeaponViewModel {
   readonly root = new THREE.Group();
@@ -17,9 +18,11 @@ export class WeaponViewModel {
   private readonly model = new THREE.Group();
   private readonly muzzlePoint = new THREE.Object3D();
   private readonly ejectPoint = new THREE.Object3D();
+  private readonly flash: ViewMuzzleFlash;
 
   private def: WeaponDefinition | null = null;
   private readonly disposables: Array<{ dispose(): void }> = [];
+  private magRestY = 0;
 
   /** 0 = hip, 1 = fully aimed. */
   private aimBlend = 0;
@@ -50,6 +53,8 @@ export class WeaponViewModel {
     this.recoilPivot.add(this.model);
     this.model.add(this.muzzlePoint);
     this.model.add(this.ejectPoint);
+    this.flash = new ViewMuzzleFlash();
+    this.muzzlePoint.add(this.flash.root);
   }
 
   /** Rebuild the mesh for a new weapon and play the raise animation. */
@@ -57,74 +62,12 @@ export class WeaponViewModel {
     this.def = def;
     this.disposeModel();
 
-    const [width, height, length] = def.visual.size;
-    const body = new THREE.Group();
+    const built = buildWeaponMesh(def, this.disposables);
+    this.model.add(built.root);
+    this.magRestY = built.magRestY;
 
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: def.visual.color,
-      roughness: 0.48,
-      metalness: 0.62,
-    });
-    const accentMaterial = new THREE.MeshStandardMaterial({
-      color: def.visual.accentColor,
-      roughness: 0.4,
-      metalness: 0.5,
-    });
-    this.disposables.push(bodyMaterial, accentMaterial);
-
-    const receiverGeo = new THREE.BoxGeometry(width, height * 0.62, length * 0.62);
-    const receiver = new THREE.Mesh(receiverGeo, bodyMaterial);
-    receiver.position.set(0, 0, -length * 0.1);
-    body.add(receiver);
-
-    const barrelGeo = new THREE.CylinderGeometry(width * 0.28, width * 0.3, length * 0.72, 10);
-    barrelGeo.rotateX(Math.PI / 2);
-    const barrel = new THREE.Mesh(barrelGeo, accentMaterial);
-    barrel.position.set(0, height * 0.1, -length * 0.62);
-    body.add(barrel);
-
-    const gripGeo = new THREE.BoxGeometry(width * 0.85, height * 0.9, length * 0.18);
-    const grip = new THREE.Mesh(gripGeo, bodyMaterial);
-    grip.position.set(0, -height * 0.62, length * 0.06);
-    grip.rotation.x = -0.24;
-    body.add(grip);
-
-    const magGeo = new THREE.BoxGeometry(width * 0.72, height * 0.85, length * 0.16);
-    const magazine = new THREE.Mesh(magGeo, accentMaterial);
-    magazine.name = 'magazine';
-    magazine.position.set(0, -height * 0.6, -length * 0.16);
-    body.add(magazine);
-
-    if (length > 0.5) {
-      const stockGeo = new THREE.BoxGeometry(width * 0.8, height * 0.55, length * 0.3);
-      const stock = new THREE.Mesh(stockGeo, bodyMaterial);
-      stock.position.set(0, -height * 0.05, length * 0.3);
-      body.add(stock);
-      this.disposables.push(stockGeo);
-    }
-
-    const sightGeo = new THREE.BoxGeometry(width * 0.5, height * 0.28, length * 0.1);
-    const sight = new THREE.Mesh(sightGeo, accentMaterial);
-    sight.position.set(0, height * 0.45, -length * 0.05);
-    body.add(sight);
-
-    // Glowing front post: gives the ADS view something to line up.
-    const postGeo = new THREE.BoxGeometry(width * 0.12, height * 0.2, width * 0.12);
-    const postMaterial = new THREE.MeshStandardMaterial({
-      color: 0x9fe8ff,
-      emissive: new THREE.Color(0x49c7ee),
-      emissiveIntensity: 2.2,
-      roughness: 0.3,
-    });
-    const post = new THREE.Mesh(postGeo, postMaterial);
-    post.position.set(0, height * 0.42, -length * 0.82);
-    body.add(post);
-
-    this.disposables.push(receiverGeo, barrelGeo, gripGeo, magGeo, sightGeo, postGeo, postMaterial);
-
-    this.model.add(body);
-    this.muzzlePoint.position.set(0, height * 0.1, -length * 0.98);
-    this.ejectPoint.position.set(width * 0.6, height * 0.15, -length * 0.1);
+    this.muzzlePoint.position.set(...muzzleOffsetFor(def));
+    this.ejectPoint.position.set(...ejectOffsetFor(def));
 
     this.hipPosition.set(...def.visual.hipPosition);
     this.aimPosition.set(...def.visual.aimPosition);
@@ -133,6 +76,10 @@ export class WeaponViewModel {
     this.equipDurationSec = def.equipMs / 1000;
     this.equipProgress = 0;
     this.reloadProgress = 0;
+  }
+
+  triggerFlash(scale: number): void {
+    this.flash.trigger(scale);
   }
 
   setAiming(aiming: boolean): void {
@@ -225,19 +172,20 @@ export class WeaponViewModel {
       if (magazine) {
         // Magazine drops out in the first half, new one slides in during the second.
         const magPhase = p < 0.45 ? p / 0.45 : p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4;
-        magazine.position.y = -this.def.visual.size[1] * 0.6 - magPhase * 0.14;
+        magazine.position.y = this.magRestY - magPhase * 0.14;
         magazine.visible = !(p > 0.45 && p < 0.6);
       }
     } else {
       const magazine = this.model.getObjectByName('magazine');
       if (magazine) {
-        magazine.position.y = -this.def.visual.size[1] * 0.6;
+        magazine.position.y = this.magRestY;
         magazine.visible = true;
       }
     }
 
     this.recoilPivot.rotation.x = this.recoilPitch;
     this.model.rotation.y = this.swayOffset.x * 2.2;
+    this.flash.update(dt);
   }
 
   /** World-space muzzle transform, used to place flashes and shell ejection. */
@@ -280,6 +228,157 @@ export class WeaponViewModel {
 
   dispose(): void {
     this.disposeModel();
+    this.flash.dispose();
+    this.root.clear();
+  }
+}
+
+class ViewMuzzleFlash {
+  readonly root = new THREE.Group();
+  private readonly core: THREE.Sprite;
+  private readonly bloom: THREE.Sprite;
+  private readonly star: THREE.Sprite;
+  private readonly streaks: THREE.Mesh[] = [];
+  private readonly jets: THREE.Mesh[] = [];
+  private readonly light: THREE.PointLight;
+  private readonly geometries: THREE.BufferGeometry[] = [];
+  private life = 0;
+  private strength = 1;
+
+  constructor() {
+    const additiveSprite = (map: THREE.Texture, color: number, order: number): THREE.Sprite => {
+      const mat = new THREE.SpriteMaterial({
+        map,
+        color,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.visible = false;
+      sprite.renderOrder = order;
+      return sprite;
+    };
+
+    this.core = additiveSprite(muzzleCoreTexture(), 0xffffff, 24);
+    this.bloom = additiveSprite(muzzleCoreTexture(), 0xffc070, 22);
+    this.star = additiveSprite(muzzleStarTexture(), 0xfff4c8, 23);
+
+    const streakGeo = new THREE.PlaneGeometry(1, 1);
+    this.geometries.push(streakGeo);
+    for (let i = 0; i < 2; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: muzzleCoreTexture(),
+        color: 0xffe7a8,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      });
+      const mesh = new THREE.Mesh(streakGeo, mat);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.rotation.z = i * (Math.PI / 2);
+      mesh.position.z = -0.22;
+      mesh.visible = false;
+      mesh.renderOrder = 21;
+      this.streaks.push(mesh);
+      this.root.add(mesh);
+    }
+
+    const jetGeo = new THREE.PlaneGeometry(1, 1);
+    this.geometries.push(jetGeo);
+    for (let i = 0; i < 6; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: muzzleStarTexture(),
+        color: 0xffd080,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      });
+      const mesh = new THREE.Mesh(jetGeo, mat);
+      mesh.visible = false;
+      mesh.renderOrder = 20;
+      this.jets.push(mesh);
+      this.root.add(mesh);
+    }
+
+    this.light = new THREE.PointLight(0xffd090, 0, 5.5, 1.6);
+    this.light.visible = false;
+
+    this.root.add(this.core, this.bloom, this.star, this.light);
+  }
+
+  trigger(scale: number): void {
+    this.strength = Math.max(0.85, scale);
+    this.life = 1;
+    this.core.visible = true;
+    this.bloom.visible = true;
+    this.star.visible = true;
+    this.light.visible = true;
+    this.star.material.rotation = Math.random() * Math.PI;
+    const spin = Math.random() * Math.PI * 2;
+    for (let i = 0; i < this.jets.length; i++) {
+      const mesh = this.jets[i]!;
+      mesh.visible = true;
+      const a = spin + (i / this.jets.length) * Math.PI * 2;
+      mesh.rotation.set(Math.PI / 2, 0, a);
+      mesh.position.set(Math.sin(a) * 0.01, Math.cos(a) * 0.01, -0.04);
+    }
+    for (const streak of this.streaks) streak.visible = true;
+  }
+
+  update(dt: number): void {
+    if (this.life <= 0) return;
+    this.life = Math.max(0, this.life - dt * 10);
+    const pulse = Math.pow(this.life, 0.42);
+    const s = this.strength;
+    this.core.scale.setScalar((0.14 + (1 - this.life) * 0.08) * s);
+    this.bloom.scale.setScalar((0.34 + (1 - this.life) * 0.18) * s);
+    this.star.scale.setScalar((0.42 + (1 - this.life) * 0.16) * s);
+    (this.core.material as THREE.SpriteMaterial).opacity = Math.min(1, pulse * 1.15);
+    (this.bloom.material as THREE.SpriteMaterial).opacity = pulse * 0.7;
+    (this.star.material as THREE.SpriteMaterial).opacity = pulse * 0.95;
+
+    for (const streak of this.streaks) {
+      streak.scale.set(0.07 * s, (0.55 + (1 - this.life) * 0.28) * s, 1);
+      (streak.material as THREE.MeshBasicMaterial).opacity = pulse * 0.9;
+    }
+    for (const jet of this.jets) {
+      jet.scale.set(0.09 * s, (0.28 + (1 - this.life) * 0.12) * s, 1);
+      (jet.material as THREE.MeshBasicMaterial).opacity = pulse * 0.85;
+    }
+
+    this.light.intensity = 48 * pulse * s;
+    if (this.life <= 0) this.hide();
+  }
+
+  private hide(): void {
+    this.core.visible = false;
+    this.bloom.visible = false;
+    this.star.visible = false;
+    this.light.visible = false;
+    for (const mesh of this.streaks) mesh.visible = false;
+    for (const mesh of this.jets) mesh.visible = false;
+  }
+
+  dispose(): void {
+    (this.core.material as THREE.SpriteMaterial).dispose();
+    (this.bloom.material as THREE.SpriteMaterial).dispose();
+    (this.star.material as THREE.SpriteMaterial).dispose();
+    for (const mesh of this.streaks) (mesh.material as THREE.Material).dispose();
+    for (const mesh of this.jets) (mesh.material as THREE.Material).dispose();
+    for (const geo of this.geometries) geo.dispose();
+    this.light.dispose();
     this.root.clear();
   }
 }

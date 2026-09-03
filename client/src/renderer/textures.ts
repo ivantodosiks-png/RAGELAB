@@ -88,7 +88,7 @@ function clamp255(v: number): number {
 }
 
 function drawConcrete(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [176, 176, 176], 46, 12345);
+  noiseFill(ctx, [214, 214, 214], 40, 12345);
   const rand = mulberry32(777);
   // Blotches + hairline cracks.
   for (let i = 0; i < 90; i++) {
@@ -118,7 +118,7 @@ function drawConcrete(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawMetal(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [168, 172, 178], 22, 4242);
+  noiseFill(ctx, [206, 210, 216], 18, 4242);
   // Brushed streaks.
   const rand = mulberry32(99);
   ctx.globalAlpha = 0.22;
@@ -151,7 +151,7 @@ function drawMetal(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawWood(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [178, 138, 92], 20, 31337);
+  noiseFill(ctx, [214, 176, 122], 18, 31337);
   const rand = mulberry32(5150);
   for (let i = 0; i < 26; i++) {
     const y = (i / 26) * SIZE + (rand() - 0.5) * 4;
@@ -199,7 +199,7 @@ function drawCrate(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [150, 154, 160], 16, 606);
+  noiseFill(ctx, [186, 190, 196], 14, 606);
   ctx.strokeStyle = 'rgba(58,62,68,0.9)';
   ctx.lineWidth = 6;
   ctx.beginPath();
@@ -225,7 +225,7 @@ function drawGrid(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawSand(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [196, 176, 140], 34, 2024);
+  noiseFill(ctx, [224, 206, 168], 28, 2024);
   const rand = mulberry32(4004);
   for (let i = 0; i < 700; i++) {
     const x = rand() * SIZE;
@@ -352,6 +352,73 @@ export function bloodDecalTexture(): THREE.Texture {
     ctx.fill();
   }
 
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  cache.set(key, texture);
+  return texture;
+}
+
+/** Hot core of a muzzle flash — white-yellow radial bloom. */
+export function muzzleCoreTexture(): THREE.Texture {
+  const key = 'fx:muzzle-core';
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.1, 'rgba(255,250,210,1)');
+  g.addColorStop(0.28, 'rgba(255,190,70,0.95)');
+  g.addColorStop(0.55, 'rgba(255,90,16,0.4)');
+  g.addColorStop(1, 'rgba(40,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  cache.set(key, texture);
+  return texture;
+}
+
+/** Cross-shaped flash that reads as a real muzzle star. */
+export function muzzleStarTexture(): THREE.Texture {
+  const key = 'fx:muzzle-star';
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, size, size);
+  ctx.translate(size / 2, size / 2);
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 4; i++) {
+    ctx.save();
+    ctx.rotate((i * Math.PI) / 4);
+    const g = ctx.createLinearGradient(0, 0, 0, -size / 2);
+    g.addColorStop(0, 'rgba(255,255,220,1)');
+    g.addColorStop(0.15, 'rgba(255,200,80,0.95)');
+    g.addColorStop(0.55, 'rgba(255,90,20,0.35)');
+    g.addColorStop(1, 'rgba(255,40,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(0, -size / 2);
+    ctx.lineTo(10, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  const halo = ctx.createRadialGradient(0, 0, 4, 0, 0, 48);
+  halo.addColorStop(0, 'rgba(255,255,230,0.95)');
+  halo.addColorStop(1, 'rgba(255,120,20,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(0, 0, 48, 0, Math.PI * 2);
+  ctx.fill();
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   cache.set(key, texture);

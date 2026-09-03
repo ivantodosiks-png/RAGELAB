@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { QualityLevel, type GraphicsSettings, type MapDefinition } from '@ragelab/shared';
 
 /**
@@ -34,17 +35,17 @@ export class GameRenderer {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.92;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false;
 
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 0.06, settings.renderDistance);
     this.viewModelCamera = new THREE.PerspectiveCamera(65, 1, 0.005, 6);
 
-    this.ambient = new THREE.HemisphereLight(0xffffff, 0x404050, 1);
+    this.ambient = new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.55);
     this.scene.add(this.ambient);
 
-    this.sun = new THREE.DirectionalLight(0xffffff, 2);
+    this.sun = new THREE.DirectionalLight(0xfff6e0, 3.2);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(settings.shadowResolution, settings.shadowResolution);
     this.sun.shadow.camera.near = 1;
@@ -60,10 +61,26 @@ export class GameRenderer {
     this.scene.add(this.sun.target);
 
     // The view model needs its own light or it renders black.
-    const viewModelLight = new THREE.DirectionalLight(0xffffff, 2.4);
-    viewModelLight.position.set(0.4, 1, 0.8);
+    const viewModelLight = new THREE.DirectionalLight(0xfff8ee, 4.2);
+    viewModelLight.position.set(0.4, 1.35, 1.1);
     this.viewModelScene.add(viewModelLight);
-    this.viewModelScene.add(new THREE.AmbientLight(0xa8b4c8, 1.1));
+    const fill = new THREE.DirectionalLight(0xc5dcff, 1.65);
+    fill.position.set(-0.7, 0.35, 0.55);
+    this.viewModelScene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffe7c4, 1.1);
+    rim.position.set(0.1, 0.4, -0.8);
+    this.viewModelScene.add(rim);
+    this.viewModelScene.add(new THREE.AmbientLight(0xe8eef6, 1.85));
+
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const room = new RoomEnvironment();
+    const envMap = pmrem.fromScene(room, 0.03).texture;
+    room.dispose();
+    this.scene.environment = envMap;
+    this.scene.environmentIntensity = 0.85;
+    this.viewModelScene.environment = envMap;
+    this.viewModelScene.environmentIntensity = 1.25;
+    pmrem.dispose();
 
     this.sky = this.createSky();
     this.scene.add(this.sky);
@@ -77,8 +94,8 @@ export class GameRenderer {
       side: THREE.BackSide,
       depthWrite: false,
       uniforms: {
-        topColor: { value: new THREE.Color(0x2b4a72) },
-        bottomColor: { value: new THREE.Color(0xc9b18a) },
+        topColor: { value: new THREE.Color(0x5a8ec8) },
+        bottomColor: { value: new THREE.Color(0xf0d9a8) },
         sunDirection: { value: new THREE.Vector3(0.4, 0.8, 0.45) },
         sunColor: { value: new THREE.Color(0xffe9c4) },
       },
@@ -120,14 +137,15 @@ export class GameRenderer {
     uniforms.sunDirection!.value.set(...env.sunDirection).normalize();
 
     this.sun.color.setHex(env.sunColor);
-    this.sun.intensity = env.sunIntensity;
+    this.sun.intensity = env.sunIntensity * 1.55;
     this.sun.position.set(...env.sunDirection).normalize().multiplyScalar(110);
 
     this.ambient.color.setHex(env.ambientColor);
     this.ambient.groundColor.setHex(env.fogColor);
-    this.ambient.intensity = env.ambientIntensity;
+    this.ambient.intensity = env.ambientIntensity * 1.75;
 
-    this.scene.fog = new THREE.FogExp2(env.fogColor, env.fogDensity);
+    const fogColor = new THREE.Color(env.fogColor).lerp(new THREE.Color(env.skyBottom), 0.4);
+    this.scene.fog = new THREE.FogExp2(fogColor, env.fogDensity * 0.42);
 
     // Rebuild the map's dynamic lights at the current quality level.
     for (const light of this.dynamicLights) {

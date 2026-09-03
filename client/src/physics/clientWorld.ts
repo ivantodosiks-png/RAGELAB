@@ -1,14 +1,17 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
 import {
+  BULLET_FILTER_GROUPS,
   RapierCharacter,
   buildMapColliders,
   createDoorBody,
   createReplicatedProp,
   eulerToQuat,
+  getArchetype,
   type DoorDef,
   type MapDefinition,
   type PropDef,
   type Quat,
+  type SurfaceId,
   type Vec3,
 } from '@ragelab/shared';
 
@@ -45,6 +48,7 @@ export class ClientPhysicsWorld {
 
   private readonly props = new Map<number, ReplicatedProp>();
   private readonly doors: ClientDoor[] = [];
+  private readonly surfaces = new Map<number, SurfaceId>();
 
   constructor(
     private readonly rapier: typeof RAPIER,
@@ -56,17 +60,20 @@ export class ClientPhysicsWorld {
     // controller sweeps against.
     this.world = new rapier.World({ x: 0, y: 0, z: 0 });
     this.world.timestep = 1 / 60;
-    buildMapColliders(rapier, this.world, map);
+    buildMapColliders(rapier, this.world, map, (handle, meta) => {
+      this.surfaces.set(handle, meta.surface);
+    });
 
     let id = 1;
     for (const def of map.props) {
       const { body, collider } = createReplicatedProp(rapier, this.world, def);
       this.props.set(id, { id, def, body, collider, visible: true });
+      this.surfaces.set(collider.handle, getArchetype(def.kind).material.surface);
       id += 1;
     }
 
     for (const def of map.doors) {
-      const { body } = createDoorBody(rapier, this.world, def.position, def.size, def.yaw ?? 0);
+      const { body, collider } = createDoorBody(rapier, this.world, def.position, def.size, def.yaw ?? 0);
       const widthAxis: 'x' | 'z' = def.size[0] >= def.size[2] ? 'x' : 'z';
       this.doors.push({
         def,
@@ -75,6 +82,7 @@ export class ClientPhysicsWorld {
         width: widthAxis === 'x' ? def.size[0] : def.size[2],
         progress: 0,
       });
+      this.surfaces.set(collider.handle, 'metal');
     }
 
     this.character = new RapierCharacter(rapier, this.world, spawn);
@@ -138,6 +146,17 @@ export class ClientPhysicsWorld {
     const ray = new this.rapier.Ray(origin, dir);
     const hit = this.world.castRay(ray, maxDistance, true, undefined, filterGroups);
     return hit ? hit.timeOfImpact : null;
+  }
+
+  /** Material under the feet, used for footstep audio. */
+  querySurfaceBelow(position: Vec3): SurfaceId {
+    const ray = new this.rapier.Ray(
+      { x: position.x, y: position.y + 0.45, z: position.z },
+      { x: 0, y: -1, z: 0 },
+    );
+    const hit = this.world.castRay(ray, 2.6, true, undefined, BULLET_FILTER_GROUPS);
+    if (!hit) return 'concrete';
+    return this.surfaces.get(hit.collider.handle) ?? 'concrete';
   }
 
   dispose(): void {

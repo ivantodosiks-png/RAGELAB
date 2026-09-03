@@ -36,6 +36,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: false,
       host: true,
+      fs: {
+        allow: [monorepoRoot],
+      },
     },
     preview: {
       port: 4173,

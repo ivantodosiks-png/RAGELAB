@@ -1,5 +1,6 @@
 import type { AudioSettings, SurfaceId, Vec3 } from '@ragelab/shared';
 import { synthesizeBank, type SoundKey } from './synth';
+import { RECORDED_SAMPLES } from './samples';
 
 export interface PlayOptions {
   /** World position; omit for a 2D (UI / self) sound. */
@@ -67,19 +68,37 @@ export class AudioEngine {
       this.context = new Ctor({ latencyHint: 'interactive' });
       this.buildGraph();
       this.raw = synthesizeBank(this.context.sampleRate);
+      await this.loadRecordedSamples();
     }
     if (this.context.state === 'suspended') await this.context.resume();
+  }
+
+  private async loadRecordedSamples(): Promise<void> {
+    const ctx = this.context;
+    if (!ctx) return;
+    for (const [key, url] of Object.entries(RECORDED_SAMPLES)) {
+      if (!url) continue;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) continue;
+        const bytes = await response.arrayBuffer();
+        const decoded = await ctx.decodeAudioData(bytes.slice(0));
+        this.buffers.set(key as SoundKey, trimLeadingSilence(ctx, decoded));
+      } catch (err) {
+        console.warn(`[audio] recorded sample "${key}" failed, using synth`, err);
+      }
+    }
   }
 
   private buildGraph(): void {
     const ctx = this.context!;
 
     this.compressor = ctx.createDynamicsCompressor();
-    this.compressor.threshold.value = -14;
-    this.compressor.knee.value = 22;
-    this.compressor.ratio.value = 8;
-    this.compressor.attack.value = 0.004;
-    this.compressor.release.value = 0.22;
+    this.compressor.threshold.value = -8;
+    this.compressor.knee.value = 18;
+    this.compressor.ratio.value = 4.5;
+    this.compressor.attack.value = 0.003;
+    this.compressor.release.value = 0.18;
 
     this.masterGain = ctx.createGain();
     this.compressor.connect(this.masterGain);
@@ -284,4 +303,22 @@ export function footstepSound(surface: SurfaceId): SoundKey {
 
 export function impactSound(surface: SurfaceId): SoundKey {
   return IMPACT_BY_SURFACE[surface] ?? 'impact_concrete';
+}
+
+/** Drop encoder padding so the recorded M4 crack lands on the trigger frame. */
+function trimLeadingSilence(ctx: AudioContext, buffer: AudioBuffer, threshold = 0.01): AudioBuffer {
+  const channels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  let start = 0;
+  const primary = buffer.getChannelData(0);
+  while (start < primary.length && Math.abs(primary[start]!) < threshold) start += 1;
+  start = Math.max(0, start - Math.floor(sampleRate * 0.002));
+  if (start < 32) return buffer;
+  const length = primary.length - start;
+  if (length < sampleRate * 0.04) return buffer;
+  const trimmed = ctx.createBuffer(channels, length, sampleRate);
+  for (let c = 0; c < channels; c++) {
+    trimmed.getChannelData(c).set(buffer.getChannelData(c).subarray(start));
+  }
+  return trimmed;
 }

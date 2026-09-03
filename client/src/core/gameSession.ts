@@ -401,8 +401,9 @@ export class GameSession {
     }
 
     if (this.local.footstepThisFrame) {
-      this.audio.play(footstepSound('concrete'), { volume: 0.4, variation: 0.08 });
-      this.effects.footstepDust(predicted.position, 'concrete');
+      const surface = this.physics.querySurfaceBelow(predicted.position);
+      this.audio.play(footstepSound(surface), { volume: 0.68, variation: 0.06 });
+      this.effects.footstepDust(predicted.position, surface);
     }
     if (this.local.jumpedThisFrame) this.audio.play('jump', { volume: 0.45, variation: 0.05 });
     if (this.local.landedThisFrame) {
@@ -465,7 +466,13 @@ export class GameSession {
       if (!grounded || speed < 1.6 || (state.flags & PlayerFlag.Dead) !== 0) continue;
       const acc = (this.remoteStep.get(id) ?? 0) + speed * dt;
       if (acc > 1.55) {
-        this.audio.playAt(footstepSound('concrete'), state.position, 0.55, 40, 0.08);
+        this.audio.playAt(
+          footstepSound(this.physics.querySurfaceBelow(state.position)),
+          state.position,
+          0.78,
+          42,
+          0.06,
+        );
         this.remoteStep.set(id, 0);
       } else {
         this.remoteStep.set(id, acc);

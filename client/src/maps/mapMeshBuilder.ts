@@ -47,8 +47,8 @@ export class MapMeshBuilder {
 
   private createMaterial(def: MaterialDef): THREE.MeshStandardMaterial {
     const material = new THREE.MeshStandardMaterial({
-      color: def.color,
-      roughness: def.roughness,
+      color: new THREE.Color(def.color).lerp(new THREE.Color(0xffffff), 0.2),
+      roughness: Math.max(0.12, def.roughness - 0.04),
       metalness: def.metalness,
       transparent: def.transparent ?? false,
       opacity: def.opacity ?? 1,

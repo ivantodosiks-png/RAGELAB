@@ -12,6 +12,7 @@ import {
 import { ParticlePool } from './particlePool';
 import { DecalPool } from './decalPool';
 import { TracerPool } from './tracerPool';
+import { muzzleStarTexture } from '../renderer/textures';
 
 interface SurfaceLook {
   spark: number;
@@ -70,7 +71,8 @@ export class EffectsManager {
 
   private buildMuzzleFlashes(): void {
     const material = new THREE.SpriteMaterial({
-      color: 0xffd9a0,
+      map: muzzleStarTexture(),
+      color: 0xffffff,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -325,43 +327,64 @@ export class EffectsManager {
   muzzleFlash(position: Vec3, direction: Vec3, def: WeaponDefinition): void {
     const flash = this.muzzleFlashes[this.muzzleCursor]!;
     this.muzzleCursor = (this.muzzleCursor + 1) % this.muzzleFlashes.length;
+    const scale = def.visual.muzzleFlashScale;
 
     flash.sprite.position.set(
-      position.x + direction.x * 0.1,
-      position.y + direction.y * 0.1,
-      position.z + direction.z * 0.1,
+      position.x + direction.x * 0.08,
+      position.y + direction.y * 0.08,
+      position.z + direction.z * 0.08,
     );
-    flash.sprite.scale.setScalar(0.35 * def.visual.muzzleFlashScale);
+    flash.sprite.scale.setScalar(1.15 * scale);
     flash.sprite.visible = true;
     const material = flash.sprite.material as THREE.SpriteMaterial;
-    material.color.setHex(def.visual.tracerColor);
+    material.color.setHex(0xffffff);
     material.opacity = 1;
 
     flash.light.position.copy(flash.sprite.position);
-    flash.light.color.setHex(def.visual.tracerColor);
-    flash.light.intensity = 22 * def.visual.muzzleFlashScale;
-    flash.light.distance = 9;
+    flash.light.color.setHex(0xffc070);
+    flash.light.intensity = 90 * scale;
+    flash.light.distance = 22;
     flash.light.visible = this.settings.quality !== QualityLevel.Low;
-    flash.life = 0.055;
+    flash.life = 0.12;
 
-    // Smoke wisp from the barrel.
-    if (this.settings.effects === QualityLevel.Ultra) {
+    const sparkCount = Math.max(4, Math.round(10 * this.effectsScale * scale));
+    for (let i = 0; i < sparkCount; i++) {
+      const dir = scatter(direction, 0.55);
+      const speed = 8 + Math.random() * 14;
       this.particles.spawn({
         x: flash.sprite.position.x,
         y: flash.sprite.position.y,
         z: flash.sprite.position.z,
-        vx: direction.x * 1.4,
-        vy: direction.y * 1.4 + 0.4,
-        vz: direction.z * 1.4,
-        life: 0.55,
-        size: 0.08,
-        sizeEnd: 0.35,
-        color: 0x9a958c,
-        colorEnd: 0x2c2a27,
+        vx: dir.x * speed,
+        vy: dir.y * speed + 1.5,
+        vz: dir.z * speed,
+        life: 0.08 + Math.random() * 0.1,
+        size: 0.03,
+        sizeEnd: 0.004,
+        color: 0xfff4c8,
+        colorEnd: 0xff6a18,
+        gravity: 0.4,
+        drag: 2.4,
+      });
+    }
+
+    if (this.settings.effects !== QualityLevel.Low) {
+      this.particles.spawn({
+        x: flash.sprite.position.x,
+        y: flash.sprite.position.y,
+        z: flash.sprite.position.z,
+        vx: direction.x * 1.2,
+        vy: direction.y * 1.2 + 0.35,
+        vz: direction.z * 1.2,
+        life: 0.45,
+        size: 0.1 * scale,
+        sizeEnd: 0.42 * scale,
+        color: 0xc8c2b4,
+        colorEnd: 0x3a3834,
         gravity: 0,
-        drag: 2.6,
-        buoyancy: 0.5,
-        fadeIn: 0.2,
+        drag: 2.4,
+        buoyancy: 0.45,
+        fadeIn: 0.12,
       });
     }
   }

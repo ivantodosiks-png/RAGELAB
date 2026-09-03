@@ -111,7 +111,7 @@ function crateStack(x: number, z: number, tiers: number, spread = 0.86): void {
 // ── Materials ───────────────────────────────────────────────────────────────
 const materials: Record<string, MaterialDef> = {
   ground: {
-    color: 0x54585e,
+    color: 0x7a8088,
     roughness: 0.93,
     metalness: 0.02,
     surface: 'concrete',
@@ -127,7 +127,7 @@ const materials: Record<string, MaterialDef> = {
     textureScale: 14,
   },
   concrete: {
-    color: 0x6d7178,
+    color: 0x8e949c,
     roughness: 0.88,
     metalness: 0.03,
     surface: 'concrete',
@@ -603,15 +603,15 @@ export const RAGEYARD: MapDefinition = {
   bounds: BOUNDS,
   killPlaneY: -12,
   environment: {
-    skyTop: 0x2b4a72,
-    skyBottom: 0xc9b18a,
-    sunColor: 0xffe9c4,
-    sunIntensity: 2.6,
-    sunDirection: [0.42, 0.78, 0.46],
-    ambientColor: 0x6b7d99,
-    ambientIntensity: 0.65,
-    fogColor: 0xa8a08e,
-    fogDensity: 0.0055,
+    skyTop: 0x7aa8dc,
+    skyBottom: 0xf6e4bc,
+    sunColor: 0xfff6d8,
+    sunIntensity: 4.1,
+    sunDirection: [0.42, 0.82, 0.46],
+    ambientColor: 0xc4d4e6,
+    ambientIntensity: 1.35,
+    fogColor: 0xd8d0c0,
+    fogDensity: 0.0016,
     ambience: 'yard',
   },
   materials,
