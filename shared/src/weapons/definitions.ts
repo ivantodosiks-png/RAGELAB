@@ -49,7 +49,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       aimMultiplier: 0.45,
       crouchMultiplier: 0.75,
     },
-    audio: { fire: 'pistol', reload: 'reload_light', pitch: 1.0, maxDistance: 90 },
+    audio: { fire: 'pistol', reload: 'pistol_reload', pitch: 1.0, maxDistance: 90 },
     visual: {
       color: 0x2a2d33,
       accentColor: 0x8a9099,
@@ -214,7 +214,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       aimMultiplier: 0.72,
       crouchMultiplier: 0.9,
     },
-    audio: { fire: 'shotgun', reload: 'reload_shell', pitch: 0.8, maxDistance: 160 },
+    audio: { fire: 'shotgun', reload: 'reload_shell', pitch: 1.0, maxDistance: 160 },
     visual: {
       color: 0x3a2a1e,
       accentColor: 0x9a6b3f,

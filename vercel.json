@@ -6,7 +6,7 @@
   "outputDirectory": "client/dist",
   "rewrites": [
     {
-      "source": "/((?!assets/|models/).*)",
+      "source": "/((?!assets/|models/|sounds/).*)",
       "destination": "/index.html"
     }
   ]

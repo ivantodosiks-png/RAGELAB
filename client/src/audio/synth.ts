@@ -11,9 +11,13 @@ import { mulberry32 } from '@ragelab/shared';
 
 export type SoundKey =
   | 'pistol'
+  | 'pistol_distant'
+  | 'pistol_reload'
   | 'smg'
   | 'rifle'
+  | 'rifle_distant'
   | 'shotgun'
+  | 'shotgun_distant'
   | 'sniper'
   | 'reload_light'
   | 'reload_heavy'
@@ -498,6 +502,9 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
   for (const [key, params] of Object.entries(GUN_PRESETS)) {
     bank.set(key as SoundKey, renderGunshot(sampleRate, params));
   }
+  bank.set('pistol_distant', bank.get('pistol')!);
+  bank.set('rifle_distant', bank.get('rifle')!);
+  bank.set('shotgun_distant', bank.get('shotgun')!);
 
   bank.set(
     'reload_light',
@@ -513,6 +520,7 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
       0x2b71,
     ),
   );
+  bank.set('pistol_reload', bank.get('reload_light')!);
   bank.set(
     'reload_heavy',
     renderMechanical(

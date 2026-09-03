@@ -1,6 +1,6 @@
 import type { AudioSettings, SurfaceId, Vec3 } from '@ragelab/shared';
 import { synthesizeBank, type SoundKey } from './synth';
-import { RECORDED_SAMPLES } from './samples';
+import { DISTANT_FIRE_RANGE, DISTANT_FOR, RECORDED_SAMPLES } from './samples';
 
 export interface PlayOptions {
   /** World position; omit for a 2D (UI / self) sound. */
@@ -234,7 +234,17 @@ export class AudioEngine {
 
   /** Distance-attenuated one-shot helper used by the game event handler. */
   playAt(key: SoundKey, position: Vec3, volume = 1, maxDistance = 120, variation = 0.06): void {
-    this.play(key, { position, volume, maxDistance, variation });
+    const dx = position.x - this.lastListenerPos.x;
+    const dy = position.y - this.lastListenerPos.y;
+    const dz = position.z - this.lastListenerPos.z;
+    const dist = Math.hypot(dx, dy, dz);
+    const distant = DISTANT_FOR[key];
+    const use = distant && dist >= DISTANT_FIRE_RANGE && this.hasBuffer(distant) ? distant : key;
+    this.play(use, { position, volume, maxDistance, variation: distant && use === distant ? 0.01 : variation });
+  }
+
+  private hasBuffer(key: SoundKey): boolean {
+    return this.buffers.has(key) || (this.raw?.has(key) ?? false);
   }
 
   playUi(key: SoundKey, volume = 0.6): void {

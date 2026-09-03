@@ -24,6 +24,7 @@ import type { AudioEngine } from '../audio/audioEngine';
 import type { CameraRig } from '../player/cameraRig';
 import type { InputController } from '../player/inputController';
 import type { SoundKey } from '../audio/synth';
+import { isRecordedGunshot } from '../audio/samples';
 
 const muzzle = { position: { x: 0, y: 0, z: 0 }, direction: { x: 0, y: 0, z: 0 } };
 const eject = {
@@ -246,7 +247,7 @@ export class WeaponController {
     this.toWorldDir(muzzle.direction, muzzle.direction);
     this.effects.muzzleFlash(muzzle.position, muzzle.direction, def);
 
-    const recorded = def.id === 'rifle';
+    const recorded = isRecordedGunshot(def.audio.fire);
     this.audio.play(def.audio.fire as SoundKey, {
       volume: recorded ? 1.05 : 0.9,
       rate: def.audio.pitch,
