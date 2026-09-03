@@ -1,14 +1,32 @@
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { getWeapon, isWeaponId } from '@ragelab/shared';
 import { assetManager } from '../assets/assetManager';
+import { buildWeaponMesh } from './weaponMeshes';
 
 const BASE = import.meta.env.BASE_URL;
 
-export type WeaponModelId = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
+/** Source GLB lives in repo `assets/` — Vite emits one hashed URL. No copy. */
+export const GLOCK_17_URL = new URL(
+  '../../../assets/glock-17/Rigged Glock by J-Toastie - FpMvDqjZFr.glb',
+  import.meta.url,
+).href;
+
+export type WeaponModelId = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee' | 'glock' | 'magnum';
 export type SandboxWeaponKind = WeaponModelId;
 
-export const SANDBOX_WEAPON_KINDS: SandboxWeaponKind[] = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'melee'];
+export const SANDBOX_WEAPON_KINDS: SandboxWeaponKind[] = [
+  'pistol',
+  'glock',
+  'magnum',
+  'smg',
+  'rifle',
+  'shotgun',
+  'sniper',
+  'melee',
+];
 
-export const WEAPON_MODEL_FILES: Record<WeaponModelId, string> = {
+export const WEAPON_MODEL_FILES: Partial<Record<WeaponModelId, string>> = {
   pistol: 'pistol.glb',
   smg: 'smg.glb',
   rifle: 'rifle.glb',
@@ -18,6 +36,7 @@ export const WEAPON_MODEL_FILES: Record<WeaponModelId, string> = {
 };
 
 export function weaponModelUrl(id: string): string | null {
+  if (id === 'glock') return GLOCK_17_URL;
   const file = WEAPON_MODEL_FILES[id as WeaponModelId];
   if (!file) return null;
   return `${BASE}models/weapons/${file}`;
@@ -33,6 +52,8 @@ export interface WeaponPhysDef {
 
 export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   pistol: { mass: 1.05, hx: 0.035, hy: 0.07, hz: 0.11, length: 0.22 },
+  glock: { mass: 0.95, hx: 0.032, hy: 0.065, hz: 0.1, length: 0.2 },
+  magnum: { mass: 1.85, hx: 0.04, hy: 0.08, hz: 0.14, length: 0.28 },
   rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.41, length: 0.82 },
   shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
   smg: { mass: 2.45, hx: 0.035, hy: 0.085, hz: 0.26, length: 0.52 },
@@ -96,13 +117,25 @@ export function prepareWeaponVisual(
   const content = source;
   content.name = 'weaponMesh';
   content.traverse((obj) => {
+    if (obj.name === 'Glock19.001') obj.visible = false;
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.castShadow = options.shadows !== false;
     mesh.receiveShadow = true;
     mesh.frustumCulled = true;
+    if (options.id !== 'glock') return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+      mat.metalness = Math.min(mat.metalness, 0.22);
+      mat.roughness = Math.max(mat.roughness, 0.5);
+      mat.envMapIntensity = 0.35;
+    }
   });
-  const size = fitWeaponModel(content, targetLength, options.ground === true, options.id);
+  const size =
+    options.id === 'glock'
+      ? fitByGeometry(content, targetLength, options.ground === true)
+      : fitWeaponModel(content, targetLength, options.ground === true, options.id);
 
   if (!options.lod) return content;
 
@@ -142,6 +175,26 @@ export function prepareWeaponVisual(
   return lod;
 }
 
+/** GLB if we have one, otherwise the procedural view-model mesh. */
+export function createWeaponVisual(
+  id: string,
+  targetLength: number,
+  options: { lod?: boolean; ground?: boolean; shadows?: boolean } = {},
+): THREE.Object3D | null {
+  const fromFile = instantiateWeaponVisual(id, targetLength, options);
+  if (fromFile) return fromFile;
+  if (!isWeaponId(id)) return null;
+  const built = buildWeaponMesh(getWeapon(id), []);
+  built.root.name = 'weaponMesh';
+  built.root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = options.shadows !== false;
+    mesh.receiveShadow = true;
+  });
+  return built.root;
+}
+
 export function instantiateWeaponVisual(
   id: string,
   targetLength: number,
@@ -149,13 +202,69 @@ export function instantiateWeaponVisual(
 ): THREE.Object3D | null {
   const url = weaponModelUrl(id);
   if (!url) return null;
-  const clone = assetManager.cloneScene(url);
+  const clone = cloneWeaponScene(url, id);
   if (!clone) return null;
-  return prepareWeaponVisual(clone, targetLength, { ...options, id });
+  return prepareWeaponVisual(clone, targetLength, { ...options, lod: id === 'glock' ? false : options.lod, id });
 }
 
 export function loadWeaponModel(id: string): Promise<THREE.Group | null> {
   const url = weaponModelUrl(id);
   if (!url) return Promise.resolve(null);
-  return assetManager.cloneSceneWhenReady(url);
+  return assetManager.loadGltf(url).then(
+    () => cloneWeaponScene(url, id),
+    () => null,
+  );
+}
+
+export function preloadWeaponModels(): void {
+  void assetManager.loadGltf(GLOCK_17_URL);
+}
+
+function cloneWeaponScene(url: string, id: string): THREE.Group | null {
+  const gltf = assetManager.peek(url);
+  if (!gltf) return null;
+  const clone = (id === 'glock' ? cloneSkinned(gltf.scene) : gltf.scene.clone(true)) as THREE.Group;
+  clone.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const src = mesh.material;
+    const list = Array.isArray(src) ? src : [src];
+    const copies = list.map((mat) => (mat as THREE.Material).clone());
+    mesh.material = Array.isArray(src) ? copies : copies[0]!;
+  });
+  return clone;
+}
+
+const geomBox = new THREE.Box3();
+
+/** Bind-pose AABB — skinned setFromObject double-counts Unity bone worlds. */
+function fitByGeometry(root: THREE.Object3D, targetLength: number, ground: boolean): THREE.Vector3 {
+  root.updateMatrixWorld(true);
+  tmpBox.makeEmpty();
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    if (!mesh.geometry.boundingBox) return;
+    geomBox.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
+    tmpBox.union(geomBox);
+  });
+  tmpBox.getSize(tmpSize);
+  const longest = Math.max(tmpSize.x, tmpSize.y, tmpSize.z, 0.01);
+  root.scale.multiplyScalar(targetLength / longest);
+  root.updateMatrixWorld(true);
+  tmpBox.makeEmpty();
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible || !mesh.geometry?.boundingBox) return;
+    geomBox.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
+    tmpBox.union(geomBox);
+  });
+  tmpBox.getCenter(tmpCenter);
+  tmpBox.getSize(tmpSize);
+  root.position.x -= tmpCenter.x;
+  root.position.z -= tmpCenter.z;
+  if (ground) root.position.y -= tmpBox.min.y;
+  else root.position.y -= tmpCenter.y;
+  return tmpSize.clone();
 }

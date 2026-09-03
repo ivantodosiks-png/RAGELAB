@@ -3,8 +3,8 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import { SANDBOX_PHYSICAL_GROUPS } from '@ragelab/shared';
 import {
   WEAPON_PHYSICS,
-  instantiateWeaponVisual,
   loadWeaponModel,
+  createWeaponVisual,
   prepareWeaponVisual,
   weaponPhysics,
   type SandboxWeaponKind,
@@ -211,7 +211,7 @@ export class SandboxWeapon {
   private attachVisual(): void {
     const kind = this.kind;
     const phys = weaponPhysics(kind);
-    const ready = instantiateWeaponVisual(kind, phys.length, { lod: true, ground: false, shadows: true });
+    const ready = createWeaponVisual(kind, phys.length, { lod: kind !== 'glock', ground: false, shadows: true });
     if (ready) {
       this.setVisual(ready);
       return;

@@ -180,6 +180,8 @@ const WEAPON_FALLBACK: Record<SandboxWeaponKind, { name: string; swatch: number 
   shotgun: { name: 'BR-12 Breaker', swatch: 0x9a6b3f },
   sniper: { name: 'LR-88 Verdict', swatch: 0x6a7380 },
   melee: { name: 'Katana', swatch: 0xc9d4dc },
+  glock: { name: 'Glock 17', swatch: 0x8a9099 },
+  magnum: { name: 'DX-50 Hammer', swatch: 0xd4a44a },
 };
 
 export const WEAPON_ENTRIES: SpawnEntry[] = SANDBOX_WEAPON_KINDS.map((id) => {

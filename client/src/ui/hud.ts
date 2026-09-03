@@ -687,6 +687,10 @@ function weaponBlurb(id: string): string {
   switch (id) {
     case 'pistol':
       return 'Compact sidearm. Fast draw, close range.';
+    case 'glock':
+      return 'Glock 17. 17-round 9mm — spawn it with Tool Gun.';
+    case 'magnum':
+      return 'DX-50 Hammer. Fat .50 hand cannon. Tool Gun only.';
     case 'smg':
       return 'High cyclic rate. Close-range pressure.';
     case 'rifle':
@@ -713,6 +717,10 @@ function slotGlyph(id: string): string {
     case 'empty':
     case '':
       return `<svg ${common}><rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="3 2"/></svg>`;
+    case 'magnum':
+      return `<svg ${common}><path d="M4 13h11l3-5h3"/><path d="M9 13v6H6"/><path d="M7 9h5"/><path d="M15 8v3"/></svg>`;
+    case 'glock':
+      return `<svg ${common}><path d="M8 13h8l2-4"/><path d="M10 13v6H8"/><path d="M7 9h4"/></svg>`;
     case 'smg':
       return `<svg ${common}><path d="M3 14h12l2-5h3"/><path d="M7 14v5H5"/><path d="M11 14v3"/></svg>`;
     case 'rifle':
