@@ -56,6 +56,7 @@ export interface ConnectOptions {
   mapId?: string;
   mode?: HelloPayload['mode'];
   create?: Partial<RoomConfig>;
+  team?: number;
 }
 
 const PING_INTERVAL_MS = 1000;
@@ -147,6 +148,7 @@ export class NetClient {
         password: options.password,
         mapId: options.mapId,
         mode: options.mode,
+        team: options.team,
         create: options.create,
       };
       this.sendJson(Op.Hello, hello);

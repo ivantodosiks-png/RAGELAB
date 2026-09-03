@@ -2,7 +2,9 @@ import {
   ACTION_LABELS,
   DEFAULT_MAP_ID,
   MAP_IDS,
+  getMap,
   isLobbyCode,
+  mapHasSides,
   normalizeLobbyCode,
   type QualityLevelId,
   type RoomSummary,
@@ -22,9 +24,10 @@ export interface MenuCallbacks {
     mapId?: string;
     password?: string;
     wsUrl?: string;
+    team?: number;
   }) => void;
-  createRoom: (opts: { name: string; mapId: string; maxPlayers: number; password: string }) => void;
-  joinByCode: (opts: { username: string; code: string; mapId?: string; wsUrl?: string }) => void;
+  createRoom: (opts: { name: string; mapId: string; maxPlayers: number; password: string; team?: number }) => void;
+  joinByCode: (opts: { username: string; code: string; mapId?: string; wsUrl?: string; team?: number }) => void;
   refreshServers: () => Promise<RoomSummary[]>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, username: string) => Promise<string | null>;
@@ -55,6 +58,7 @@ export class MainMenu {
   username = 'Guest';
   supabaseReady = false;
   pendingJoinCode = '';
+  private pendingTeam = 1;
   isAdmin = false;
   profile: FullProfile | null = null;
   weaponStats: WeaponStatRow[] = [];
@@ -193,8 +197,34 @@ export class MainMenu {
     );
     const form = el('div', 'rl-form');
     const name = inputField('Позывной', this.signedIn ? this.username : this.guestName, !this.signedIn);
-    const map = selectField('Карта', MAP_IDS, DEFAULT_MAP_ID);
+    const map = selectField(
+      'Карта',
+      MAP_IDS.map((id) => ({ value: id, label: getMap(id).name })),
+      DEFAULT_MAP_ID,
+    );
+    const side = selectField(
+      'Сторона',
+      [
+        { value: '1', label: 'Alpha' },
+        { value: '2', label: 'Bravo' },
+      ],
+      String(this.pendingTeam),
+    );
+    const syncSide = (): void => {
+      const mapId = (map.input as HTMLSelectElement).value;
+      const duel = mapHasSides(getMap(mapId));
+      side.wrap.hidden = !duel;
+    };
+    map.input.addEventListener('change', syncSide);
+    syncSide();
+    side.input.addEventListener('change', () => {
+      this.pendingTeam = (side.input as HTMLSelectElement).value === '2' ? 2 : 1;
+    });
     const err = el('div', 'rl-error');
+    const chosenTeam = (): number | undefined => {
+      const mapId = (map.input as HTMLSelectElement).value;
+      return mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined;
+    };
 
     const offline = el('button', 'rl-btn primary rl-create-lobby', '');
     offline.innerHTML =
@@ -206,6 +236,7 @@ export class MainMenu {
       this.callbacks.play({
         username: username || this.guestName,
         mapId: (map.input as HTMLSelectElement).value,
+        team: chosenTeam(),
       });
     });
 
@@ -227,11 +258,13 @@ export class MainMenu {
       if (!this.signedIn) this.guestName = username || this.guestName;
       this.username = username || this.guestName;
       err.textContent = '';
+      const mapId = (map.input as HTMLSelectElement).value;
       this.callbacks.createRoom({
         name: `${this.username}'s lobby`.slice(0, 48),
-        mapId: (map.input as HTMLSelectElement).value,
-        maxPlayers: 16,
+        mapId,
+        maxPlayers: mapHasSides(getMap(mapId)) ? 2 : 16,
         password: '',
+        team: chosenTeam(),
       });
     });
     createWrap.append(create);
@@ -268,11 +301,12 @@ export class MainMenu {
         username: username || this.guestName,
         code: value,
         mapId: (map.input as HTMLSelectElement).value,
+        team: chosenTeam(),
       });
     });
 
     joinBlock.append(code.wrap, join);
-    form.append(name.wrap, map.wrap, offline, createWrap, err, joinBlock);
+    form.append(name.wrap, map.wrap, side.wrap, offline, createWrap, err, joinBlock);
     this.panel.append(form);
   }
 
@@ -691,13 +725,19 @@ function inputField(label: string, value: string, enabled = true): { wrap: HTMLE
   return { wrap, input };
 }
 
-function selectField(label: string, values: readonly string[], current: string): { wrap: HTMLElement; input: HTMLElement } {
+function selectField(
+  label: string,
+  values: readonly string[] | readonly { value: string; label: string }[],
+  current: string,
+): { wrap: HTMLElement; input: HTMLElement } {
   const wrap = el('label', 'rl-field', label);
   const input = el('select', 'rl-input') as HTMLSelectElement;
-  for (const value of values) {
+  for (const entry of values) {
+    const value = typeof entry === 'string' ? entry : entry.value;
+    const text = typeof entry === 'string' ? entry : entry.label;
     const opt = document.createElement('option');
     opt.value = value;
-    opt.textContent = value;
+    opt.textContent = text;
     if (value === current) opt.selected = true;
     input.append(opt);
   }

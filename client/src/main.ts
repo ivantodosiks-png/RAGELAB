@@ -58,6 +58,7 @@ async function join(request: JoinRequest): Promise<void> {
         wsUrl: request.wsUrl,
         roomCode: request.roomCode,
         offline: request.offline,
+        team: request.team,
         create: request.create,
       });
     session?.dispose();

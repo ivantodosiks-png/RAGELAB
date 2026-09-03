@@ -21,6 +21,7 @@ export interface JoinRequest {
   password?: string;
   wsUrl?: string;
   offline?: boolean;
+  team?: number;
   create?: {
     name: string;
     mapId: string;
@@ -320,11 +321,12 @@ export class UiApp {
     }
   }
 
-  private startOffline(opts: { username: string; mapId?: string }): void {
+  private startOffline(opts: { username: string; mapId?: string; team?: number }): void {
     if (this.blockedByBan()) return;
     this.onJoin?.({
       username: opts.username,
       mapId: opts.mapId,
+      team: opts.team,
       offline: true,
     });
   }
@@ -336,10 +338,17 @@ export class UiApp {
     mapId?: string;
     password?: string;
     wsUrl?: string;
+    team?: number;
   }): Promise<void> {
     if (this.blockedByBan()) return;
     if (opts.roomCode) {
-      await this.joinByCode({ username: opts.username, code: opts.roomCode, mapId: opts.mapId, wsUrl: opts.wsUrl });
+      await this.joinByCode({
+        username: opts.username,
+        code: opts.roomCode,
+        mapId: opts.mapId,
+        wsUrl: opts.wsUrl,
+        team: opts.team,
+      });
       return;
     }
     this.onJoin?.(opts);
@@ -350,6 +359,7 @@ export class UiApp {
     code: string;
     mapId?: string;
     wsUrl?: string;
+    team?: number;
   }): Promise<void> {
     if (this.blockedByBan()) return;
     const code = normalizeLobbyCode(opts.code);
@@ -366,6 +376,7 @@ export class UiApp {
         roomCode: listed.joinCode ?? code,
         mapId: opts.mapId ?? listed.mapId,
         wsUrl: opts.wsUrl || listed.wsUrl,
+        team: opts.team,
       });
       return;
     }
@@ -376,12 +387,13 @@ export class UiApp {
         roomCode: code,
         mapId: opts.mapId,
         wsUrl: opts.wsUrl,
+        team: opts.team,
       });
       return;
     }
 
     if (await localGameServerReachable()) {
-      this.onJoin?.({ username: opts.username, roomCode: code, mapId: opts.mapId });
+      this.onJoin?.({ username: opts.username, roomCode: code, mapId: opts.mapId, team: opts.team });
       return;
     }
 
@@ -393,6 +405,7 @@ export class UiApp {
     mapId: string;
     maxPlayers: number;
     password: string;
+    team?: number;
   }): Promise<void> {
     if (this.blockedByBan()) return;
     if (!this.menu.isAdmin) {
@@ -401,7 +414,7 @@ export class UiApp {
     }
     if (await localGameServerReachable()) {
       this.menu.setCreateBusy(true);
-      this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
+      this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId, team: opts.team });
       return;
     }
     this.toast('Онлайн недоступен. Запустите npm run dev на этом ПК, затем создайте лобби.');

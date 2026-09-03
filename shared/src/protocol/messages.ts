@@ -17,6 +17,8 @@ export interface HelloPayload {
   password?: string;
   /** Used when auto-matching or creating a room. */
   mapId?: string;
+  /** 1 = Alpha, 2 = Bravo on duel maps. */
+  team?: number;
   mode?: GameModeId;
   /** Create a new room and become its host instead of auto-matching. */
   create?: Partial<RoomConfig>;

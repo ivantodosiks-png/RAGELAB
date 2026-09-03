@@ -39,6 +39,7 @@ export class Connection {
   avatarUrl: string | null = null;
   isGuest = true;
   isAdmin = false;
+  requestedTeam = 0;
 
   room: Room | null = null;
   playerId = 0;

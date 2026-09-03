@@ -36,7 +36,7 @@ import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
 import { MapMeshBuilder } from '../maps/mapMeshBuilder';
 import { MapDecor } from '../maps/mapDecor';
-import { pickMapSpawn } from '../maps/spawnLayout';
+import { pickMapSpawn, pickTeamSpawn } from '../maps/spawnLayout';
 import { LocalPlayer } from '../player/localPlayer';
 import { LocalCharacter, clipFromAnimation } from '../player/localCharacter';
 import { InputController, TOOL_GUN_UI_SLOT } from '../player/inputController';
@@ -78,6 +78,7 @@ export interface SessionStart {
   password?: string;
   wsUrl?: string;
   offline?: boolean;
+  team?: number;
   create?: { name: string; mapId: string; maxPlayers: number; password: string };
 }
 
@@ -132,6 +133,7 @@ export class GameSession {
   private joinCode = '';
   private roomName = '';
   private hostPlayerId: number | null = null;
+  private localTeam = 0;
   private isHost = false;
   private maxPlayers = 16;
   private running = false;
@@ -181,6 +183,7 @@ export class GameSession {
           roomCode: start.roomCode,
           password: start.password,
           mapId: start.mapId,
+          team: start.team,
           create: start.create
             ? {
                 name: start.create.name,
@@ -279,7 +282,8 @@ export class GameSession {
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : [...DEFAULT_LOADOUT];
     this.input.loadoutSize = this.loadout.length;
     this.map = getMap(welcome.room.mapId);
-    const spawn = pickMapSpawn(this.map, 'player')!;
+    this.localTeam = welcome.players.find((p) => p.id === welcome.playerId)?.team ?? 0;
+    const spawn = pickTeamSpawn(this.map, this.localTeam) ?? pickMapSpawn(this.map, 'player')!;
     const spawnPos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
 
     this.physics = new ClientPhysicsWorld(rapier, this.map, spawnPos);
@@ -397,7 +401,7 @@ export class GameSession {
           username,
           avatarUrl: null,
           isGuest: true,
-          team: 0,
+          team: start.team === 2 ? 2 : start.team === 1 ? 1 : 0,
         },
       ],
       scores: [{ id: 1, kills: 0, deaths: 0, score: 0, pingMs: 0 }],
@@ -985,7 +989,7 @@ export class GameSession {
   }
 
   private offlineRespawn(): void {
-    const spawn = pickMapSpawn(this.map, 'player');
+    const spawn = pickTeamSpawn(this.map, this.localTeam) ?? pickMapSpawn(this.map, 'player');
     if (!spawn) return;
     const pos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
     this.local.health = MAX_HEALTH;

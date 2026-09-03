@@ -217,6 +217,7 @@ export class Gateway {
     }
 
     connection.state = ConnectionState.Idle;
+    connection.requestedTeam = payload.team === 2 ? 2 : payload.team === 1 ? 1 : 0;
 
     if (payload.create) {
       const created = this.rooms.createAdminLobby(connection, payload.create);

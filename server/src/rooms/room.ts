@@ -25,7 +25,9 @@ import {
   isWeaponId,
   maxSpeedFor,
   msPerShot,
+  mapHasSides,
   playerSpawns,
+  teamSpawns,
   reloadDurationMs,
   stepMovement,
   ANTICHEAT_FIRE_RATE_GRACE_MS,
@@ -223,7 +225,8 @@ export class Room {
 
   addPlayer(connection: Connection): PlayerEntity {
     const id = this.nextPlayerId++;
-    const spawn = this.pickSpawn();
+    const team = this.assignTeam(connection.requestedTeam);
+    const spawn = this.pickSpawn(team);
 
     const identity: PlayerIdentity = {
       id,
@@ -231,7 +234,7 @@ export class Room {
       username: connection.username,
       avatarUrl: connection.avatarUrl,
       isGuest: connection.isGuest,
-      team: 0,
+      team,
     };
 
     const entity = new PlayerEntity(
@@ -698,7 +701,7 @@ export class Room {
   }
 
   private respawn(entity: PlayerEntity): void {
-    const spawn = this.pickSpawn();
+    const spawn = this.pickSpawn(entity.identity.team);
     entity.resetForRespawn(spawn.position, spawn.yaw, this.timeMs);
     grantSpawnProtection(entity, this.timeMs);
     this.broadcastEvents.push({
@@ -709,9 +712,24 @@ export class Room {
     });
   }
 
+  private assignTeam(requested: number): number {
+    if (!mapHasSides(this.map)) return 0;
+    const want = requested === 2 ? 2 : 1;
+    const counts = { 1: 0, 2: 0 };
+    for (const entity of this.entities.values()) {
+      if (entity.identity.team === 1) counts[1] += 1;
+      if (entity.identity.team === 2) counts[2] += 1;
+    }
+    if (counts[want] === 0) return want;
+    const other = want === 1 ? 2 : 1;
+    if (counts[other] === 0) return other;
+    return counts[1] <= counts[2] ? 1 : 2;
+  }
+
   /** Pick the spawn point furthest from every living player. */
-  private pickSpawn(): { position: Vec3; yaw: number } {
-    const points = playerSpawns(this.map);
+  private pickSpawn(team = 0): { position: Vec3; yaw: number } {
+    const sided = team > 0 ? teamSpawns(this.map, team) : [];
+    const points = sided.length > 0 ? sided : playerSpawns(this.map);
     let best = points[this.spawnCursor % points.length]!;
     let bestScore = -Infinity;
 
