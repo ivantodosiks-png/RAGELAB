@@ -150,6 +150,9 @@ export class Gateway {
         case Op.LeaveRoom:
           if (connection.allowControlMessage()) await this.rooms.removePlayer(connection);
           break;
+        case Op.StartMatch:
+          this.handleStartMatch(connection);
+          break;
         default:
           connection.sendError(ErrorCode.BadPacket, `unknown opcode ${op}`, true);
       }
@@ -199,6 +202,7 @@ export class Gateway {
       connection.username = profile.username;
       connection.avatarUrl = profile.avatarUrl;
       connection.isGuest = false;
+      connection.isAdmin = profile.isAdmin;
     } else {
       if (!config.allowGuests) {
         connection.rejectUnauthorized('this server requires a signed-in account');
@@ -206,6 +210,7 @@ export class Gateway {
       }
       connection.profileId = null;
       connection.isGuest = true;
+      connection.isAdmin = false;
       connection.username =
         sanitizeUsername(payload.username) ?? `Guest-${String(guestCounter++).padStart(3, '0')}`;
       connection.avatarUrl = null;
@@ -214,14 +219,22 @@ export class Gateway {
     connection.state = ConnectionState.Idle;
 
     if (payload.create) {
-      if (connection.room) await this.rooms.removePlayer(connection);
-      const created = this.rooms.createRoom(payload.create);
-      created.addPlayer(connection);
+      const created = this.rooms.createAdminLobby(connection, payload.create);
+      if ('error' in created) {
+        connection.sendError(created.error, describeJoinError(created.error), true);
+        return;
+      }
+      if (connection.room !== created.room) created.room.addPlayer(connection);
       this.rooms.heartbeatNow();
       return;
     }
 
-    const result = this.rooms.findOrCreateRoom({
+    if (!payload.roomId && !payload.roomCode) {
+      connection.sendError(ErrorCode.RoomNotFound, describeJoinError('room_not_found'), true);
+      return;
+    }
+
+    const result = this.rooms.findRoom({
       roomId: payload.roomId,
       roomCode: payload.roomCode,
       password: payload.password,
@@ -280,10 +293,28 @@ export class Gateway {
       return;
     }
     const payload = decodeJsonBody<CreateRoomPayload>(data);
-    if (connection.room) await this.rooms.removePlayer(connection);
-    const room = this.rooms.createRoom(payload.config ?? {});
-    room.addPlayer(connection);
+    const created = this.rooms.createAdminLobby(connection, payload.config ?? {});
+    if ('error' in created) {
+      connection.sendError(created.error, describeJoinError(created.error), true);
+      return;
+    }
+    if (connection.room !== created.room) created.room.addPlayer(connection);
     this.rooms.heartbeatNow();
+  }
+
+  private handleStartMatch(connection: Connection): void {
+    if (!connection.allowControlMessage()) return;
+    const room = connection.room;
+    if (!room) {
+      connection.sendError(ErrorCode.NotInRoom, describeJoinError('not_in_room'));
+      return;
+    }
+    if (!connection.isAdmin || !room.isHost(connection.playerId)) {
+      connection.sendError(ErrorCode.NotAdmin, describeJoinError('not_admin'));
+      return;
+    }
+    if (room.phase !== 'lobby') return;
+    room.startMatch();
   }
 
   private async onClose(connection: Connection): Promise<void> {
@@ -337,12 +368,20 @@ function clientIp(request: IncomingMessage): string {
 function describeJoinError(code: string): string {
   switch (code) {
     case 'room_not_found':
-      return 'That room no longer exists';
+      return 'Лобби не найдено. Проверьте код.';
     case 'room_full':
-      return 'That room is full';
+      return 'Лобби заполнено.';
+    case 'room_closed':
+      return 'Лобби закрыто.';
     case 'bad_password':
-      return 'Wrong room password';
+      return 'Неверный пароль лобби.';
+    case 'not_admin':
+      return 'Только администратор может создать лобби.';
+    case 'already_in_room':
+      return 'Вы уже находитесь в другом лобби.';
+    case 'not_in_room':
+      return 'Сначала войдите в лобби.';
     default:
-      return 'Could not join';
+      return 'Не удалось подключиться к лобби.';
   }
 }

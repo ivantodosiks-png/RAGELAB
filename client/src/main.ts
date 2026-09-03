@@ -21,6 +21,9 @@ ui.onJoin = (request) => {
 ui.onLeaveMatch = () => {
   leave();
 };
+ui.onStartMatch = () => {
+  session?.requestStartMatch();
+};
 
 async function boot(): Promise<void> {
   await authService.initialize();
@@ -60,6 +63,7 @@ async function join(request: JoinRequest): Promise<void> {
     session = next;
   } catch (err) {
     ui.setConnecting(false);
+    ui.menu.setCreateBusy(false);
     ui.showMenu();
     ui.toast(err instanceof Error ? err.message : String(err));
   } finally {
@@ -70,6 +74,7 @@ async function join(request: JoinRequest): Promise<void> {
 function leave(): void {
   session?.dispose();
   session = null;
+  ui.menu.setCreateBusy(false);
   ui.showMenu();
 }
 

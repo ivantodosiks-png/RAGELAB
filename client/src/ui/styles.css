@@ -145,10 +145,14 @@ body {
 }
 
 .rl-nav button:hover,
-.rl-btn:hover {
+.rl-btn:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(214, 255, 61, 0.06);
+}
+
+.rl-btn:disabled {
+  cursor: not-allowed;
 }
 
 .rl-nav button.active {
@@ -1626,5 +1630,230 @@ input[type='range'] {
   .hud-weapon,
   .toolgun-hud {
     display: none;
+  }
+}
+
+/* ── Lobby create / wait ─────────────────────────────────────────────────── */
+
+.rl-create-wrap {
+  position: relative;
+}
+
+.rl-create-lobby {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.18em;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(214, 255, 61, 0.12);
+  transition:
+    transform 0.16s ease,
+    filter 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.rl-create-lobby:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 28px rgba(214, 255, 61, 0.2);
+}
+
+.rl-create-lobby:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+  filter: brightness(0.96);
+}
+
+.rl-create-icon {
+  display: grid;
+  place-items: center;
+}
+
+.rl-create-lobby.is-locked,
+.rl-create-lobby:disabled {
+  background: #1a1f1b;
+  color: #6d7768;
+  border-color: #2a322c;
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  opacity: 0.72;
+}
+
+.rl-create-lobby.is-loading {
+  cursor: progress;
+}
+
+.rl-create-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(20, 24, 15, 0.25);
+  border-top-color: #14180f;
+  border-radius: 50%;
+  animation: rl-spin 0.7s linear infinite;
+}
+
+.rl-create-wrap[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: #101410;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  text-align: center;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+.lobby-join-block {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.lobby-join-title,
+.lobby-wait-card h3 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.lobby-wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(900px 420px at 50% -10%, rgba(214, 255, 61, 0.08), transparent 55%),
+    rgba(7, 9, 8, 0.78);
+  pointer-events: auto;
+}
+
+.lobby-wait[hidden] {
+  display: none;
+}
+
+.lobby-wait-card {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 28px 28px 24px;
+  border: 1px solid var(--line);
+  background: rgba(12, 16, 13, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.lobby-kicker {
+  margin: 0;
+  color: var(--accent);
+  letter-spacing: 0.28em;
+  font-size: 11px;
+}
+
+.lobby-wait-card h2 {
+  margin: 0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lobby-lead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.lobby-code-box {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line-hot);
+  background: rgba(214, 255, 61, 0.05);
+}
+
+.lobby-code-label {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lobby-code {
+  font-family: var(--mono);
+  font-size: 36px;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.lobby-copy,
+.lobby-start {
+  width: 100%;
+  text-align: center;
+}
+
+.lobby-players {
+  display: grid;
+  gap: 8px;
+}
+
+.lobby-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lobby-player.self {
+  border-color: rgba(214, 255, 61, 0.35);
+}
+
+.lobby-player-name {
+  flex: 1;
+}
+
+.lobby-badge {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.lobby-badge.muted {
+  color: var(--muted);
+}
+
+.lobby-empty,
+.lobby-wait-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lobby-actions {
+  display: grid;
+  gap: 8px;
+}
+
+@keyframes rl-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

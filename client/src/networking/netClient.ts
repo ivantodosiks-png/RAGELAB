@@ -16,10 +16,12 @@ import {
   type HelloPayload,
   type InputPacket,
   type KickedPayload,
+  type LobbyStatePayload,
   type OpCode,
   type RoomConfig,
   type RoomListPayload,
   type RosterPayload,
+  type StartMatchPayload,
   type SwitchWeaponPayload,
   type WelcomePayload,
   type WorldSnapshot,
@@ -40,6 +42,7 @@ export interface NetClientHandlers {
   onEvents?: (payload: EventsPayload) => void;
   onRoster?: (payload: RosterPayload) => void;
   onRoomList?: (payload: RoomListPayload) => void;
+  onLobbyState?: (payload: LobbyStatePayload) => void;
   onError?: (payload: ErrorPayload) => void;
   onKicked?: (payload: KickedPayload) => void;
   onRtt?: (rttMs: number, clockOffsetMs: number) => void;
@@ -206,6 +209,11 @@ export class NetClient {
         this.lastSnapshotTick = 0;
         this.reconnectAttempt = 0;
         this.clockOffsetMs = payload.serverTimeMs - this.nowMs();
+        if (this.options) {
+          this.options.create = undefined;
+          this.options.roomId = payload.room.id;
+          this.options.roomCode = payload.room.joinCode;
+        }
         this.setState('connected');
         this.startPing();
         this.handlers.onWelcome?.(payload);
@@ -219,6 +227,9 @@ export class NetClient {
         return;
       case Op.RoomList:
         this.handlers.onRoomList?.(decodeJsonBody<RoomListPayload>(bytes));
+        return;
+      case Op.LobbyState:
+        this.handlers.onLobbyState?.(decodeJsonBody<LobbyStatePayload>(bytes));
         return;
       case Op.Error: {
         const payload = decodeJsonBody<ErrorPayload>(bytes);
@@ -265,6 +276,10 @@ export class NetClient {
 
   leaveRoom(): void {
     this.sendJson(Op.LeaveRoom, {});
+  }
+
+  startMatch(): void {
+    this.sendJson(Op.StartMatch, {} satisfies StartMatchPayload);
   }
 
   private sendJson(op: OpCode, payload: unknown): void {

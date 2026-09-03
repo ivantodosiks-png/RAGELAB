@@ -38,6 +38,7 @@ export class Connection {
   username = 'Guest';
   avatarUrl: string | null = null;
   isGuest = true;
+  isAdmin = false;
 
   room: Room | null = null;
   playerId = 0;

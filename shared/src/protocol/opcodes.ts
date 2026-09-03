@@ -22,6 +22,8 @@ export const Op = {
   CreateRoom: 8,
   /** JSON: {} - leave the current room but stay connected. */
   LeaveRoom: 9,
+  /** JSON: {} - host/admin starts the match from the waiting lobby. */
+  StartMatch: 10,
 
   // ── server -> client ──
   /** JSON: WelcomePayload */
@@ -40,6 +42,8 @@ export const Op = {
   RoomList: 26,
   /** JSON: { reason } */
   Kicked: 27,
+  /** JSON: LobbyStatePayload - waiting-room roster and phase. */
+  LobbyState: 28,
 } as const;
 
 export type OpCode = (typeof Op)[keyof typeof Op];
@@ -56,5 +60,7 @@ export const ErrorCode = {
   NotInRoom: 'not_in_room',
   ServerFull: 'server_full',
   Internal: 'internal',
+  NotAdmin: 'not_admin',
+  RoomClosed: 'room_closed',
 } as const;
 export type ErrorCodeId = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -12,6 +12,7 @@ import { profileService, type FullProfile } from '../supabase/profileService';
 import { settingsStore } from '../settings/settingsStore';
 import { Hud } from './hud';
 import { MainMenu } from './menu';
+import { LobbyWait, type LobbyWaitState } from './lobbyWait';
 import { isLobbyCode, normalizeLobbyCode, type QualityLevelId, type RoomSummary } from '@ragelab/shared';
 import { el } from './dom';
 
@@ -33,6 +34,7 @@ export interface JoinRequest {
 export class UiApp {
   readonly menu: MainMenu;
   readonly hud: Hud;
+  readonly lobby: LobbyWait;
   readonly connecting: HTMLElement;
   private readonly overlay: HTMLElement;
   private readonly banScreen: HTMLElement;
@@ -41,6 +43,7 @@ export class UiApp {
 
   onJoin: ((request: JoinRequest) => void) | null = null;
   onLeaveMatch: (() => void) | null = null;
+  onStartMatch: (() => void) | null = null;
 
   constructor(root: HTMLElement) {
     this.menu = new MainMenu(root, {
@@ -82,6 +85,9 @@ export class UiApp {
 
     this.hud = new Hud(root);
     this.hud.setVisible(false);
+    this.lobby = new LobbyWait(root);
+    this.lobby.onStart = () => this.onStartMatch?.();
+    this.lobby.onLeave = () => this.onLeaveMatch?.();
 
     this.connecting = el('div', 'connecting', 'Connecting…');
     root.append(this.connecting);
@@ -118,13 +124,28 @@ export class UiApp {
     this.menu.setVisible(true);
     this.hud.setVisible(false);
     this.hud.setPaused(false);
+    this.lobby.setVisible(false);
     this.setConnecting(false);
   }
 
   showGame(): void {
     this.menu.setVisible(false);
     this.hud.setVisible(true);
+    this.lobby.setVisible(false);
     this.setConnecting(false);
+  }
+
+  showLobbyWait(state: LobbyWaitState): void {
+    this.menu.setCreateBusy(false);
+    this.menu.setVisible(false);
+    this.hud.setVisible(false);
+    this.setConnecting(false);
+    this.lobby.setVisible(true);
+    this.lobby.render(state);
+  }
+
+  hideLobbyWait(): void {
+    this.lobby.setVisible(false);
   }
 
   setConnecting(open: boolean, label = 'Connecting…'): void {
@@ -200,6 +221,7 @@ export class UiApp {
     this.banScreen.hidden = false;
     this.menu.setVisible(false);
     this.hud.setVisible(false);
+    this.lobby.setVisible(false);
     this.setConnecting(false);
   }
 
@@ -344,12 +366,7 @@ export class UiApp {
       return;
     }
 
-    if (await this.localServerReachable() || this.canCreateOnConfiguredServer()) {
-      this.onJoin?.(opts);
-      return;
-    }
-
-    this.toast('Game server is not running. Start npm run dev on this PC, then Create lobby.');
+    this.toast('Нет открытого лобби. Введите код или попросите администратора создать лобби.');
   }
 
   private async joinByCode(opts: {
@@ -361,7 +378,7 @@ export class UiApp {
     if (this.blockedByBan()) return;
     const code = normalizeLobbyCode(opts.code);
     if (!isLobbyCode(code)) {
-      this.toast('Enter a 6-character lobby code.');
+      this.toast('Введите 6-символьный код лобби.');
       return;
     }
 
@@ -392,7 +409,7 @@ export class UiApp {
       return;
     }
 
-    this.toast('Lobby not found. The host may be offline, or the code is wrong.');
+    this.toast('Лобби не найдено. Проверьте код или дождитесь, пока администратор создаст лобби.');
   }
 
   private async hostNewRoom(opts: {
@@ -402,11 +419,16 @@ export class UiApp {
     password: string;
   }): Promise<void> {
     if (this.blockedByBan()) return;
+    if (!this.menu.isAdmin) {
+      this.toast('Только администратор может создать лобби.');
+      return;
+    }
     if (await this.localServerReachable() || this.canCreateOnConfiguredServer()) {
+      this.menu.setCreateBusy(true);
       this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
       return;
     }
-    this.toast('Game server is not running on this PC. Start npm run dev, then Create lobby.');
+    this.toast('Игровой сервер не запущен. Запустите npm run dev, затем создайте лобби.');
   }
 
   get profile(): FullProfile | null {

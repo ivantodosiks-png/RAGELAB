@@ -6,11 +6,19 @@ export const GameMode = {
 } as const;
 export type GameModeId = (typeof GameMode)[keyof typeof GameMode];
 
+export const RoomPhase = {
+  Lobby: 'lobby',
+  Playing: 'playing',
+  Closed: 'closed',
+} as const;
+export type RoomPhaseId = (typeof RoomPhase)[keyof typeof RoomPhase];
+
 export interface RoomSummary {
   id: string;
   name: string;
   mapId: string;
   mode: GameModeId;
+  phase: RoomPhaseId;
   playerCount: number;
   maxPlayers: number;
   hasPassword: boolean;

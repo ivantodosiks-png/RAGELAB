@@ -65,6 +65,7 @@ export class MainMenu {
   private adminQuery = '';
   private pendingBanId: string | null = null;
   private adminNotice = '';
+  private createBusy = false;
 
   constructor(
     host: HTMLElement,
@@ -140,6 +141,12 @@ export class MainMenu {
     this.isAdmin = isAdmin;
     this.adminBtn.hidden = !isAdmin;
     if (!isAdmin && this.screen === 'admin') this.show('play');
+    else if (this.screen === 'play' || this.screen === 'servers') this.render();
+  }
+
+  setCreateBusy(busy: boolean): void {
+    this.createBusy = busy;
+    if (this.screen === 'play' || this.screen === 'servers') this.render();
   }
 
   show(screen: MenuScreen): void {
@@ -181,19 +188,32 @@ export class MainMenu {
       el(
         'p',
         'lead',
-        'Create a lobby, share the 6-letter code or invite link. Friends open this website, enter the code, and play — no install. When the host leaves, the session ends.',
+        'Администратор создаёт лобби и получает код. Остальные игроки вводят этот код и ждут старта в общей комнате.',
       ),
     );
-    const form = el('div', 'rl-form');
-    const name = inputField('Callsign', this.signedIn ? this.username : this.guestName, !this.signedIn);
-    const map = selectField('Map', MAP_IDS, DEFAULT_MAP_ID);
+    const form = el('div', 'rl-form lobby-play');
+    const name = inputField('Позывной', this.signedIn ? this.username : this.guestName, !this.signedIn);
+    const map = selectField('Карта', MAP_IDS, DEFAULT_MAP_ID);
     const err = el('div', 'rl-error');
 
-    const create = el('button', 'rl-btn primary', 'Create lobby');
+    const createWrap = el('div', 'rl-create-wrap');
+    if (!this.isAdmin) createWrap.dataset.tip = 'Только для администратора';
+    const create = el('button', 'rl-btn primary rl-create-lobby', '');
+    create.innerHTML =
+      '<span class="rl-create-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg></span><span class="rl-create-label">Создать лобби</span>';
+    create.disabled = !this.isAdmin || this.createBusy;
+    if (!this.isAdmin) create.classList.add('is-locked');
+    if (this.createBusy) {
+      create.classList.add('is-loading');
+      create.innerHTML =
+        '<span class="rl-create-spinner" aria-hidden="true"></span><span class="rl-create-label">Создание…</span>';
+    }
     create.addEventListener('click', () => {
+      if (!this.isAdmin || this.createBusy) return;
       const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
       if (!this.signedIn) this.guestName = username || this.guestName;
       this.username = username || this.guestName;
+      err.textContent = '';
       this.callbacks.createRoom({
         name: `${this.username}'s lobby`.slice(0, 48),
         mapId: (map.input as HTMLSelectElement).value,
@@ -201,26 +221,33 @@ export class MainMenu {
         password: '',
       });
     });
+    createWrap.append(create);
 
-    const code = inputField('Join with code', this.pendingJoinCode);
+    const joinBlock = el('div', 'lobby-join-block');
+    joinBlock.append(el('h3', 'lobby-join-title', 'Введите код лобби'));
+    const code = inputField('Код', this.pendingJoinCode);
     const codeInput = code.input as HTMLInputElement;
     codeInput.maxLength = 6;
     codeInput.autocomplete = 'off';
-    codeInput.placeholder = 'ABC123';
+    codeInput.placeholder = 'X7K9P2';
+    codeInput.spellcheck = false;
     codeInput.style.textTransform = 'uppercase';
     codeInput.addEventListener('input', () => {
       const next = normalizeLobbyCode(codeInput.value);
       this.pendingJoinCode = next;
       if (codeInput.value !== next) codeInput.value = next;
     });
+    codeInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') join.click();
+    });
 
-    const join = el('button', 'rl-btn', 'Join lobby');
+    const join = el('button', 'rl-btn', 'Подключиться');
     join.addEventListener('click', () => {
       const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
       if (!this.signedIn) this.guestName = username || this.guestName;
       const value = normalizeLobbyCode(codeInput.value || this.pendingJoinCode);
       if (!isLobbyCode(value)) {
-        err.textContent = 'Enter the 6-character code from the host.';
+        err.textContent = 'Введите 6-символьный код лобби.';
         return;
       }
       err.textContent = '';
@@ -231,17 +258,8 @@ export class MainMenu {
       });
     });
 
-    const play = el('button', 'rl-btn', 'Quick play');
-    play.addEventListener('click', () => {
-      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
-      if (!this.signedIn) this.guestName = username || this.guestName;
-      this.callbacks.play({
-        username: username || this.guestName,
-        mapId: (map.input as HTMLSelectElement).value,
-      });
-    });
-
-    form.append(name.wrap, map.wrap, err, create, code.wrap, join, play);
+    joinBlock.append(code.wrap, join);
+    form.append(name.wrap, map.wrap, createWrap, err, joinBlock);
     this.panel.append(form);
   }
 
@@ -251,7 +269,7 @@ export class MainMenu {
       el(
         'p',
         'lead',
-        'Create a lobby on a running game server, then share the code. Friends join from this website. If you leave, everyone is kicked.',
+        'Список живых лобби. Создать новое может только администратор. Игроки заходят по коду.',
       ),
     );
     const listHost = el('div');
@@ -267,8 +285,13 @@ export class MainMenu {
     (max.input as HTMLInputElement).type = 'number';
     const password = inputField('Password (optional)', '');
     (password.input as HTMLInputElement).type = 'password';
-    const go = el('button', 'rl-btn primary', 'Create lobby');
+    const goWrap = el('div', 'rl-create-wrap');
+    if (!this.isAdmin) goWrap.dataset.tip = 'Только для администратора';
+    const go = el('button', 'rl-btn primary rl-create-lobby', 'Создать лобби');
+    go.disabled = !this.isAdmin || this.createBusy;
+    if (!this.isAdmin) go.classList.add('is-locked');
     go.addEventListener('click', () => {
+      if (!this.isAdmin || this.createBusy) return;
       this.callbacks.createRoom({
         name: (name.input as HTMLInputElement).value.trim() || 'RAGELAB',
         mapId: (map.input as HTMLSelectElement).value,
@@ -276,7 +299,8 @@ export class MainMenu {
         password: (password.input as HTMLInputElement).value,
       });
     });
-    form.append(name.wrap, map.wrap, max.wrap, password.wrap, go);
+    goWrap.append(go);
+    form.append(name.wrap, map.wrap, max.wrap, password.wrap, goWrap);
     create.append(form);
     this.panel.append(create);
 

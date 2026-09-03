@@ -9,6 +9,7 @@ import {
   MAX_HEALTH,
   MAX_INPUTS_PER_PACKET,
   PlayerFlag,
+  RoomPhase,
   SPEED_WALK,
   buttonPressed,
   clamp,
@@ -18,9 +19,11 @@ import {
   getWeapon,
   type GameEvent,
   type InputCommand,
+  type LobbyStatePayload,
   type MapDefinition,
   type PlayerIdentity,
   type PlayerScore,
+  type RoomPhaseId,
   type Vec3,
   type WeaponId,
   type WelcomePayload,
@@ -118,6 +121,14 @@ export class GameSession {
   private frames = 0;
   private fpsAccum = 0;
   private paused = false;
+  private lobbyHold = false;
+  private lobbyStarting = false;
+  private roomPhase: RoomPhaseId = RoomPhase.Playing;
+  private joinCode = '';
+  private roomName = '';
+  private hostPlayerId: number | null = null;
+  private isHost = false;
+  private maxPlayers = 16;
   private running = false;
   private disposed = false;
   private remoteStep = new Map<number, number>();
@@ -208,6 +219,9 @@ export class GameSession {
           if (!this.local) return;
           for (const event of payload.events) this.handleEvent(event);
         },
+        onLobbyState: (payload) => {
+          this.applyLobbyState(payload);
+        },
         onRoster: (payload) => {
           if (!this.entities) return;
           this.identities.clear();
@@ -216,8 +230,14 @@ export class GameSession {
           this.scores = payload.scores;
           const self = payload.players.find((p) => p.id === this.localId);
           if (self) this.localCharacter?.setIdentity(self);
+          if (payload.phase) this.roomPhase = payload.phase;
+          if (payload.joinCode) this.joinCode = payload.joinCode;
+          if (payload.hostPlayerId !== undefined) this.hostPlayerId = payload.hostPlayerId;
+          this.syncLobbyWait();
         },
         onError: (payload) => {
+          this.lobbyStarting = false;
+          this.syncLobbyWait();
           this.ui.toast(payload.message);
           if (payload.fatal) {
             window.clearTimeout(timeout);
@@ -331,17 +351,71 @@ export class GameSession {
       this.mapBuilder.setPickupVisible(id, false);
     }
 
-    this.ui.showGame();
+    this.joinCode = welcome.room.joinCode ?? '';
+    this.roomName = welcome.room.name;
+    this.maxPlayers = welcome.room.maxPlayers;
+    this.isHost = Boolean(welcome.room.host);
+    this.hostPlayerId = welcome.players.find((p) => welcome.room.host && p.id === welcome.playerId)?.id ?? (welcome.room.host ? welcome.playerId : null);
+    this.applyRoomPhase(welcome.room.phase ?? RoomPhase.Playing);
     this.ui.hud.setLobbyInvite(welcome.room.joinCode ?? null, welcome.room.wsUrl);
-    if (welcome.room.joinCode) {
-      this.ui.hud.showToast(
-        welcome.room.host
-          ? `Lobby ${welcome.room.joinCode} — click the code to copy invite`
-          : `Lobby ${welcome.room.joinCode}`,
-      );
-    } else {
-      this.ui.hud.showToast(`${welcome.room.name} · ${this.map.name}`);
+  }
+
+  requestStartMatch(): void {
+    if (!this.isHost || this.roomPhase !== RoomPhase.Lobby) return;
+    this.lobbyStarting = true;
+    this.syncLobbyWait();
+    this.net.startMatch();
+  }
+
+  private applyLobbyState(payload: LobbyStatePayload): void {
+    this.joinCode = payload.joinCode;
+    this.roomName = payload.name;
+    this.maxPlayers = payload.maxPlayers;
+    this.hostPlayerId = payload.hostPlayerId;
+    this.isHost = payload.hostPlayerId === this.localId;
+    this.identities.clear();
+    for (const id of payload.players) this.identities.set(id.id, id);
+    this.entities?.setIdentities(payload.players);
+    this.applyRoomPhase(payload.phase);
+  }
+
+  private applyRoomPhase(phase: RoomPhaseId): void {
+    this.roomPhase = phase;
+    if (phase === RoomPhase.Lobby) {
+      this.lobbyHold = true;
+      this.input?.releaseLock();
+      this.ui.showLobbyWait(this.lobbyView());
+      return;
     }
+    this.lobbyHold = false;
+    this.lobbyStarting = false;
+    this.ui.hideLobbyWait();
+    this.ui.showGame();
+    if (this.joinCode) {
+      this.ui.hud.showToast(this.isHost ? `Лобби ${this.joinCode}` : `Лобби ${this.joinCode}`);
+    } else {
+      this.ui.hud.showToast(`${this.roomName || this.map.name}`);
+    }
+  }
+
+  private syncLobbyWait(): void {
+    if (!this.lobbyHold || this.roomPhase !== RoomPhase.Lobby) return;
+    this.ui.showLobbyWait(this.lobbyView());
+  }
+
+  private lobbyView() {
+    return {
+      code: this.joinCode,
+      name: this.roomName || this.map?.name || 'Lobby',
+      mapId: this.map?.id ?? '',
+      isHost: this.isHost,
+      isAdmin: this.ui.menu.isAdmin,
+      starting: this.lobbyStarting,
+      players: [...this.identities.values()],
+      hostPlayerId: this.hostPlayerId,
+      localPlayerId: this.localId,
+      maxPlayers: this.maxPlayers,
+    };
   }
 
   private onWelcomeLive(welcome: WelcomePayload): void {
@@ -471,6 +545,11 @@ export class GameSession {
       this.fps = this.frames / this.fpsAccum;
       this.frames = 0;
       this.fpsAccum = 0;
+    }
+
+    if (this.lobbyHold) {
+      this.renderer?.render();
+      return;
     }
 
     if (this.input.consumeEdge('sandbox') && !this.paused) {
@@ -817,6 +896,9 @@ export class GameSession {
       case 'leave':
         this.ui.hud.showToast(`${event.name} left`);
         break;
+      case 'matchStart':
+        this.applyRoomPhase(RoomPhase.Playing);
+        break;
       default:
         break;
     }
@@ -991,6 +1073,7 @@ export class GameSession {
     this.physics?.dispose();
     this.audio?.dispose();
     this.ui.hud.setLobbyInvite(null);
+    this.ui.hideLobbyWait();
     this.renderer?.dispose();
   }
 }

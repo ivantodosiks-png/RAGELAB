@@ -37,7 +37,10 @@ import {
   type PlayerScore,
   type QuantPlayer,
   type QuantProp,
+  type LobbyStatePayload,
   type RoomConfig,
+  RoomPhase,
+  type RoomPhaseId,
   type RoomSummary,
   type RosterPayload,
   type StepEvents,
@@ -125,6 +128,7 @@ export class Room {
   /** First player in (or the creator) — when they leave the match ends. */
   hostPlayerId: number | null = null;
   dissolving = false;
+  phase: RoomPhaseId = RoomPhase.Lobby;
 
   /** Events queued this tick: broadcast plus per-player. */
   private broadcastEvents: GameEvent[] = [];
@@ -193,6 +197,7 @@ export class Room {
       name: this.config.name,
       mapId: this.map.id,
       mode: this.config.mode,
+      phase: this.dissolving ? RoomPhase.Closed : this.phase,
       playerCount: this.players.size,
       maxPlayers: this.config.maxPlayers,
       hasPassword: Boolean(this.config.password),
@@ -277,6 +282,7 @@ export class Room {
         joinCode: this.joinCode,
         host: this.hostPlayerId === id,
         wsUrl: config.publicWsUrl || undefined,
+        phase: this.phase,
       },
       tickRate: config.tickRate,
       snapshotRate: config.snapshotRate,
@@ -298,6 +304,7 @@ export class Room {
 
     this.broadcastEvents.push({ t: 'join', p: id, name: identity.username });
     this.broadcastRoster();
+    this.broadcastLobbyState();
 
     log.info('player joined room', {
       room: this.id,
@@ -326,6 +333,7 @@ export class Room {
     });
     if (this.hostPlayerId === playerId) this.hostPlayerId = null;
     this.broadcastRoster();
+    this.broadcastLobbyState();
 
     log.info('player left room', {
       room: this.id,
@@ -384,9 +392,58 @@ export class Room {
     });
   }
 
+  startMatch(): boolean {
+    if (this.dissolving || this.phase !== RoomPhase.Lobby) return false;
+    this.phase = RoomPhase.Playing;
+    this.broadcastEvents.push({ t: 'matchStart' });
+    this.broadcastLobbyState();
+    this.broadcastRoster();
+    this.flushEvents();
+    log.info('match started', { room: this.id, code: this.joinCode, players: this.players.size });
+    return true;
+  }
+
+  closeLobby(): void {
+    this.phase = RoomPhase.Closed;
+    this.broadcastLobbyState();
+  }
+
+  lobbyState(): LobbyStatePayload {
+    return {
+      phase: this.dissolving ? RoomPhase.Closed : this.phase,
+      joinCode: this.joinCode,
+      hostPlayerId: this.hostPlayerId,
+      mapId: this.map.id,
+      name: this.config.name,
+      maxPlayers: this.config.maxPlayers,
+      players: this.identities(),
+    };
+  }
+
+  broadcastLobbyState(): void {
+    const data = encodeJson(Op.LobbyState, this.lobbyState());
+    for (const roomPlayer of this.players.values()) roomPlayer.connection.send(data);
+  }
+
+  removePlayerByProfile(profileId: string, exceptConnection?: Connection): PlayerEntity | null {
+    for (const [playerId, member] of this.players) {
+      if (member.entity.identity.profileId !== profileId) continue;
+      if (exceptConnection && member.connection === exceptConnection) continue;
+      member.connection.detachFromRoom();
+      const entity = this.removePlayer(playerId);
+      member.connection.kick('Сессия лобби открыта на другом устройстве.');
+      return entity;
+    }
+    return null;
+  }
+
   // ── tick ──────────────────────────────────────────────────────────────────
 
   step(dtMs: number): void {
+    if (this.phase !== RoomPhase.Playing) {
+      this.timeMs += dtMs;
+      return;
+    }
     const started = performance.now();
     this.timeMs += dtMs;
     const dtSec = dtMs / 1000;
@@ -741,6 +798,19 @@ export class Room {
     return { tick: this.tick, timeMs: this.timeMs, ackSeq: 0, players, props, doors };
   }
 
+  private flushEvents(): void {
+    if (this.broadcastEvents.length === 0) return;
+    for (const roomPlayer of this.players.values()) {
+      const events = roomPlayer.pendingEvents.length
+        ? [...this.broadcastEvents, ...roomPlayer.pendingEvents]
+        : this.broadcastEvents;
+      const eventsPayload: EventsPayload = { tick: this.tick, events };
+      roomPlayer.connection.send(encodeJson(Op.Events, eventsPayload));
+      roomPlayer.pendingEvents.length = 0;
+    }
+    this.broadcastEvents.length = 0;
+  }
+
   private sendSnapshots(): void {
     if (this.players.size === 0) {
       this.broadcastEvents.length = 0;
@@ -820,6 +890,9 @@ export class Room {
       players: this.identities(),
       scores: this.scores(),
       matchEndsAt: this.matchEndsAt,
+      phase: this.phase,
+      joinCode: this.joinCode,
+      hostPlayerId: this.hostPlayerId,
     };
     const data = encodeJson(Op.Roster, payload);
     for (const roomPlayer of this.players.values()) roomPlayer.connection.send(data);
