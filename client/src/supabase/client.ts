@@ -112,3 +112,43 @@ export function shouldQueryConfiguredGameHttp(): boolean {
     return true;
   }
 }
+
+/** Vite / local page can talk to the Node process directly. */
+export function canDirectConnectToGameServer(): boolean {
+  if (__GAME_SERVER_DEV_PROXY__) return true;
+  if (isPublicGameServerUrl(GAME_SERVER_URL)) return true;
+  if (typeof window !== 'undefined' && isLoopbackHost(window.location.hostname)) return true;
+  return false;
+}
+
+async function fetchOk(url: string, ms = 2000): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/**
+ * True when a game process is reachable from this browser: Vite proxy, a
+ * public hub, or Node on this PC (`localhost:8080`) even if the page is the
+ * hosted website.
+ */
+export async function localGameServerReachable(): Promise<boolean> {
+  const bases: string[] = [];
+  if (shouldQueryConfiguredGameHttp()) bases.push(GAME_SERVER_HTTP_URL);
+  bases.push('http://127.0.0.1:8080', 'http://localhost:8080');
+  const seen = new Set<string>();
+  for (const base of bases) {
+    const key = base.replace(/\/$/, '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (await fetchOk(`${key}/health`)) return true;
+  }
+  return false;
+}

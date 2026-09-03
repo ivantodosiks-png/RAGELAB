@@ -1,7 +1,9 @@
 import {
   GAME_SERVER_HTTP_URL,
   GAME_SERVER_URL,
+  canDirectConnectToGameServer,
   isPublicGameServerUrl,
+  localGameServerReachable,
   shouldQueryConfiguredGameHttp,
   supabaseConfigured,
 } from '../supabase/client';
@@ -281,19 +283,11 @@ export class UiApp {
   }
 
   private async localServerReachable(): Promise<boolean> {
-    if (!shouldQueryConfiguredGameHttp()) return false;
-    try {
-      const res = await fetch(`${GAME_SERVER_HTTP_URL}/health`, {
-        signal: AbortSignal.timeout(2500),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+    return localGameServerReachable();
   }
 
   private canCreateOnConfiguredServer(): boolean {
-    return isPublicGameServerUrl(GAME_SERVER_URL);
+    return canDirectConnectToGameServer() || isPublicGameServerUrl(GAME_SERVER_URL);
   }
 
   private async fetchLobbyByCode(code: string): Promise<RoomSummary | null> {
@@ -355,7 +349,7 @@ export class UiApp {
       return;
     }
 
-    this.toast('No live lobby found. Create one, or ask the host for a 6-letter code.');
+    this.toast('Game server is not running. Start npm run dev on this PC, then Create lobby.');
   }
 
   private async joinByCode(opts: {
@@ -408,12 +402,11 @@ export class UiApp {
     password: string;
   }): Promise<void> {
     if (this.blockedByBan()) return;
-    const local = await this.localServerReachable();
-    if (!local && !this.canCreateOnConfiguredServer()) {
-      this.toast('No public game server is configured. Run the game on one PC to host, then share the lobby code.');
+    if (await this.localServerReachable() || this.canCreateOnConfiguredServer()) {
+      this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
       return;
     }
-    this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
+    this.toast('Game server is not running on this PC. Start npm run dev, then Create lobby.');
   }
 
   get profile(): FullProfile | null {
