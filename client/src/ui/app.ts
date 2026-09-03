@@ -3,6 +3,7 @@ import {
   GAME_SERVER_URL,
   canDirectConnectToGameServer,
   isPublicGameServerUrl,
+  localGameServerReachable,
   shouldQueryConfiguredGameHttp,
   supabaseConfigured,
 } from '../supabase/client';
@@ -22,6 +23,7 @@ export interface JoinRequest {
   mapId?: string;
   password?: string;
   wsUrl?: string;
+  offline?: boolean;
   create?: {
     name: string;
     mapId: string;
@@ -46,7 +48,10 @@ export class UiApp {
 
   constructor(root: HTMLElement) {
     this.menu = new MainMenu(root, {
-      play: (opts) => void this.joinFromPlay(opts),
+      play: (opts) => {
+        if (opts.roomId || opts.roomCode || opts.wsUrl) void this.joinFromPlay(opts);
+        else this.startOffline(opts);
+      },
       createRoom: (opts) => void this.hostNewRoom(opts),
       joinByCode: (opts) => void this.joinByCode(opts),
       refreshServers: () => this.fetchRooms(),
@@ -305,11 +310,12 @@ export class UiApp {
     }
   }
 
-  private async resolvePlayWsUrl(): Promise<string | undefined> {
-    if (canDirectConnectToGameServer() || isPublicGameServerUrl(GAME_SERVER_URL)) {
-      return undefined;
-    }
-    return (await profileService.findHubWsUrl()) ?? undefined;
+  private async localServerReachable(): Promise<boolean> {
+    return localGameServerReachable();
+  }
+
+  private canHostOnline(): boolean {
+    return canDirectConnectToGameServer() || isPublicGameServerUrl(GAME_SERVER_URL);
   }
 
   private async fetchLobbyByCode(code: string): Promise<RoomSummary | null> {
@@ -325,6 +331,15 @@ export class UiApp {
     } catch {
       return null;
     }
+  }
+
+  private startOffline(opts: { username: string; mapId?: string }): void {
+    if (this.blockedByBan()) return;
+    this.onJoin?.({
+      username: opts.username,
+      mapId: opts.mapId,
+      offline: true,
+    });
   }
 
   private async joinFromPlay(opts: {
@@ -394,12 +409,22 @@ export class UiApp {
       return;
     }
 
-    this.onJoin?.({
-      username: opts.username,
-      roomCode: code,
-      mapId: opts.mapId,
-      wsUrl: opts.wsUrl || (await this.resolvePlayWsUrl()),
-    });
+    if (opts.wsUrl) {
+      this.onJoin?.({
+        username: opts.username,
+        roomCode: code,
+        mapId: opts.mapId,
+        wsUrl: opts.wsUrl,
+      });
+      return;
+    }
+
+    if ((await this.localServerReachable()) || this.canHostOnline()) {
+      this.onJoin?.({ username: opts.username, roomCode: code, mapId: opts.mapId });
+      return;
+    }
+
+    this.toast('Лобби не найдено. Админ должен запустить npm run dev и создать лобби.');
   }
 
   private async hostNewRoom(opts: {
@@ -413,13 +438,12 @@ export class UiApp {
       this.toast('Только администратор может создать лобби.');
       return;
     }
-    this.menu.setCreateBusy(true);
-    this.onJoin?.({
-      username: this.menu.username,
-      create: opts,
-      mapId: opts.mapId,
-      wsUrl: await this.resolvePlayWsUrl(),
-    });
+    if ((await this.localServerReachable()) || this.canHostOnline()) {
+      this.menu.setCreateBusy(true);
+      this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId });
+      return;
+    }
+    this.toast('Онлайн недоступен. Запустите npm run dev на этом ПК, затем создайте лобби.');
   }
 
   get profile(): FullProfile | null {

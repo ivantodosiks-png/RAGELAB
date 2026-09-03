@@ -171,25 +171,6 @@ export class ProfileService {
     return data;
   }
 
-  /** Public websocket of a live hosted game process, even with zero rooms. */
-  async findHubWsUrl(): Promise<string | null> {
-    if (!supabaseConfigured()) return null;
-    const { data, error } = await supabase().rpc('active_servers', { p_stale_seconds: 45 });
-    if (error || !data) return null;
-    for (const row of data) {
-      const ws = row.ws_url;
-      if (!ws) continue;
-      try {
-        const host = new URL(ws).hostname;
-        if (host === 'localhost' || host === '127.0.0.1' || host === '::1') continue;
-        return ws;
-      } catch {
-        continue;
-      }
-    }
-    return null;
-  }
-
   /** Server browser data, mirrored into Supabase by the game server. */
   async activeServers(): Promise<RoomSummary[]> {
     if (!supabaseConfigured()) return [];

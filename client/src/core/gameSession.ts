@@ -4,10 +4,12 @@ import {
   BULLET_FILTER_GROUPS,
   Button,
   DEFAULT_LOADOUT,
+  DEFAULT_MAP_ID,
   EYE_HEIGHT_STAND,
   INTERACT_RANGE,
   MAX_HEALTH,
   MAX_INPUTS_PER_PACKET,
+  PROTOCOL_VERSION,
   PlayerFlag,
   RoomPhase,
   SPEED_WALK,
@@ -28,6 +30,7 @@ import {
   type WeaponId,
   type WelcomePayload,
   animationStateFor,
+  isMapId,
 } from '@ragelab/shared';
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
@@ -74,6 +77,7 @@ export interface SessionStart {
   mapId?: string;
   password?: string;
   wsUrl?: string;
+  offline?: boolean;
   create?: { name: string; mapId: string; maxPlayers: number; password: string };
 }
 
@@ -94,7 +98,7 @@ export class GameSession {
   private local!: LocalPlayer;
   private input!: InputController;
   private camera!: CameraRig;
-  private net!: NetClient;
+  private net: NetClient | null = null;
   private interp!: SnapshotInterpolator;
   private entities!: EntityManager;
   private effects!: EffectsManager;
@@ -122,6 +126,7 @@ export class GameSession {
   private fpsAccum = 0;
   private paused = false;
   private lobbyHold = false;
+  private offline = false;
   private lobbyStarting = false;
   private roomPhase: RoomPhaseId = RoomPhase.Playing;
   private joinCode = '';
@@ -163,26 +168,28 @@ export class GameSession {
     this.input = new InputController(this.canvas, settingsStore.controls);
     this.input.attach();
     this.interp = new SnapshotInterpolator();
-    this.net = new NetClient();
     assetManager.setErrorHandler((_url, message) => this.ui.toast(`NPC model: ${message}`));
 
-    const welcome = await this.connect({
-      url: resolveJoinWsUrl(start.wsUrl),
-      token: start.token,
-      username: start.username,
-      roomId: start.roomId,
-      roomCode: start.roomCode,
-      password: start.password,
-      mapId: start.mapId,
-      create: start.create
-        ? {
-            name: start.create.name,
-            mapId: start.create.mapId,
-            maxPlayers: start.create.maxPlayers,
-            password: start.create.password || undefined,
-          }
-        : undefined,
-    });
+    this.offline = Boolean(start.offline);
+    const welcome = this.offline
+      ? this.offlineWelcome(start)
+      : await this.connect({
+          url: resolveJoinWsUrl(start.wsUrl),
+          token: start.token,
+          username: start.username,
+          roomId: start.roomId,
+          roomCode: start.roomCode,
+          password: start.password,
+          mapId: start.mapId,
+          create: start.create
+            ? {
+                name: start.create.name,
+                mapId: start.create.mapId,
+                maxPlayers: start.create.maxPlayers,
+                password: start.create.password || undefined,
+              }
+            : undefined,
+        });
 
     this.buildWorld(rapier, welcome);
     this.bindUi();
@@ -198,6 +205,7 @@ export class GameSession {
   }
 
   private connect(options: ConnectOptions): Promise<WelcomePayload> {
+    this.net = new NetClient();
     return new Promise((resolve, reject) => {
       const timeout = window.setTimeout(
         () => reject(new Error('Не удалось подключиться к игровому серверу.')),
@@ -363,7 +371,43 @@ export class GameSession {
     this.ui.hud.setLobbyInvite(welcome.room.joinCode ?? null, welcome.room.wsUrl);
   }
 
+  private offlineWelcome(start: SessionStart): WelcomePayload {
+    const mapId = isMapId(start.mapId) ? start.mapId! : DEFAULT_MAP_ID;
+    const username = start.username || 'Operator';
+    return {
+      protocol: PROTOCOL_VERSION,
+      playerId: 1,
+      profile: null,
+      room: {
+        id: 'offline',
+        name: 'Offline',
+        mapId,
+        mode: 'sandbox',
+        maxPlayers: 1,
+        host: true,
+        phase: RoomPhase.Playing,
+      },
+      tickRate: 60,
+      snapshotRate: 20,
+      serverTimeMs: 0,
+      players: [
+        {
+          id: 1,
+          profileId: null,
+          username,
+          avatarUrl: null,
+          isGuest: true,
+          team: 0,
+        },
+      ],
+      scores: [{ id: 1, kills: 0, deaths: 0, score: 0, pingMs: 0 }],
+      loadout: [...DEFAULT_LOADOUT],
+      worldState: { doorsOpen: [], switchesOn: [], pickupsTaken: [] },
+    };
+  }
+
   requestStartMatch(): void {
+    if (this.offline || !this.net) return;
     if (!this.isHost || this.roomPhase !== RoomPhase.Lobby) return;
     this.lobbyStarting = true;
     this.syncLobbyWait();
@@ -394,6 +438,10 @@ export class GameSession {
     this.lobbyStarting = false;
     this.ui.hideLobbyWait();
     this.ui.showGame();
+    if (this.offline) {
+      this.ui.hud.showToast('Офлайн игра');
+      return;
+    }
     if (this.joinCode) {
       this.ui.hud.showToast(this.isHost ? `Лобби ${this.joinCode}` : `Лобби ${this.joinCode}`);
     } else {
@@ -444,8 +492,11 @@ export class GameSession {
       this.ui.menu.show('settings');
       this.ui.onLeaveMatch?.();
     };
-    this.ui.hud.onChat = (text) => this.net.sendChat(text);
-    this.ui.hud.onRespawn = () => this.net.sendRespawnRequest();
+    this.ui.hud.onChat = (text) => this.net?.sendChat(text);
+    this.ui.hud.onRespawn = () => {
+      if (this.offline) this.offlineRespawn();
+      else this.net?.sendRespawnRequest();
+    };
   }
 
   private bindSettings(): void {
@@ -606,7 +657,7 @@ export class GameSession {
         command.weaponSlot = this.input.firearmSlot;
       }
     }
-    if (commands.length > 0) {
+    if (commands.length > 0 && this.net) {
       this.net.sendInput({
         ackSnapshotTick: this.net.ackTick,
         commands: commands.slice(-MAX_INPUTS_PER_PACKET),
@@ -619,7 +670,9 @@ export class GameSession {
     if (this.local.weaponId !== this.weapon.weaponId) {
       this.weapon.equip(this.local.weaponId, now);
     }
-    this.weapon.syncFromServer(this.local.ammoInMag, this.local.ammoReserve, now);
+    if (!this.offline) {
+      this.weapon.syncFromServer(this.local.ammoInMag, this.local.ammoReserve, now);
+    }
 
     this.feetPos.set(predicted.position.x, predicted.position.y, predicted.position.z);
     this.camera.update(
@@ -704,11 +757,17 @@ export class GameSession {
         this.input.closeWeaponWheel();
         this.ui.hud.cancelWeaponWheel();
       }
-      if (this.input.isActionHeld('jump') && this.net.serverNowMs() >= this.respawnAt) {
+      if (this.input.isActionHeld('jump') && this.offline) {
+        this.offlineRespawn();
+      } else if (this.input.isActionHeld('jump') && this.net && this.net.serverNowMs() >= this.respawnAt) {
         this.net.sendRespawnRequest();
       }
     } else {
       this.ui.hud.hideDeath();
+    }
+
+    if (this.offline && this.local.alive && predicted.position.y < this.map.killPlaneY) {
+      this.offlineRespawn();
     }
 
     this.interp.sample(now, this.localId);
@@ -841,7 +900,7 @@ export class GameSession {
         if (event.victim === this.localId) {
           this.respawnAt = event.respawnAt;
           this.audio.play('death', { volume: 0.8 });
-          this.ui.hud.showDeath(event.respawnAt, this.net.serverNowMs());
+          this.ui.hud.showDeath(event.respawnAt, this.net?.serverNowMs() ?? performance.now());
         }
         break;
       case 'respawn':
@@ -918,7 +977,21 @@ export class GameSession {
     this.closeSpawnMenu();
     this.sandbox.setTool('none');
     const id = this.loadout[slot] ?? this.loadout[0]!;
+    this.local.weaponId = id;
     this.weapon.equip(id, now);
+  }
+
+  private offlineRespawn(): void {
+    const spawn = pickMapSpawn(this.map, 'player');
+    if (!spawn) return;
+    const pos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
+    this.local.health = MAX_HEALTH;
+    this.local.teleport(pos);
+    this.input.setAim(spawn.yaw, 0);
+    this.input.resetToggles();
+    this.camera.reset();
+    this.weapon.equip(this.loadout[this.input.firearmSlot] ?? this.loadout[0]!, performance.now());
+    this.ui.hud.hideDeath();
   }
 
   private updateHud(dt: number, speedRatio: number, airborne: boolean, crouching: boolean): void {
@@ -957,22 +1030,22 @@ export class GameSession {
       this.ui.hud.setToolGun(false, 'NPC', true);
       this.ui.hud.setCrosshairMotion(speedRatio, false, false);
     }
-    this.ui.hud.setNet(this.fps, this.net.rttMs, settingsStore.graphics.debugOverlay);
+    this.ui.hud.setNet(this.fps, this.offline ? 0 : (this.net?.rttMs ?? 0), settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
     this.ui.hud.setCrosshairVisible(
       this.local.alive && !this.paused && !this.ui.hud.weaponWheelOpen && !this.spawnMenu?.isOpen,
     );
     this.ui.hud.setScoreboard(this.scoreRows(), this.input.isActionHeld('scoreboard') && !this.ui.hud.chatting);
     this.ui.hud.setDebug(
-      `tick ack ${this.net.ackTick}\n` +
-        `rtt ${this.net.rttMs.toFixed(0)} ms\n` +
+      `tick ack ${this.net?.ackTick ?? 0}\n` +
+        `rtt ${this.offline ? 'offline' : (this.net?.rttMs ?? 0).toFixed(0)} ms\n` +
         `draws ${this.renderer.drawCalls}  tris ${this.renderer.triangles}\n` +
         `particles ${this.effects.particleCount}\n` +
         `corr ${this.local.correctionCount}  err ${this.local.lastError.toFixed(3)}\n` +
         `pos ${this.local.renderPosition.x.toFixed(1)} ${this.local.renderPosition.y.toFixed(1)} ${this.local.renderPosition.z.toFixed(1)}`,
       settingsStore.graphics.debugOverlay,
     );
-    this.ui.hud.update(dt, this.net.serverNowMs());
+    this.ui.hud.update(dt, this.offline ? now : this.net?.serverNowMs() ?? now);
   }
 
   private loadoutRows() {

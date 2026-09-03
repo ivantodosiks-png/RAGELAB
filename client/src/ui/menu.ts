@@ -188,7 +188,7 @@ export class MainMenu {
       el(
         'p',
         'lead',
-        'Администратор создаёт лобби и получает код. Остальные игроки вводят этот код и ждут старта в общей комнате.',
+        'Офлайн доступен всем — сервер не нужен. Онлайн-лобби может создать только администратор после npm run dev.',
       ),
     );
     const form = el('div', 'rl-form lobby-play');
@@ -196,9 +196,22 @@ export class MainMenu {
     const map = selectField('Карта', MAP_IDS, DEFAULT_MAP_ID);
     const err = el('div', 'rl-error');
 
+    const offline = el('button', 'rl-btn primary rl-create-lobby', '');
+    offline.innerHTML =
+      '<span class="rl-create-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M5 4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5v15a.75.75 0 0 1-1.2.6L12 16.25 6.2 20.1A.75.75 0 0 1 5 19.5v-15Z"/></svg></span><span class="rl-create-label">Офлайн игра</span>';
+    offline.addEventListener('click', () => {
+      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
+      if (!this.signedIn) this.guestName = username || this.guestName;
+      this.username = username || this.guestName;
+      this.callbacks.play({
+        username: username || this.guestName,
+        mapId: (map.input as HTMLSelectElement).value,
+      });
+    });
+
     const createWrap = el('div', 'rl-create-wrap');
     if (!this.isAdmin) createWrap.dataset.tip = 'Только для администратора';
-    const create = el('button', 'rl-btn primary rl-create-lobby', '');
+    const create = el('button', 'rl-btn rl-create-lobby', '');
     create.innerHTML =
       '<span class="rl-create-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg></span><span class="rl-create-label">Создать лобби</span>';
     create.disabled = !this.isAdmin || this.createBusy;
@@ -259,7 +272,7 @@ export class MainMenu {
     });
 
     joinBlock.append(code.wrap, join);
-    form.append(name.wrap, map.wrap, createWrap, err, joinBlock);
+    form.append(name.wrap, map.wrap, offline, createWrap, err, joinBlock);
     this.panel.append(form);
   }
 
