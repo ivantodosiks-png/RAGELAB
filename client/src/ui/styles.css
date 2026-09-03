@@ -512,14 +512,12 @@ input[type='range'] {
 .scope-shade {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle 34vmin at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.55) 72%, #050705 88%);
-  opacity: 0.35;
+  background: radial-gradient(circle 42vmin at 50% 50%, transparent 62%, rgba(0, 0, 0, 0.28) 100%);
+  opacity: 0.7;
 }
 
 .scope.optic .scope-shade {
-  background:
-    radial-gradient(circle 28vmin at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.72) 58%, #020302 78%);
+  background: radial-gradient(circle 38vmin at 50% 50%, transparent 68%, rgba(4, 8, 4, 0.42) 100%);
   opacity: 1;
 }
 
@@ -527,31 +525,24 @@ input[type='range'] {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(56vmin, 520px);
-  height: min(56vmin, 520px);
-  transform: translate(-50%, -50%) scale(calc(0.86 + var(--scope) * 0.14));
+  width: min(46vmin, 420px);
+  height: min(46vmin, 420px);
+  transform: translate(-50%, -50%);
   border-radius: 50%;
-  box-shadow:
-    inset 0 0 0 2px rgba(214, 255, 61, 0.18),
-    inset 0 0 48px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
 }
 
 .scope.optic .scope-lens {
-  width: min(68vmin, 640px);
-  height: min(68vmin, 640px);
-  background:
-    radial-gradient(circle at 50% 50%, rgba(180, 220, 170, 0.05), transparent 42%);
+  width: min(52vmin, 480px);
+  height: min(52vmin, 480px);
+  background: radial-gradient(circle at 50% 42%, rgba(220, 255, 210, 0.04), transparent 55%);
   box-shadow:
-    0 0 0 18px rgba(6, 8, 6, 0.92),
-    0 0 0 22px rgba(214, 255, 61, 0.22),
-    inset 0 0 0 3px rgba(20, 24, 16, 0.9),
-    inset 0 0 80px rgba(0, 0, 0, 0.25);
+    inset 0 0 0 3px rgba(30, 36, 28, 0.75),
+    inset 0 0 0 5px rgba(214, 255, 61, 0.28);
 }
 
-.scope.ads .scope-lens {
-  width: 86px;
-  height: 86px;
-  box-shadow: none;
+.scope.ads {
+  display: none;
 }
 
 .scope-lens .sr-h,

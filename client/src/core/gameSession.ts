@@ -1033,7 +1033,7 @@ export class GameSession {
       );
       this.ui.hud.setToolGun(false, 'NPC', true);
       this.ui.hud.setCrosshairMotion(speedRatio, false, false);
-      this.ui.hud.setScope(this.local.alive ? this.weapon.aimBlend : 0, def.scoped ? 'optic' : 'ads');
+      this.ui.hud.setScope(this.local.alive && def.scoped ? this.weapon.aimBlend : 0, def.scoped ? 'optic' : 'none');
     }
     this.ui.hud.setNet(this.fps, this.offline ? 0 : (this.net?.rttMs ?? 0), settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
