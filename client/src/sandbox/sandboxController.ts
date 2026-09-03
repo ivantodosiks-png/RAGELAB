@@ -19,9 +19,18 @@ import { doorTransform, doorWidthAxis } from '../physics/clientWorld';
 import type { SnapshotInterpolator } from '../networking/snapshotInterpolator';
 import { SandboxNpc, type NpcUserData } from './sandboxNpc';
 import { SandboxWeapon, type WeaponUserData } from './sandboxWeapon';
+import { SandboxProp, type PropUserData } from './sandboxProp';
 import { SharedNpcAssets } from './npcModel';
 import { preloadNpcHumanoid } from './npcGltf';
 import { SANDBOX_WEAPON_KINDS, type SandboxWeaponKind } from '../weapons/weaponAssets';
+import { SpawnPreview } from './spawnPreview';
+import {
+  DEFAULT_SPAWN_ENTRY,
+  npcRagdollOnSpawn,
+  propKindFromEntry,
+  toolFromEntry,
+  type SpawnEntry,
+} from './spawnCatalog';
 import {
   EFFECTS_MAX_BY_QUALITY,
   NPC_MAX_BY_QUALITY,
@@ -75,7 +84,14 @@ export class SandboxController {
   private readonly live: SandboxNpc[] = [];
   private readonly weaponPool: SandboxWeapon[] = [];
   private readonly liveWeapons: SandboxWeapon[] = [];
+  private readonly propPool: SandboxProp[] = [];
+  private readonly liveProps: SandboxProp[] = [];
   private heldWeapon: SandboxWeapon | null = null;
+  private heldProp: SandboxProp | null = null;
+  private readonly preview = new SpawnPreview();
+  menuOpen = false;
+  selection: SpawnEntry = DEFAULT_SPAWN_ENTRY;
+  onCannotSpawnWeapon: (() => void) | null = null;
   private readonly propBodies: RAPIER.RigidBody[] = [];
   private readonly doorBodies: RAPIER.RigidBody[] = [];
   private playerProxy: RAPIER.RigidBody;
@@ -144,6 +160,7 @@ export class SandboxController {
     this.inspectRing.visible = false;
     this.inspectRing.renderOrder = 8;
     this.root.add(this.inspectRing);
+    this.root.add(this.preview.root);
 
     this.warmPool(Math.min(8, this.settings.maxNpcs));
     void this.bootHumanoids();
@@ -168,6 +185,14 @@ export class SandboxController {
     return this.liveWeapons.length;
   }
 
+  get propCount(): number {
+    return this.liveProps.length;
+  }
+
+  get toolGunActive(): boolean {
+    return this.tool === 'toolGun';
+  }
+
   get selectedNpc(): SandboxInspect | null {
     if (!this.selected?.active) return null;
     return {
@@ -184,7 +209,21 @@ export class SandboxController {
 
   setTool(tool: SandboxTool): void {
     this.tool = tool;
-    this.marker.visible = tool === 'spawn' || tool === 'spawnWeapon';
+    this.syncMarkerVisibility();
+    if (tool === 'toolGun') this.preview.setEntry(this.selection);
+    this.emit();
+  }
+
+  setMenuOpen(open: boolean): void {
+    this.menuOpen = open;
+    if (open) this.preview.update(null, 0, false);
+    this.emit();
+  }
+
+  setSelection(entry: SpawnEntry): void {
+    this.selection = entry;
+    this.preview.setEntry(entry);
+    this.syncMarkerVisibility();
     this.emit();
   }
 
@@ -209,6 +248,7 @@ export class SandboxController {
     this.settings.maxNpcs = clampInt(this.settings.maxNpcs, 1, 64);
     this.settings.maxEffects = clampInt(this.settings.maxEffects, 20, 800);
     this.settings.maxWeapons = clampInt(this.settings.maxWeapons ?? 32, 1, 64);
+    this.settings.maxProps = clampInt(this.settings.maxProps ?? 48, 1, 80);
     if (this.settings.autoCleanup) this.enforceCap();
     this.emit();
   }
@@ -236,43 +276,85 @@ export class SandboxController {
   }
 
   handlePrimary(aimOrigin: Vec3, aimDir: Vec3, camera: THREE.Camera): boolean {
+    if (this.menuOpen) return true;
     const aim = this.worldAim(camera, aimOrigin, aimDir);
     if (this.tool === 'none') return false;
-    if (this.tool === 'spawn') {
+    if (this.tool === 'toolGun') return this.handleToolGun(aim, camera);
+    return this.applyWorldTool(this.tool, aim, camera);
+  }
+
+  private handleToolGun(aim: { origin: Vec3; dir: Vec3 }, camera: THREE.Camera): boolean {
+    const entry = this.selection;
+    if (entry.category === 'weapons') {
+      this.onCannotSpawnWeapon?.();
+      return true;
+    }
+    if (entry.category === 'tools') {
+      const tool = toolFromEntry(entry.id);
+      if (!tool) return true;
+      return this.applyWorldTool(tool, aim, camera);
+    }
+    const yaw = Math.atan2(-aim.dir.x, -aim.dir.z);
+    const point = this.groundPoint(aim.origin, aim.dir);
+    if (!point) return true;
+    if (entry.category === 'npc') {
+      this.spawnBurst(point, yaw, { count: 1, ragdoll: npcRagdollOnSpawn(entry.id) });
+      return true;
+    }
+    if (entry.category === 'props') {
+      const kind = propKindFromEntry(entry.id);
+      if (kind) this.spawnPropAt(point, yaw, kind);
+    }
+    return true;
+  }
+
+  private applyWorldTool(
+    tool: SandboxTool,
+    aim: { origin: Vec3; dir: Vec3 },
+    camera: THREE.Camera,
+  ): boolean {
+    if (tool === 'spawn') {
       const point = this.groundPoint(aim.origin, aim.dir);
       if (!point) return true;
       this.spawnBurst(point, Math.atan2(-aim.dir.x, -aim.dir.z));
       return true;
     }
-    if (this.tool === 'spawnWeapon') {
+    if (tool === 'spawnWeapon') {
       const point = this.groundPoint(aim.origin, aim.dir);
       if (!point) return true;
       this.spawnWeaponAt(point, Math.atan2(-aim.dir.x, -aim.dir.z));
       return true;
     }
-    if (this.tool === 'grab') {
-      if (this.heldWeapon?.active) {
+    if (tool === 'grab') {
+      if (this.heldWeapon?.active || this.heldProp?.active) {
         this.throwHeld(aim.dir);
         return true;
       }
       const weapon = this.pickWeapon(camera, aim.origin, aim.dir);
-      if (weapon) this.holdWeapon(weapon);
+      if (weapon) {
+        this.holdWeapon(weapon);
+        return true;
+      }
+      const prop = this.pickProp(camera, aim.origin, aim.dir);
+      if (prop) this.holdProp(prop);
       return true;
     }
     const npc = this.pickNpc(camera, aim.origin, aim.dir);
     const weapon = this.pickWeapon(camera, aim.origin, aim.dir);
-    if (this.tool === 'delete') {
+    const prop = this.pickProp(camera, aim.origin, aim.dir);
+    if (tool === 'delete') {
       if (weapon) this.removeWeapon(weapon);
+      else if (prop) this.removeProp(prop);
       else if (npc) this.removeNpc(npc);
       else this.removeNearest(aim.origin);
       return true;
     }
-    if (this.tool === 'ragdoll') {
+    if (tool === 'ragdoll') {
       npc?.enterRagdoll({ x: aim.dir.x * 4, y: 3, z: aim.dir.z * 4 });
       this.emit();
       return true;
     }
-    if (this.tool === 'select') {
+    if (tool === 'select') {
       this.select(npc);
       return true;
     }
@@ -284,11 +366,17 @@ export class SandboxController {
     const hit = this.world.castRay(ray, range, true);
     if (!hit) return false;
     const body = hit.collider.parent();
-    const data = body?.userData as NpcUserData | WeaponUserData | undefined;
+    const data = body?.userData as NpcUserData | WeaponUserData | PropUserData | undefined;
     if (!data) return false;
     if (data.kind === 'sandboxWeapon') {
       const weapon = this.liveWeapons.find((w) => w.id === data.weaponId);
       weapon?.applyImpulse(dir, RAGDOLL.shotImpulse * 0.55);
+      this.emit();
+      return true;
+    }
+    if (data.kind === 'sandboxProp') {
+      const prop = this.liveProps.find((p) => p.id === data.propId);
+      prop?.applyImpulse(dir, RAGDOLL.shotImpulse * 0.7);
       this.emit();
       return true;
     }
@@ -301,8 +389,13 @@ export class SandboxController {
     return true;
   }
 
-  spawnBurst(point: { x: number; y: number; z: number }, yaw: number): number {
-    const n = this.settings.npcCount;
+  spawnBurst(
+    point: { x: number; y: number; z: number },
+    yaw: number,
+    opts?: { count?: number; ragdoll?: boolean },
+  ): number {
+    const n = opts?.count ?? this.settings.npcCount;
+    const ragdoll = opts?.ragdoll ?? this.settings.ragdollOnSpawn;
     let spawned = 0;
     for (let i = 0; i < n; i++) {
       if (this.live.length >= this.settings.maxNpcs) {
@@ -316,7 +409,7 @@ export class SandboxController {
         point.y + this.settings.spawnHeight,
         point.z + oz,
         yaw + (Math.random() - 0.5) * 0.4,
-        this.settings.ragdollOnSpawn,
+        ragdoll,
       );
       spawned += 1;
     }
@@ -374,6 +467,17 @@ export class SandboxController {
     return true;
   }
 
+  spawnPropAt(point: { x: number; y: number; z: number }, yaw: number, kind = propKindFromEntry(this.selection.id)): boolean {
+    if (!kind) return false;
+    if (this.liveProps.length >= this.settings.maxProps) {
+      if (this.settings.autoCleanup) this.removeOldestProp();
+      else return false;
+    }
+    this.acquireProp().spawn(kind, point.x, point.y + this.settings.spawnHeight, point.z, yaw);
+    this.emit();
+    return true;
+  }
+
   removeWeapon(weapon: SandboxWeapon): void {
     if (this.heldWeapon === weapon) this.heldWeapon = null;
     weapon.despawn();
@@ -387,18 +491,46 @@ export class SandboxController {
     for (const weapon of [...this.liveWeapons]) this.removeWeapon(weapon);
   }
 
+  removeProp(prop: SandboxProp): void {
+    if (this.heldProp === prop) this.heldProp = null;
+    prop.despawn();
+    const index = this.liveProps.indexOf(prop);
+    if (index >= 0) this.liveProps.splice(index, 1);
+    this.emit();
+  }
+
+  removeAllProps(): void {
+    this.heldProp = null;
+    for (const prop of [...this.liveProps]) this.removeProp(prop);
+  }
+
   private holdWeapon(weapon: SandboxWeapon): void {
+    if (this.heldProp) this.throwHeld({ x: 0, y: 0.2, z: 1 });
     if (this.heldWeapon && this.heldWeapon !== weapon) this.throwHeld({ x: 0, y: 0.2, z: 1 });
     this.heldWeapon = weapon;
     weapon.hold();
     this.emit();
   }
 
+  private holdProp(prop: SandboxProp): void {
+    if (this.heldWeapon) this.throwHeld({ x: 0, y: 0.2, z: 1 });
+    if (this.heldProp && this.heldProp !== prop) this.throwHeld({ x: 0, y: 0.2, z: 1 });
+    this.heldProp = prop;
+    prop.hold();
+    this.emit();
+  }
+
   private throwHeld(dir: Vec3): void {
-    const weapon = this.heldWeapon;
-    if (!weapon) return;
-    this.heldWeapon = null;
-    weapon.throw(dir);
+    if (this.heldWeapon) {
+      const weapon = this.heldWeapon;
+      this.heldWeapon = null;
+      weapon.throw(dir);
+    }
+    if (this.heldProp) {
+      const prop = this.heldProp;
+      this.heldProp = null;
+      prop.throw(dir);
+    }
     this.emit();
   }
 
@@ -414,6 +546,18 @@ export class SandboxController {
     return weapon;
   }
 
+  private acquireProp(): SandboxProp {
+    let prop = this.propPool.find((p) => !p.active);
+    if (!prop) {
+      prop = new SandboxProp(this.rapier, this.world);
+      this.propPool.push(prop);
+      this.root.add(prop.root);
+      prop.onImpact = (x, y, z, nx, ny, nz, speed) => this.onImpact?.(x, y, z, nx, ny, nz, speed);
+    }
+    this.liveProps.push(prop);
+    return prop;
+  }
+
   private removeOldestWeapon(): void {
     let oldest = this.liveWeapons[0];
     if (!oldest) return;
@@ -421,6 +565,15 @@ export class SandboxController {
       if (weapon.spawnedAt < oldest.spawnedAt) oldest = weapon;
     }
     this.removeWeapon(oldest);
+  }
+
+  private removeOldestProp(): void {
+    let oldest = this.liveProps[0];
+    if (!oldest) return;
+    for (const prop of this.liveProps) {
+      if (prop.spawnedAt < oldest.spawnedAt) oldest = prop;
+    }
+    this.removeProp(oldest);
   }
 
   ragdollSelected(): void {
@@ -483,6 +636,7 @@ export class SandboxController {
         this.emit();
       });
     }
+    for (const prop of this.liveProps) prop.update();
 
     if (this.heldWeapon?.active) {
       const hold = {
@@ -495,6 +649,17 @@ export class SandboxController {
       this.heldWeapon = null;
     }
 
+    if (this.heldProp?.active) {
+      const hold = {
+        x: ctx.camera.position.x + ctx.aimDir.x * 1.35,
+        y: ctx.camera.position.y + ctx.aimDir.y * 1.35 - 0.08,
+        z: ctx.camera.position.z + ctx.aimDir.z * 1.35,
+      };
+      this.heldProp.follow(hold, Math.atan2(-ctx.aimDir.x, -ctx.aimDir.z));
+    } else if (this.heldProp && !this.heldProp.active) {
+      this.heldProp = null;
+    }
+
     const lookOrigin = {
       x: ctx.camera.position.x,
       y: ctx.camera.position.y,
@@ -503,14 +668,20 @@ export class SandboxController {
     const dir = ctx.cursorMode ? this.dirFromNdc(ctx.camera) : ctx.aimDir;
     const origin = lookOrigin;
 
-    if (this.tool === 'spawn' || this.tool === 'spawnWeapon') {
+    if (this.tool === 'spawn' || this.tool === 'spawnWeapon' || this.showsToolGunGhost()) {
       const point = this.groundPoint(origin, dir);
       if (point) {
-        this.marker.visible = true;
+        this.marker.visible = this.tool !== 'toolGun';
         this.marker.position.set(point.x, point.y + 0.02, point.z);
       } else {
         this.marker.visible = false;
       }
+      const yaw = Math.atan2(-dir.x, -dir.z);
+      const ghost = this.showsToolGunGhost() && !this.menuOpen;
+      this.preview.update(ghost ? point : null, yaw, ghost);
+    } else {
+      this.marker.visible = false;
+      this.preview.update(null, 0, false);
     }
 
     const hover = this.pickNpc(ctx.camera, origin, dir);
@@ -536,11 +707,15 @@ export class SandboxController {
   dispose(): void {
     this.removeAllNpcs();
     this.removeAllWeapons();
+    this.removeAllProps();
     for (const npc of this.pool) npc.dispose();
     this.pool.length = 0;
     for (const weapon of this.weaponPool) weapon.dispose();
     this.weaponPool.length = 0;
+    for (const prop of this.propPool) prop.dispose();
+    this.propPool.length = 0;
     this.assets.dispose();
+    this.preview.dispose();
     (this.marker.material as THREE.Material).dispose();
     this.marker.geometry.dispose();
     (this.inspectRing.material as THREE.Material).dispose();
@@ -657,6 +832,16 @@ export class SandboxController {
     };
   }
 
+  private syncMarkerVisibility(): void {
+    this.marker.visible = this.tool === 'spawn' || this.tool === 'spawnWeapon';
+  }
+
+  private showsToolGunGhost(): boolean {
+    if (this.tool !== 'toolGun' || this.menuOpen) return false;
+    const cat = this.selection.category;
+    return cat === 'npc' || cat === 'props' || cat === 'weapons';
+  }
+
   private pickNpc(camera: THREE.Camera, origin: Vec3, dir: Vec3): SandboxNpc | null {
     if (this.cursorMode) {
       raycaster.setFromCamera(ndc.set(this.lastPointer.x, this.lastPointer.y), camera);
@@ -682,6 +867,21 @@ export class SandboxController {
     if (hits.length === 0) return null;
     const obj = hits[0]!.object;
     return this.liveWeapons.find((w) => w.matchesObject(obj)) ?? null;
+  }
+
+  private pickProp(camera: THREE.Camera, origin: Vec3, dir: Vec3): SandboxProp | null {
+    if (this.cursorMode) {
+      raycaster.setFromCamera(ndc.set(this.lastPointer.x, this.lastPointer.y), camera);
+    } else {
+      raycaster.set(pickOrigin.set(origin.x, origin.y, origin.z), pickDir.set(dir.x, dir.y, dir.z));
+    }
+    const hits = raycaster.intersectObjects(
+      this.liveProps.map((p) => p.root),
+      true,
+    );
+    if (hits.length === 0) return null;
+    const obj = hits[0]!.object;
+    return this.liveProps.find((p) => p.matchesObject(obj)) ?? null;
   }
 
   private dirFromNdc(camera: THREE.Camera): Vec3 {

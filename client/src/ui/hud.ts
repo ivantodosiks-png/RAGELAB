@@ -38,6 +38,9 @@ export class Hud {
   private readonly hairR: HTMLElement;
   private readonly hairT: HTMLElement;
   private readonly hairB: HTMLElement;
+  private readonly toolGunHud: HTMLElement;
+  private readonly toolGunSelected: HTMLElement;
+  private readonly toolGunHint: HTMLElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -55,6 +58,13 @@ export class Hud {
     this.hairT = el('i', 'v t');
     this.hairB = el('i', 'v b');
     this.crosshair.append(this.hairL, this.hairR, this.hairT, this.hairB);
+
+    this.toolGunHud = el('div', 'toolgun-hud');
+    this.toolGunHud.append(el('div', 'toolgun-title', 'TOOL GUN'));
+    this.toolGunSelected = el('div', 'toolgun-selected', 'Selected: Humanoid');
+    this.toolGunHint = el('div', 'toolgun-hint', 'LMB — Spawn    RMB — Spawn Menu');
+    this.toolGunHud.append(this.toolGunSelected, this.toolGunHint);
+    this.toolGunHud.hidden = true;
 
     this.hitmarker = el('div', 'hitmarker');
     this.hitmarker.append(el('i', 'a'), el('i', 'b'));
@@ -117,6 +127,7 @@ export class Hud {
       this.hurt,
       this.dirHit,
       this.crosshair,
+      this.toolGunHud,
       this.hitmarker,
       vitals,
       weapon,
@@ -171,6 +182,16 @@ export class Hud {
 
   setWeapon(name: string): void {
     this.weaponName.textContent = name;
+  }
+
+  setToolGun(active: boolean, selectedName: string, spawnable: boolean): void {
+    this.toolGunHud.hidden = !active;
+    this.crosshair.classList.toggle('toolgun', active);
+    if (!active) return;
+    this.toolGunSelected.textContent = `Selected: ${selectedName}`;
+    this.toolGunHint.textContent = spawnable
+      ? 'LMB — Spawn    RMB — Spawn Menu'
+      : 'Weapons cannot be spawned    RMB — Spawn Menu';
   }
 
   setSpread(radians: number): void {

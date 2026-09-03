@@ -1,6 +1,6 @@
 export type NpcState = 'Idle' | 'Walking' | 'Falling' | 'Ragdoll' | 'Recovering';
 
-export type SandboxTool = 'none' | 'spawn' | 'delete' | 'select' | 'ragdoll' | 'spawnWeapon' | 'grab';
+export type SandboxTool = 'none' | 'spawn' | 'delete' | 'select' | 'ragdoll' | 'spawnWeapon' | 'grab' | 'toolGun';
 
 export type SandboxQuality = 'low' | 'medium' | 'high';
 
@@ -30,6 +30,7 @@ export interface SandboxSettings {
   maxNpcs: number;
   maxEffects: number;
   maxWeapons: number;
+  maxProps: number;
   weaponKind: 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'melee';
   quality: SandboxQuality;
 }
@@ -56,6 +57,7 @@ export function defaultSandboxSettings(): SandboxSettings {
     maxNpcs: NPC_MAX_BY_QUALITY.medium,
     maxEffects: EFFECTS_MAX_BY_QUALITY.medium,
     maxWeapons: 32,
+    maxProps: 48,
     weaponKind: 'pistol',
     quality: 'medium',
   };

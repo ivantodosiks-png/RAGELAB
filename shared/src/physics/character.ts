@@ -55,7 +55,11 @@ export class RapierCharacter implements CharacterCollisionAdapter {
     this.controller.setApplyImpulsesToDynamicBodies(true);
     this.controller.setCharacterMass(80);
 
-    this.standShape = new rapier.Capsule(PLAYER_HALF_HEIGHT_STAND, PLAYER_RADIUS);
+    // Inset so a stand-up probe does not report the floor the feet are already on.
+    this.standShape = new rapier.Capsule(
+      Math.max(0.08, PLAYER_HALF_HEIGHT_STAND - 0.05),
+      Math.max(0.12, PLAYER_RADIUS - 0.04),
+    );
   }
 
   /** Capsule centre offset above the feet for the current stance. */
@@ -92,9 +96,12 @@ export class RapierCharacter implements CharacterCollisionAdapter {
   }
 
   canStand(position: Vec3): boolean {
+    // The real standing capsule sits on the floor, so a same-size query always
+    // intersects the ground and the player could never uncrouch. Probe a
+    // slightly smaller capsule, raised by the skin gap.
     const centre = {
       x: position.x,
-      y: position.y + this.centreOffset(false),
+      y: position.y + this.centreOffset(false) + 0.03,
       z: position.z,
     };
     const hit = this.world.intersectionWithShape(

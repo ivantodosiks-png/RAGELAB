@@ -89,6 +89,7 @@ export class SandboxPanel {
       section('NPC', [
         countField.wrap,
         toolRow(this.sandbox, [
+          ['toolGun', 'Tool Gun'],
           ['spawn', 'Spawn NPC'],
           ['delete', 'Delete NPC'],
           ['ragdoll', 'Ragdoll'],
@@ -127,6 +128,7 @@ export class SandboxPanel {
         btn('Remove Physics Objects', '', () => {
           this.sandbox.removeAllNpcs();
           this.sandbox.removeAllWeapons();
+          this.sandbox.removeAllProps();
         }),
         btn('Clear Everything', 'danger', () => this.showConfirm(true)),
         btn('Clear Scene', 'danger', () => this.showConfirm(true)),
@@ -194,10 +196,12 @@ export class SandboxPanel {
     this.autoCheck.checked = s.autoCleanup;
     this.quality.value = s.quality;
     this.weaponSelect.value = s.weaponKind;
-    this.liveLabel.textContent = `NPC ${this.sandbox.liveCount} / ${s.maxNpcs} · WPN ${this.sandbox.weaponCount} / ${s.maxWeapons}`;
+    this.liveLabel.textContent = `NPC ${this.sandbox.liveCount} / ${s.maxNpcs} · WPN ${this.sandbox.weaponCount} / ${s.maxWeapons} · PROP ${this.sandbox.propCount} / ${s.maxProps}`;
     this.cursorHint.textContent = this.sandbox.cursorMode
       ? 'Cursor mode on — click the world. B to lock mouse.'
-      : 'B — cursor mode · click world to use tool';
+      : this.sandbox.toolGunActive
+        ? 'LMB spawn · RMB spawn menu · 1–5 back to guns'
+        : 'B — cursor mode · Tool Gun for spawn menu';
     this.root.classList.toggle('cursor-on', this.sandbox.cursorMode);
 
     for (const node of this.root.querySelectorAll<HTMLButtonElement>('[data-tool]')) {

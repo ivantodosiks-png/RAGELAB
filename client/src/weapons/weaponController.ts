@@ -70,6 +70,10 @@ export class WeaponController {
   didFire = false;
   /** Sandbox tools steal the trigger so we do not shoot while placing NPCs. */
   blockFire = false;
+  /** Tool Gun uses RMB for the spawn menu instead of ADS. */
+  blockAim = false;
+  /** Hide the firearm view-model while the Tool Gun is equipped. */
+  hideViewModel = false;
 
   private readonly worldPos = new THREE.Vector3();
   private readonly worldDir = new THREE.Vector3();
@@ -169,7 +173,7 @@ export class WeaponController {
       this.state.reloadEndsAt = 0;
     }
 
-    const aiming = buttonDown(ctx.buttons, Button.Aim) && ctx.alive && !ctx.carrying;
+    const aiming = !this.blockAim && buttonDown(ctx.buttons, Button.Aim) && ctx.alive && !ctx.carrying;
     this.viewModel.setAiming(aiming);
     this.camera.setAimFov(aiming ? this.def.aimFovMultiplier : 1);
 
@@ -178,7 +182,7 @@ export class WeaponController {
       this.handleFireInput(ctx, nowMs);
     }
 
-    this.viewModel.setVisible(ctx.alive && !ctx.carrying);
+    this.viewModel.setVisible(ctx.alive && !ctx.carrying && !this.hideViewModel);
     this.viewModel.update(dt, ctx.speedRatio, ctx.grounded, ctx.crouching);
   }
 
