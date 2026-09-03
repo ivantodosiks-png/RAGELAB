@@ -10,7 +10,8 @@ const monorepoRoot = resolve(__dirname, '..');
  * secret are never referenced here, so they cannot leak into the bundle.
  */
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, monorepoRoot, '');
+  const fileEnv = loadEnv(mode, monorepoRoot, '');
+  const env = { ...fileEnv, ...process.env };
 
   const supabaseUrl = env.VITE_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '';
   const supabaseAnonKey =

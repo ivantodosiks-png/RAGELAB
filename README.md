@@ -125,6 +125,25 @@ Point `VITE_GAME_SERVER_URL` at the public WebSocket URL of the game server befo
 
 Health check for orchestrators: `GET /health`. Room list: `GET /rooms`.
 
+### Vercel (client only)
+
+Vite emits `client/dist`, not `public`. The repo root `vercel.json` sets:
+
+- **Build Command:** `npm run build:client`
+- **Output Directory:** `client/dist`
+- **Root Directory:** repository root (leave empty / `.`)
+
+If the dashboard still says `No Output Directory named "public"`, open **Project Settings → Build & Development** and set those three fields to the same values. Framework Preset should be **Other** (not Next.js).
+
+Add these **public** env vars on Vercel (Settings → Environment Variables). Do not add service-role keys or JWT secrets:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `VITE_GAME_SERVER_URL` (e.g. `wss://your-game-server.example.com`)
+- `VITE_GAME_SERVER_HTTP_URL` (e.g. `https://your-game-server.example.com`)
+
+The authoritative WebSocket game server is a long-lived Node process. It does **not** run on Vercel. Host it on a VPS, Fly.io, Railway, or similar, then point the two `VITE_GAME_SERVER_*` variables at that URL.
+
 ## Typecheck
 
 ```bash

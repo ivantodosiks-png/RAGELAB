@@ -20,6 +20,7 @@
     "build:shared": "npm run build --workspace @ragelab/shared",
     "build:server": "npm run build --workspace @ragelab/server",
     "build:client": "npm run build --workspace @ragelab/client",
+    "build:vercel": "npm run build:client",
     "start": "npm run start --workspace @ragelab/server",
     "preview": "npm run preview --workspace @ragelab/client",
     "typecheck": "npm run typecheck --workspaces --if-present",
