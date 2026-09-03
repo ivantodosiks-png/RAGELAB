@@ -287,16 +287,6 @@ export class AudioEngine {
   }
 }
 
-const FOOTSTEP_BY_SURFACE: Record<SurfaceId, SoundKey> = {
-  concrete: 'footstep_concrete',
-  metal: 'footstep_metal',
-  wood: 'footstep_wood',
-  sand: 'footstep_dirt',
-  glass: 'footstep_metal',
-  rubber: 'footstep_dirt',
-  grass: 'footstep_grass',
-};
-
 const IMPACT_BY_SURFACE: Record<SurfaceId, SoundKey> = {
   concrete: 'impact_concrete',
   metal: 'impact_metal',

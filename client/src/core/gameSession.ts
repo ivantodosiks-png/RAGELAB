@@ -31,6 +31,7 @@ import {
   type WelcomePayload,
   animationStateFor,
   isMapId,
+  isWeaponId,
 } from '@ragelab/shared';
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
@@ -111,7 +112,7 @@ export class GameSession {
   private localCharacter: LocalCharacter | null = null;
 
   private localId = 0;
-  private loadout: WeaponId[] = [...DEFAULT_LOADOUT];
+  private loadout: Array<WeaponId | null> = [...DEFAULT_LOADOUT];
   private identities = new Map<number, PlayerIdentity>();
   private scores: PlayerScore[] = [];
   private lastButtons = 0;
@@ -209,12 +210,13 @@ export class GameSession {
 
   private connect(options: ConnectOptions): Promise<WelcomePayload> {
     this.net = new NetClient();
+    const net = this.net;
     return new Promise((resolve, reject) => {
       const timeout = window.setTimeout(
         () => reject(new Error('Не удалось подключиться к игровому серверу.')),
         25_000,
       );
-      this.net.setHandlers({
+      net.setHandlers({
         onWelcome: (payload) => {
           window.clearTimeout(timeout);
           if (!this.local) {
@@ -273,7 +275,7 @@ export class GameSession {
           if (state === 'reconnecting') this.ui.toast(detail ? `Reconnecting (${detail})` : 'Reconnecting…');
         },
       });
-      this.net.connect(options);
+      net.connect(options);
     });
   }
 
@@ -301,8 +303,8 @@ export class GameSession {
 
     this.local = new LocalPlayer(this.physics, spawnPos);
     this.input.setAim(spawn.yaw, 0);
-    this.weapon = new WeaponController(
-      this.loadout[0]!,
+      this.weapon = new WeaponController(
+      this.loadout[0] ?? DEFAULT_LOADOUT[0]!,
       this.effects,
       this.audio,
       this.camera,
@@ -342,9 +344,6 @@ export class GameSession {
       this.ui.hud.showToast('Scene cleared');
     };
     this.sandbox.setSelection(this.spawnMenu.selected);
-    this.sandbox.onCannotSpawnWeapon = () => {
-      this.ui.hud.showToast('Weapons are not spawnable with Tool Gun');
-    };
     this.ui.hud.setLoadout(this.loadoutRows());
     this.ui.hud.setActiveSlot(this.input.uiSlot);
 
@@ -655,7 +654,7 @@ export class GameSession {
     const predicted = this.local.update(dtMs, () => this.input.sample(), this.input.yaw, this.input.pitch, commands);
     const latest = commands.length > 0 ? commands[commands.length - 1]! : null;
     const localButtons = latest ? latest.buttons : this.lastButtons;
-    if (this.input.toolGunEquipped || this.sandbox.menuOpen) {
+    if (this.input.toolGunEquipped || this.sandbox.menuOpen || !this.loadout[this.input.firearmSlot]) {
       for (const command of commands) {
         command.buttons &= ~(Button.Fire | Button.Aim);
         command.weaponSlot = this.input.firearmSlot;
@@ -671,9 +670,7 @@ export class GameSession {
     if (this.input.uiSlot !== this.lastUiSlot) {
       this.applyUiSlot(this.input.uiSlot, now);
     }
-    if (this.local.weaponId !== this.weapon.weaponId) {
-      this.weapon.equip(this.local.weaponId, now);
-    }
+    this.syncHeldWeapon(now);
     if (!this.offline) {
       this.weapon.syncFromServer(this.local.ammoInMag, this.local.ammoReserve, now);
     }
@@ -696,12 +693,17 @@ export class GameSession {
 
     directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
     const toolGun = this.sandbox.toolGunActive;
-    this.weapon.blockFire = this.sandbox.interceptsFire || this.sandbox.menuOpen || this.input.weaponWheelOpen;
+    this.weapon.blockFire =
+      this.sandbox.interceptsFire ||
+      this.sandbox.menuOpen ||
+      this.input.weaponWheelOpen ||
+      !this.weapon.hasWeapon;
     this.weapon.blockAim = toolGun || this.sandbox.menuOpen || this.input.weaponWheelOpen;
     this.weapon.hideViewModel = toolGun;
     const fireEdge = buttonPressed(localButtons, this.lastButtons, Button.Fire);
     const aimEdge = buttonPressed(localButtons, this.lastButtons, Button.Aim);
     const interactEdge = buttonPressed(localButtons, this.lastButtons, Button.Interact);
+    const dropEdge = buttonPressed(localButtons, this.lastButtons, Button.Drop);
 
     this.weapon.update(dt, {
       buttons: localButtons,
@@ -738,8 +740,21 @@ export class GameSession {
     }
     if (interactEdge && !this.paused && !this.ui.hud.chatting) {
       this.sandbox.inspectLookTarget();
-      const interacted = this.sandbox.interactLookProp(aimDir);
-      if (interacted?.sound) this.audio.play(propInteractSound(interacted.sound), { volume: 0.55, variation: 0.04 });
+      if (this.tryPickupWorldWeapon(aimDir)) {
+        this.audio.play('pickup', { volume: 0.6 });
+      } else {
+        const interacted = this.sandbox.interactLookProp(aimDir);
+        if (interacted?.sound) this.audio.play(propInteractSound(interacted.sound), { volume: 0.55, variation: 0.04 });
+      }
+    }
+    if (
+      dropEdge &&
+      !this.paused &&
+      !this.ui.hud.chatting &&
+      !this.local.carrying &&
+      !toolGun
+    ) {
+      this.dropHeldWeapon(aimDir);
     }
 
     if (this.weapon.didFire) {
@@ -822,7 +837,7 @@ export class GameSession {
     this.audio.updateListener(this.renderer.camera.position, listenerFwd, listenerUp, dt);
 
     this.renderer.render();
-    this.updateHud(dt, predicted.speed / SPEED_WALK, !predicted.grounded, predicted.crouching);
+    this.updateHud(dt, predicted.speed / SPEED_WALK, !predicted.grounded, predicted.crouching, now);
   }
 
   private spawnPredictedTracer(): void {
@@ -992,9 +1007,65 @@ export class GameSession {
     }
     this.closeSpawnMenu();
     this.sandbox.setTool('none');
-    const id = this.loadout[slot] ?? this.loadout[0]!;
+    this.syncHeldWeapon(now);
+  }
+
+  private syncHeldWeapon(now: number): void {
+    if (this.input.toolGunEquipped) return;
+    const id = this.loadout[this.input.firearmSlot];
+    if (!id) {
+      this.weapon.unequip();
+      return;
+    }
+    if (this.weapon.hasWeapon && this.weapon.weaponId === id) return;
     this.local.weaponId = id;
     this.weapon.equip(id, now);
+  }
+
+  private dropHeldWeapon(aimDir: Vec3): void {
+    const slot = this.input.firearmSlot;
+    const id = this.loadout[slot];
+    if (!id) return;
+    this.sandbox.throwWeapon(id, this.cameraVec(), aimDir);
+    this.loadout[slot] = null;
+    this.weapon.unequip();
+    this.ui.hud.setLoadout(this.loadoutRows());
+    this.audio.play('equip', { volume: 0.45 });
+  }
+
+  private tryPickupWorldWeapon(aimDir: Vec3): boolean {
+    const world = this.sandbox.aimedWeapon;
+    if (!world?.active) return false;
+    const kind = world.kind;
+    const origin = {
+      x: this.local.renderPosition.x,
+      y: this.local.renderPosition.y + EYE_HEIGHT_STAND,
+      z: this.local.renderPosition.z,
+    };
+    if (!isWeaponId(kind)) {
+      this.ui.hud.showToast('This one cannot go in a weapon slot');
+      return true;
+    }
+    const taken = this.sandbox.takeLookWeapon(origin, INTERACT_RANGE);
+    if (!taken || !isWeaponId(taken)) return false;
+
+    const slot = this.slotForPickup();
+    const previous = this.loadout[slot];
+    if (previous) this.sandbox.throwWeapon(previous, this.cameraVec(), aimDir);
+    this.loadout[slot] = taken;
+    if (slot === this.input.firearmSlot && !this.input.toolGunEquipped) {
+      this.local.weaponId = taken;
+      this.weapon.equip(taken, performance.now());
+    }
+    this.ui.hud.setLoadout(this.loadoutRows());
+    return true;
+  }
+
+  private slotForPickup(): number {
+    const current = this.input.firearmSlot;
+    if (!this.loadout[current]) return current;
+    const empty = this.loadout.findIndex((id) => !id);
+    return empty >= 0 ? empty : current;
   }
 
   private offlineRespawn(): void {
@@ -1006,11 +1077,14 @@ export class GameSession {
     this.input.setAim(spawn.yaw, 0);
     this.input.resetToggles();
     this.camera.reset();
-    this.weapon.equip(this.loadout[this.input.firearmSlot] ?? this.loadout[0]!, performance.now());
+    this.weapon.unequip();
+    if (this.loadout[this.input.firearmSlot]) {
+      this.weapon.equip(this.loadout[this.input.firearmSlot]!, performance.now());
+    }
     this.ui.hud.hideDeath();
   }
 
-  private updateHud(dt: number, speedRatio: number, airborne: boolean, crouching: boolean): void {
+  private updateHud(dt: number, speedRatio: number, airborne: boolean, crouching: boolean, now: number): void {
     const def = this.weapon.definition;
     this.ui.hud.setHealth(this.local.health, MAX_HEALTH);
     this.ui.hud.setActiveSlot(this.input.uiSlot);
@@ -1033,6 +1107,13 @@ export class GameSession {
         this.sandbox.lookHint === 'npc' || this.sandbox.lookHint === 'prop' || this.sandbox.lookHint === 'weapon',
         this.sandbox.lookHint === 'spawn' && this.sandbox.selection.spawnable,
       );
+    } else if (!this.weapon.hasWeapon) {
+      this.ui.hud.setAmmo(0, 0, 1);
+      this.ui.hud.setWeapon('EMPTY');
+      this.ui.hud.setSpread(0.004 + speedRatio * 0.006);
+      this.ui.hud.setToolGun(false, 'NPC', true);
+      this.ui.hud.setCrosshairMotion(speedRatio, Boolean(this.sandbox.aimedWeapon), false);
+      this.ui.hud.setScope(0, 'none');
     } else {
       this.ui.hud.setAmmo(this.weapon.ammoInMag, this.weapon.ammoReserve, def.magazineSize);
       this.ui.hud.setWeapon(def.name);
@@ -1045,12 +1126,16 @@ export class GameSession {
         }),
       );
       this.ui.hud.setToolGun(false, 'NPC', true);
-      this.ui.hud.setCrosshairMotion(speedRatio, false, false);
+      this.ui.hud.setCrosshairMotion(speedRatio, Boolean(this.sandbox.aimedWeapon), false);
       this.ui.hud.setScope(this.local.alive && def.scoped ? this.weapon.aimBlend : 0, def.scoped ? 'optic' : 'none');
     }
     this.ui.hud.setNet(this.fps, this.offline ? 0 : (this.net?.rttMs ?? 0), settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
-    const scopedOut = !this.sandbox.toolGunActive && Boolean(def.scoped) && this.weapon.aimBlend > 0.55;
+    const scopedOut =
+      !this.sandbox.toolGunActive &&
+      this.weapon.hasWeapon &&
+      Boolean(def.scoped) &&
+      this.weapon.aimBlend > 0.55;
     this.ui.hud.setCrosshairVisible(
       this.local.alive &&
         !this.paused &&
@@ -1073,6 +1158,7 @@ export class GameSession {
 
   private loadoutRows() {
     return this.loadout.map((id, index) => {
+      if (!id) return { id: '', name: '—' };
       const def = getWeapon(id);
       const live = index === this.input.uiSlot && !this.input.toolGunEquipped;
       return {
@@ -1124,8 +1210,11 @@ export class GameSession {
       if (!def || !getArchetype(def.kind).carryable) continue;
       if (inFront(origin, aimDir, prop.position, INTERACT_RANGE)) return 'E  pick up';
     }
+    const weaponPrompt = this.sandbox.lookWeaponPrompt();
+    if (weaponPrompt) return weaponPrompt;
     const propPrompt = this.sandbox.lookPropPrompt();
     if (propPrompt) return propPrompt;
+    if (this.loadout[this.input.firearmSlot] && !this.input.toolGunEquipped) return 'G  drop weapon';
     return null;
   }
 

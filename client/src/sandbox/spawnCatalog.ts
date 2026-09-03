@@ -20,7 +20,6 @@ export interface SpawnEntry {
   category: SpawnCategory;
   name: string;
   info: string;
-  /** False for weapons — Tool Gun must not create them. */
   spawnable: boolean;
   swatch: number;
   glyph: string;
@@ -179,6 +178,7 @@ const WEAPON_FALLBACK: Record<SandboxWeaponKind, { name: string; swatch: number 
   smg: { name: 'VX-4 Ripper', swatch: 0xff7a3d },
   rifle: { name: 'AR-7 Vesper', swatch: 0x3a3f46 },
   shotgun: { name: 'BR-12 Breaker', swatch: 0x9a6b3f },
+  sniper: { name: 'LR-88 Verdict', swatch: 0x6a7380 },
   melee: { name: 'Katana', swatch: 0xc9d4dc },
 };
 
@@ -190,8 +190,8 @@ export const WEAPON_ENTRIES: SpawnEntry[] = SANDBOX_WEAPON_KINDS.map((id) => {
     id: `weapon:${id}`,
     category: 'weapons' as const,
     name,
-    info: 'Cannot spawn with Tool Gun',
-    spawnable: false,
+    info: isWeaponId(id) ? 'LMB spawn · E pick up into a slot' : 'LMB spawn · Grab to throw',
+    spawnable: true,
     swatch: def?.visual.accentColor ?? fallback.swatch,
     glyph: name.slice(0, 4).toUpperCase(),
   };

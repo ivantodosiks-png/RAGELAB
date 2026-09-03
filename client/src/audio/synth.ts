@@ -557,12 +557,14 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
     'equip',
     renderMechanical(
       sampleRate,
-      0.4,
+      0.32,
       [
-        { at: 0.0, freq: 260, decay: 40, gain: 0.7 },
-        { at: 0.14, freq: 520, decay: 60, gain: 0.5 },
+        { at: 0.0, freq: 140, decay: 28, gain: 0.55 },
+        { at: 0.035, freq: 980, decay: 90, gain: 0.85 },
+        { at: 0.09, freq: 420, decay: 48, gain: 0.7 },
+        { at: 0.16, freq: 1550, decay: 120, gain: 0.4 },
       ],
-      0x4321,
+      0x7a3c,
     ),
   );
 

@@ -319,12 +319,12 @@ export class Hud {
       const name = this.slotNames[i];
       const icon = this.slotIcons[i];
       if (!name || !icon) continue;
-      name.textContent = info ? shortWeaponName(info.name) : '—';
-      icon.innerHTML = slotGlyph(info?.id ?? 'pistol');
+      name.textContent = info && info.id ? shortWeaponName(info.name) : '—';
+      icon.innerHTML = slotGlyph(info?.id || 'empty');
       const wName = this.wheelNames[i];
       const wIcon = this.wheelIcons[i];
-      if (wName) wName.textContent = info ? shortWeaponName(info.name) : '—';
-      if (wIcon) wIcon.innerHTML = slotGlyph(info?.id ?? 'pistol');
+      if (wName) wName.textContent = info && info.id ? shortWeaponName(info.name) : '—';
+      if (wIcon) wIcon.innerHTML = slotGlyph(info?.id || 'empty');
     }
     const toolName = this.slotNames[TOOL_GUN_UI_SLOT];
     const toolIcon = this.slotIcons[TOOL_GUN_UI_SLOT];
@@ -649,8 +649,8 @@ export class Hud {
     const info = tool
       ? { id: 'toolgun', name: 'Tool Gun', blurb: 'Spawn, grab and inspect the sandbox.', mag: undefined, reserve: undefined }
       : this.loadout[slot];
-    this.wheelCenterIcon.innerHTML = slotGlyph(info?.id ?? 'pistol');
-    this.wheelCenterName.textContent = info?.name ?? 'Empty';
+    this.wheelCenterIcon.innerHTML = slotGlyph(info?.id || 'empty');
+    this.wheelCenterName.textContent = info?.id ? info.name : 'Empty';
     this.wheelCenterBlurb.textContent = info?.blurb ?? (tool ? 'Sandbox manipulator.' : weaponBlurb(info?.id ?? ''));
     if (tool) {
       this.wheelCenterAmmo.textContent = 'Slot 6';
@@ -697,6 +697,8 @@ function weaponBlurb(id: string): string {
       return 'Bolt-action. Long-range precision.';
     case 'toolgun':
       return 'Spawn, grab and inspect the sandbox.';
+    case 'empty':
+      return 'Empty slot. Spawn a gun with Tool Gun, then E to pick up.';
     default:
       return 'Equipped firearm.';
   }
@@ -708,6 +710,9 @@ function slotGlyph(id: string): string {
   switch (id) {
     case 'toolgun':
       return `<svg ${common}><path d="M14 7l3-3 3 3-3 3"/><path d="M11 10L4 17v3h3l7-7"/><circle cx="16.5" cy="7.5" r="1"/></svg>`;
+    case 'empty':
+    case '':
+      return `<svg ${common}><rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="3 2"/></svg>`;
     case 'smg':
       return `<svg ${common}><path d="M3 14h12l2-5h3"/><path d="M7 14v5H5"/><path d="M11 14v3"/></svg>`;
     case 'rifle':

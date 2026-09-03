@@ -4,9 +4,9 @@ import { assetManager } from '../assets/assetManager';
 const BASE = import.meta.env.BASE_URL;
 
 export type WeaponModelId = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
-export type SandboxWeaponKind = 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'melee';
+export type SandboxWeaponKind = WeaponModelId;
 
-export const SANDBOX_WEAPON_KINDS: SandboxWeaponKind[] = ['pistol', 'rifle', 'shotgun', 'smg', 'melee'];
+export const SANDBOX_WEAPON_KINDS: SandboxWeaponKind[] = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'melee'];
 
 export const WEAPON_MODEL_FILES: Record<WeaponModelId, string> = {
   pistol: 'pistol.glb',
@@ -36,8 +36,13 @@ export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.41, length: 0.82 },
   shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
   smg: { mass: 2.45, hx: 0.035, hy: 0.085, hz: 0.26, length: 0.52 },
+  sniper: { mass: 4.1, hx: 0.04, hy: 0.09, hz: 0.48, length: 1.05 },
   melee: { mass: 1.15, hx: 0.03, hy: 0.035, hz: 0.46, length: 0.92 },
 };
+
+export function weaponPhysics(kind: string): WeaponPhysDef {
+  return WEAPON_PHYSICS[kind as SandboxWeaponKind] ?? WEAPON_PHYSICS.rifle;
+}
 
 const tmpBox = new THREE.Box3();
 const tmpSize = new THREE.Vector3();

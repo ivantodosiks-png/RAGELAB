@@ -75,6 +75,11 @@ export class WeaponController {
   blockAim = false;
   /** Hide the firearm view-model while the Tool Gun is equipped. */
   hideViewModel = false;
+  private emptyHands = false;
+
+  get hasWeapon(): boolean {
+    return !this.emptyHands;
+  }
 
   private readonly worldPos = new THREE.Vector3();
   private readonly worldDir = new THREE.Vector3();
@@ -133,7 +138,12 @@ export class WeaponController {
   }
 
   equip(weaponId: WeaponId, nowMs: number): void {
-    if (weaponId === this.currentId) return;
+    const same = weaponId === this.currentId;
+    this.emptyHands = false;
+    if (same) {
+      this.viewModel.setVisible(true);
+      return;
+    }
     this.currentId = weaponId;
     this.def = getWeapon(weaponId);
     // Preserve nothing but the ammo the server tells us about; the snapshot
@@ -142,7 +152,18 @@ export class WeaponController {
     this.state.ammoInMag = this.serverMag || this.def.magazineSize;
     this.state.ammoReserve = this.serverReserve || this.def.reserveAmmo;
     this.viewModel.equip(this.def);
-    this.audio.play('equip', { volume: 0.5 });
+    this.audio.play('equip', { volume: 0.72, variation: 0.03 });
+  }
+
+  unequip(): void {
+    if (this.emptyHands) {
+      this.viewModel.setVisible(false);
+      return;
+    }
+    this.emptyHands = true;
+    this.viewModel.setVisible(false);
+    this.viewModel.setAiming(false);
+    this.camera.setAimFov(1);
   }
 
   /** Fold authoritative ammo back into the prediction. */
@@ -166,6 +187,12 @@ export class WeaponController {
 
   update(dt: number, ctx: WeaponFrameContext): void {
     this.didFire = false;
+    if (this.emptyHands) {
+      this.viewModel.setVisible(false);
+      this.viewModel.setAiming(false);
+      this.camera.setAimFov(1);
+      return;
+    }
     const nowMs = ctx.nowMs;
     decaySpread(this.state, this.def, dt);
 

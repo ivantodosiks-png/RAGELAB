@@ -31,7 +31,7 @@ export interface SandboxSettings {
   maxEffects: number;
   maxWeapons: number;
   maxProps: number;
-  weaponKind: 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'melee';
+  weaponKind: 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'sniper' | 'melee';
   quality: SandboxQuality;
 }
 

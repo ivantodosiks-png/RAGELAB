@@ -89,7 +89,7 @@ export class SpawnMenu {
     this.search.addEventListener('keydown', (event) => event.stopPropagation());
     tools.append(this.search);
 
-    this.notice = el('div', 'spawn-notice', 'Weapons are not spawnable with Tool Gun');
+    this.notice = el('div', 'spawn-notice', 'LMB drops it in the world. E picks it up into an empty slot.');
     this.notice.hidden = true;
 
     this.grid = el('div', 'spawn-grid');
