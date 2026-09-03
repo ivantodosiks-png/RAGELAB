@@ -103,7 +103,6 @@ export class SandboxController {
   private playerProxy: RAPIER.RigidBody;
   private playerCollider: RAPIER.Collider;
   private readonly marker: THREE.Mesh;
-  private readonly inspectRing: THREE.Mesh;
   onImpact: ((x: number, y: number, z: number, nx: number, ny: number, nz: number, speed: number) => void) | null =
     null;
   onNpcHit:
@@ -118,6 +117,9 @@ export class SandboxController {
         killed: boolean,
         attach: THREE.Object3D | null,
       ) => void)
+    | null = null;
+  onBloodContact:
+    | ((x: number, y: number, z: number, nx: number, ny: number, nz: number) => void)
     | null = null;
 
   private selected: SandboxNpc | null = null;
@@ -170,20 +172,6 @@ export class SandboxController {
     this.marker.visible = false;
     this.marker.renderOrder = 8;
     this.root.add(this.marker);
-
-    const ringGeo = new THREE.RingGeometry(0.32, 0.4, 24);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xd6ff3d,
-      transparent: true,
-      opacity: 0.7,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    });
-    this.inspectRing = new THREE.Mesh(ringGeo, ringMat);
-    this.inspectRing.rotation.x = -Math.PI / 2;
-    this.inspectRing.visible = false;
-    this.inspectRing.renderOrder = 8;
-    this.root.add(this.inspectRing);
     this.root.add(this.preview.root);
 
     this.warmPool(Math.min(8, this.settings.maxNpcs));
@@ -421,10 +409,11 @@ export class SandboxController {
       z: origin.z + dir.z * distance,
     };
     const damage = weapon ? npcHitDamage(weapon, zone, distance) : 34;
-    const killed = !npc.dead && npc.health - damage <= 0;
-    const impulse =
-      (weapon?.impactImpulse ?? 3.5) * (killed || npc.dead ? RAGDOLL.deathImpulse / 3.2 : 0.55);
+    const impulse = weapon?.impactImpulse ?? 3.5;
     npc.applyHit(dir, part, damage, impulse, hitPoint);
+    for (const splat of this.collectBloodSurfaces(hitPoint, dir)) {
+      this.onBloodContact?.(splat.x, splat.y, splat.z, splat.nx, splat.ny, splat.nz);
+    }
     this.notifyNoise(hitPoint.x, hitPoint.z);
     this.trimRagdolls();
     this.emit();
@@ -764,16 +753,6 @@ export class SandboxController {
     }
     this.lookHint = this.resolveLookHint(ctx.camera, origin, dir, hover, spawnPoint);
 
-    const outlined = this.selected?.active ? this.selected : this.hovered;
-    const ringMat = this.inspectRing.material as THREE.MeshBasicMaterial;
-    if (outlined?.active && this.tool !== 'none') {
-      const p = outlined.position;
-      this.inspectRing.visible = true;
-      this.inspectRing.position.set(p.x, p.y + 0.03, p.z);
-      ringMat.opacity = this.selected?.active && this.selected === outlined ? 0.9 : 0.45;
-    } else {
-      this.inspectRing.visible = false;
-    }
     if (this.selected && !this.selected.active) this.selected = null;
   }
 
@@ -791,8 +770,6 @@ export class SandboxController {
     this.preview.dispose();
     (this.marker.material as THREE.Material).dispose();
     this.marker.geometry.dispose();
-    (this.inspectRing.material as THREE.Material).dispose();
-    this.inspectRing.geometry.dispose();
     this.world.free();
     this.root.removeFromParent();
   }
@@ -830,6 +807,9 @@ export class SandboxController {
     };
     npc.onHit = (x, y, z, nx, ny, nz, zone, killed, attach) => {
       this.onNpcHit?.(x, y, z, nx, ny, nz, zone, killed, attach);
+    };
+    npc.onBloodContact = (x, y, z, nx, ny, nz) => {
+      this.onBloodContact?.(x, y, z, nx, ny, nz);
     };
   }
 
@@ -925,6 +905,61 @@ export class SandboxController {
       y: origin.y + dir.y * toi + n.y * 0.02,
       z: origin.z + dir.z * toi + n.z * 0.02,
     };
+  }
+
+  private collectBloodSurfaces(
+    origin: { x: number; y: number; z: number },
+    dir: { x: number; y: number; z: number },
+  ): Array<{ x: number; y: number; z: number; nx: number; ny: number; nz: number }> {
+    const hits: Array<{ x: number; y: number; z: number; nx: number; ny: number; nz: number }> = [];
+    const start = {
+      x: origin.x + dir.x * 0.1,
+      y: origin.y + dir.y * 0.1,
+      z: origin.z + dir.z * 0.1,
+    };
+    const wall = this.world.castRayAndGetNormal(
+      new this.rapier.Ray(start, dir),
+      2.6,
+      true,
+      undefined,
+      SPAWN_FILTER,
+      this.playerCollider,
+    );
+    if (wall) {
+      const toi = wall.timeOfImpact;
+      const n = wall.normal;
+      hits.push({
+        x: start.x + dir.x * toi,
+        y: start.y + dir.y * toi,
+        z: start.z + dir.z * toi,
+        nx: n.x,
+        ny: n.y,
+        nz: n.z,
+      });
+    }
+    const down = { x: 0, y: -1, z: 0 };
+    const gStart = { x: origin.x, y: origin.y + 0.15, z: origin.z };
+    const ground = this.world.castRayAndGetNormal(
+      new this.rapier.Ray(gStart, down),
+      2.5,
+      true,
+      undefined,
+      SPAWN_FILTER,
+      this.playerCollider,
+    );
+    if (ground && ground.timeOfImpact < 2.2) {
+      const toi = ground.timeOfImpact;
+      const n = ground.normal;
+      hits.push({
+        x: gStart.x,
+        y: gStart.y + down.y * toi,
+        z: gStart.z,
+        nx: n.x,
+        ny: n.y,
+        nz: n.z,
+      });
+    }
+    return hits;
   }
 
   private syncMarkerVisibility(): void {

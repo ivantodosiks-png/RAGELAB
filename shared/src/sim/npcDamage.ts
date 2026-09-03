@@ -11,6 +11,9 @@ export type NpcHitZoneId = (typeof NpcHitZone)[keyof typeof NpcHitZone];
 
 export const NPC_MAX_HEALTH = 100;
 
+/** Headshots at or above this damage instantly kill (critical). */
+export const NPC_HEAD_CRITICAL_DAMAGE = 18;
+
 /** Map a ragdoll / visual part id onto a gameplay hit zone. */
 export function npcZoneForPart(part: string): NpcHitZoneId {
   if (part === 'head') return NpcHitZone.Head;

@@ -16,6 +16,8 @@ export interface NpcLook {
   hairStyle: 0 | 1 | 2 | 3;
   gltfTint: number;
   heightScale: number;
+  animRate: number;
+  walkVariant: 0 | 1;
 }
 
 export function randomNpcLook(rng: () => number): NpcLook {
@@ -28,7 +30,9 @@ export function randomNpcLook(rng: () => number): NpcLook {
     shoes: pick(SHOES),
     hairStyle: Math.floor(rng() * 4) as 0 | 1 | 2 | 3,
     gltfTint: pick(SHIRT),
-    heightScale: 0.96 + rng() * 0.1,
+    heightScale: 0.94 + rng() * 0.12,
+    animRate: 0.92 + rng() * 0.16,
+    walkVariant: rng() < 0.5 ? 0 : 1,
   };
 }
 
@@ -274,4 +278,23 @@ export function walkPose(phase: number, stride: number): LimbPose {
     lowerArmR: 0.2 + Math.max(0, a) * 0.25,
     torso: a * 0.04,
   };
+}
+
+/** Asymmetric wounded gait used when a dedicated limp clip is not in the GLB. */
+export function limpPose(phase: number, stride: number, side: -1 | 1): LimbPose {
+  const pose = walkPose(phase, stride * 0.7);
+  const hitch = Math.max(0, Math.sin(phase * 0.5) * Math.sin(phase)) * 0.28;
+  if (side < 0) {
+    pose.upperLegL *= 0.32;
+    pose.lowerLegL = 0.34 + hitch;
+    pose.upperArmL *= 0.38;
+    pose.upperArmR *= 1.12;
+  } else {
+    pose.upperLegR *= 0.32;
+    pose.lowerLegR = 0.34 + hitch;
+    pose.upperArmR *= 0.38;
+    pose.upperArmL *= 1.12;
+  }
+  pose.torso += 0.07 + hitch * 0.18 + side * 0.03;
+  return pose;
 }

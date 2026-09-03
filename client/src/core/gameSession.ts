@@ -268,6 +268,9 @@ export class GameSession {
       this.effects.npcHitEffect({ x, y, z }, { x: nx, y: ny, z: nz }, performance.now(), zone, killed, attach);
       this.audio.playAt('impact_flesh', { x, y, z }, killed || zone === 'head' ? 0.85 : 0.55, 36, 0.05);
     };
+    this.sandbox.onBloodContact = (x, y, z, nx, ny, nz) => {
+      this.effects.bloodSmear({ x, y, z }, { x: nx, y: ny, z: nz }, performance.now());
+    };
     this.localCharacter?.dispose();
     this.localCharacter = new LocalCharacter(this.identities.get(this.localId) ?? welcome.players.find((p) => p.id === welcome.playerId));
     this.renderer.scene.add(this.localCharacter.root);

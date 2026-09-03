@@ -17,22 +17,16 @@ Compact downtown scenery for the Harbor Lane sandbox map. Kenney tiles are scale
 - **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) — commercial use allowed, attribution not required.
 - **Use:** Client-only decoration. Collision is cheap box/cylinder brushes cooked on both client and server; GLBs are never loaded by physics.
 
-## Player / NPC character — `client/public/models/characters/soldier.glb`
+## Player / NPC characters — `client/public/models/characters/*.glb`
 
-- **Source:** three.js example `models/gltf/Soldier.glb` (Mixamo “Vanguard” by Adobe Mixamo).
-- **Author:** Adobe Mixamo; redistributed as a three.js example asset.
-- **URL:** https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Soldier.glb
-- **License:** Mixamo characters may be used **inside a game or real-time experience**. They must not be resold or redistributed as a standalone character pack. This repo ships a single runtime GLB for in-engine use only (player avatar + sandbox NPCs). See [Mixamo FAQ / terms](https://www.mixamo.com).
-- **Contents:** PBR-textured rigged humanoid (~2.1 MB) with Idle, Walk, Run (and T-Pose) Mixamo clips. Loaded once through AssetManager and cloned per instance; not preloaded onto the NPC pool.
-- **Use:** Local first-person body (hidden from the gameplay camera via a dedicated render layer), remote player avatars, and sandbox NPCs. Clothing tint, visor visibility, hair and cap overlays vary per NPC so the same rig reads as several people. The first-person camera does not draw this mesh, so it cannot clip the near plane.
+KayKit Adventurers (CC0): `knight.glb`, `mage.glb`, `rogue.glb`, `rogue-hooded.glb`, `barbarian.glb`.
 
-## NPC humanoid — `client/public/models/npc/humanoid.glb`
-
-- **Source:** Quaternius — Universal Animation Library character (glTF mannequin).
-- **Author:** Quaternius
-- **URL:** https://quaternius.com
+- **Author:** Kay Lousberg
+- **URL:** https://kaylousberg.itch.io/kaykit-adventurers
 - **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
-- **Use:** Unused at runtime (kept as a fallback file). Live NPCs use the Mixamo soldier with clothing/hair variants.
+- **Use:** Local first-person body (gameplay camera uses a dedicated layer so the head never fills the view), remote player avatars, and sandbox NPCs. Each file is a complete humanoid with matching Idle / Walk / Run clips. Accessory weapons in the GLB are hidden at runtime.
+
+The previous Mixamo Vanguard visor soldier and UE mannequin are no longer shipped.
 
 ## Weapons — `client/public/models/weapons/*.glb`
 

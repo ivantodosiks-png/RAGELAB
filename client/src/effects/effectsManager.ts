@@ -231,11 +231,57 @@ export class EffectsManager {
     attach?: THREE.Object3D | null,
   ): void {
     const head = zone === 'head';
-    const scale = killed ? (head ? 1.45 : 1.15) : head ? 0.9 : 0.55;
-    this.bloodEffect(position, normal, nowMs, scale, !attach);
+    const limb = zone === 'arm' || zone === 'leg';
+    const scale = killed ? (head ? 1.5 : 1.18) : head ? 0.95 : limb ? 0.48 : 0.62;
+    const burst = Math.max(3, Math.round((head ? 11 : limb ? 6 : 8) * this.effectsScale * (killed ? 1.15 : 0.85)));
+    for (let i = 0; i < burst; i++) {
+      const dir = scatter(normal, head ? 0.85 : 1.15);
+      const speed = (head ? 3.2 : 2.1) + Math.random() * (killed ? 5.5 : 3.4) * scale;
+      this.particles.spawn({
+        x: position.x,
+        y: position.y,
+        z: position.z,
+        vx: dir.x * speed,
+        vy: dir.y * speed + 0.8,
+        vz: dir.z * speed,
+        life: 0.28 + Math.random() * 0.32,
+        size: 0.032 + Math.random() * 0.028 * scale,
+        sizeEnd: 0.008,
+        color: i % 3 === 0 ? 0x7a1218 : 0xb4232a,
+        colorEnd: 0x3a070c,
+        gravity: 1.35,
+        drag: 1.05,
+      });
+    }
+    const splash = Math.max(2, Math.round((head ? 6 : 3) * this.effectsScale));
+    for (let i = 0; i < splash; i++) {
+      const speed = 4.2 + Math.random() * 3.6 * scale;
+      this.particles.spawn({
+        x: position.x,
+        y: position.y,
+        z: position.z,
+        vx: -normal.x * speed + (Math.random() - 0.5) * 1.4,
+        vy: -normal.y * speed * 0.35 + 1.1 + Math.random(),
+        vz: -normal.z * speed + (Math.random() - 0.5) * 1.4,
+        life: 0.22 + Math.random() * 0.2,
+        size: 0.04 + Math.random() * 0.025,
+        sizeEnd: 0.01,
+        color: 0xd12a32,
+        colorEnd: 0x4a0c12,
+        gravity: 1.6,
+        drag: 0.85,
+      });
+    }
     if (attach) {
       this.tmpVec.set(position.x, position.y, position.z);
-      this.bodyBlood.spawn(attach, this.tmpVec, 0.16 + 0.1 * scale, nowMs);
+      this.bodyBlood.spawn(attach, this.tmpVec, 0.15 + 0.1 * scale, nowMs);
+      if (killed || head) {
+        this.tmpVec.x += (Math.random() - 0.5) * 0.04;
+        this.tmpVec.y += 0.02;
+        this.bodyBlood.spawn(attach, this.tmpVec, 0.1 + 0.06 * scale, nowMs);
+      }
+    } else {
+      this.decals.spawn('blood', position, normal, 0.26 + 0.16 * scale, nowMs);
     }
     const sparks = killed ? 4 : 2;
     for (let i = 0; i < sparks; i++) {
@@ -254,6 +300,34 @@ export class EffectsManager {
         colorEnd: 0x8a2a2a,
         gravity: 0.4,
         drag: 2.4,
+      });
+    }
+  }
+
+  /** Pooled smear/decal on nearby geometry. Recycles through DecalPool + ParticlePool. */
+  bloodSmear(position: Vec3, normal: Vec3, nowMs: number): void {
+    const nlen = Math.hypot(normal.x, normal.y, normal.z) || 1;
+    const nx = normal.x / nlen;
+    const ny = normal.y / nlen;
+    const nz = normal.z / nlen;
+    this.decals.spawn('blood', position, { x: nx, y: ny, z: nz }, 0.22 + Math.random() * 0.16, nowMs);
+    const drips = Math.max(1, Math.round(3 * this.effectsScale));
+    for (let i = 0; i < drips; i++) {
+      const dir = scatter({ x: nx, y: ny, z: nz }, 0.7);
+      this.particles.spawn({
+        x: position.x + nx * 0.02,
+        y: position.y + ny * 0.02,
+        z: position.z + nz * 0.02,
+        vx: dir.x * 0.8,
+        vy: dir.y * 0.4 - 1.2,
+        vz: dir.z * 0.8,
+        life: 0.35 + Math.random() * 0.25,
+        size: 0.03,
+        sizeEnd: 0.008,
+        color: 0x8a161c,
+        colorEnd: 0x3a070c,
+        gravity: 1.8,
+        drag: 1.4,
       });
     }
   }

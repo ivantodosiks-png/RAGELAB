@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import {
+  NPC_HEAD_CRITICAL_DAMAGE,
   NPC_MAX_HEALTH,
   SANDBOX_GROUPS,
   SANDBOX_HITBOX_GROUPS,
@@ -14,9 +15,11 @@ import {
   type NpcPartId,
   type NpcState,
   type PartPhysDef,
+  type RagdollStyle,
 } from './types';
 import {
   idlePose,
+  limpPose,
   walkPose,
   type BuiltNpcVisual,
   type LimbPose,
@@ -78,13 +81,21 @@ export class SandboxNpc {
   private stillTimer = 0;
   private feet = { x: 0, y: 0, z: 0 };
   private readonly pose: LimbPose = idlePose();
-  private highlighted = false;
-  private selected = false;
   private alive = false;
   private gltf: NpcGltfInstance | null = null;
   private lastSpeed = 0;
   private impactCool = 0;
   private flinch = 0;
+  private flinchPart: NpcPartId | null = null;
+  private stagger = 0;
+  private limpSide: -1 | 0 | 1 = 0;
+  private windup = 0;
+  private windupImpulse: { x: number; y: number; z: number } | null = null;
+  private windupPart: NpcPartId = 'torso';
+  private windupStyle: RagdollStyle = 'drop';
+  private windupPoint: { x: number; y: number; z: number } | null = null;
+  private tenseHold = 0;
+  private recoverStillNeed = RAGDOLL.recoverStillSec as number;
   private camDist = 0;
   health = NPC_MAX_HEALTH;
   dead = false;
@@ -104,6 +115,9 @@ export class SandboxNpc {
         killed: boolean,
         attach: THREE.Object3D | null,
       ) => void)
+    | null = null;
+  onBloodContact:
+    | ((x: number, y: number, z: number, nx: number, ny: number, nz: number) => void)
     | null = null;
   readonly brain = new NpcBrain(() => Math.random());
   private cmd: MoveCommand = { yaw: 0, speed: 0, clip: 'idle' };
@@ -145,12 +159,21 @@ export class SandboxNpc {
 
   think(nav: NavGrid, world: BrainWorld): void {
     if (!this.alive) return;
-    if (this.dead || this.state === 'Ragdoll' || this.state === 'Dead' || this.state === 'Recovering') {
+    if (
+      this.dead ||
+      this.windup > 0 ||
+      this.state === 'Ragdoll' ||
+      this.state === 'Dead' ||
+      this.state === 'Recovering'
+    ) {
       if (this.dead) this.brain.markDead();
       this.cmd = { yaw: this.yaw, speed: 0, clip: 'idle' };
       return;
     }
     this.cmd = this.brain.tick(nav, this.feet.x, this.feet.z, this.health, world);
+    if (this.limpSide !== 0 && this.cmd.clip === 'run') {
+      this.cmd = { ...this.cmd, clip: 'walk' };
+    }
     let pushX = 0;
     let pushZ = 0;
     for (const o of world.others) {
@@ -203,6 +226,12 @@ export class SandboxNpc {
     this.health = NPC_MAX_HEALTH;
     this.corpseAt = 0;
     this.flinch = 0;
+    this.flinchPart = null;
+    this.stagger = 0;
+    this.limpSide = 0;
+    this.windup = 0;
+    this.windupImpulse = null;
+    this.tenseHold = 0;
     this.kind = pickNpcKind(() => Math.random());
     Object.assign(this.visual.look, randomNpcLook(() => Math.random()));
     this.gltf?.character.dispose();
@@ -215,7 +244,6 @@ export class SandboxNpc {
     this.phase = Math.random() * Math.PI * 2;
     this.stillTimer = 0;
     this.recoverTimer = 0;
-    this.applyHighlight(false, false);
 
     this.placeLocator(x, y, z, true);
     this.applyFk(idlePose(), 1);
@@ -247,6 +275,13 @@ export class SandboxNpc {
     this.dead = false;
     this.health = NPC_MAX_HEALTH;
     this.corpseAt = 0;
+    this.limpSide = 0;
+    this.stagger = 0;
+    this.flinch = 0;
+    this.flinchPart = null;
+    this.windup = 0;
+    this.windupImpulse = null;
+    this.tenseHold = 0;
     if (this.state === 'Ragdoll' || this.state === 'Dead') {
       const pelvis = this.parts.get('pelvis')?.body.translation();
       if (pelvis) this.feet = { x: pelvis.x, y: Math.max(0, pelvis.y - 0.98), z: pelvis.z };
@@ -260,41 +295,51 @@ export class SandboxNpc {
     this.driveGltf(0);
   }
 
-  enterRagdoll(impulse?: { x: number; y: number; z: number }, atPart: NpcPartId = 'torso'): void {
+  enterRagdoll(
+    impulse?: { x: number; y: number; z: number },
+    atPart: NpcPartId = 'torso',
+    style: RagdollStyle = 'drop',
+    hitPoint?: { x: number; y: number; z: number },
+    recoverSec?: number,
+  ): void {
     if (!this.alive) return;
+    this.windup = 0;
+    this.windupImpulse = null;
     this.gltf?.character.stop();
     this.snapRagdollToVisual();
     this.setLocatorEnabled(false);
     this.setRagdollEnabled(true);
+    this.recoverStillNeed = this.dead ? 999 : (recoverSec ?? RAGDOLL.recoverStillSec);
+    this.tenseHold = style === 'tense' ? 0.11 + Math.random() * 0.08 : 0;
     const locVel = this.locator.linvel();
-    for (const part of this.parts.values()) {
+    for (const [id, part] of this.parts) {
+      const def = PART_PHYSICS[id];
+      const ang = this.tenseHold > 0 ? 3.4 : (def.angularDamping ?? RAGDOLL.angularDamping);
+      part.body.setLinearDamping(def.linearDamping ?? RAGDOLL.linearDamping);
+      part.body.setAngularDamping(ang);
       part.body.setLinvel({ x: locVel.x, y: locVel.y, z: locVel.z }, true);
       part.body.wakeUp();
     }
-    if (impulse) {
-      const target = this.parts.get(atPart)?.body ?? this.parts.get('torso')?.body;
-      target?.applyImpulse(impulse, true);
-    }
+    if (impulse) this.applyRagdollForces(impulse, atPart, style, hitPoint);
     this.state = this.dead ? 'Dead' : 'Ragdoll';
     this.stillTimer = 0;
     this.lastSpeed = Math.hypot(locVel.x, locVel.y, locVel.z);
     this.emitImpact(6 + (impulse ? Math.hypot(impulse.x, impulse.y, impulse.z) * 0.2 : 0));
   }
 
-  setSelected(selected: boolean): void {
-    this.selected = selected;
-    this.applyHighlight(this.highlighted, selected);
+  setSelected(_selected: boolean): void {
+    /* Hover/select used to tint Mixamo visor emissive into a bright square. */
   }
 
-  setHovered(hovered: boolean): void {
-    this.highlighted = hovered;
-    this.applyHighlight(hovered, this.selected);
+  setHovered(_hovered: boolean): void {
+    /* Interaction via E / Tool Gun pick still uses controller.hovered. */
   }
 
   applyShot(dir: { x: number; y: number; z: number }, part: NpcPartId, strength: number): void {
     this.enterRagdoll(
       { x: dir.x * strength, y: dir.y * strength + 2, z: dir.z * strength },
       part,
+      pickRagdollStyle('chest', true),
     );
   }
 
@@ -308,29 +353,177 @@ export class SandboxNpc {
     const zone = npcZoneForPart(part);
     const origin = hitPoint ?? this.hitWorldPoint(part);
     const attach = this.hitAttach(part);
+
     if (this.dead) {
-      const target = this.parts.get(part)?.body ?? this.parts.get('torso')?.body;
-      target?.applyImpulse({ x: dir.x * impulse * 0.45, y: dir.y * impulse * 0.45 + 1.2, z: dir.z * impulse * 0.45 }, true);
+      const corpse = impulse * 0.42;
+      this.applyRagdollForces(
+        { x: dir.x * corpse, y: dir.y * corpse + 1.1, z: dir.z * corpse },
+        part,
+        pickRagdollStyle(zone, true),
+        origin,
+      );
       this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, false, attach);
       return { killed: false, zone, health: 0, alreadyDead: true };
     }
-    this.health = Math.max(0, this.health - damage);
-    this.flinch = 0.18;
+
+    if (zone === 'head' && damage >= NPC_HEAD_CRITICAL_DAMAGE) this.health = 0;
+    else this.health = Math.max(0, this.health - damage);
+
+    this.flinchPart = part;
+    this.brain.noticeShot(origin.x, origin.z, this.feet.x, this.feet.z, performance.now() / 1000);
+
     const killed = this.health <= 0;
+    const scale = killed ? RAGDOLL.deathImpulse / 3.2 : zoneImpulseScale(zone);
+    const shot = {
+      x: dir.x * impulse * scale,
+      y: dir.y * impulse * scale + (killed ? 2.6 : 1.15),
+      z: dir.z * impulse * scale,
+    };
+
     if (killed) {
-      this.dead = true;
-      this.corpseAt = performance.now();
-      this.brain.markDead();
-      this.enterRagdoll(
-        { x: dir.x * impulse, y: dir.y * impulse + 2.4, z: dir.z * impulse },
-        part,
-      );
-    } else {
-      const v = this.locator.linvel();
-      this.locator.setLinvel({ x: v.x + dir.x * 1.15, y: v.y + 0.15, z: v.z + dir.z * 1.15 }, true);
+      this.killFromHit(shot, part, zone, origin);
+      this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, true, attach);
+      return { killed: true, zone, health: 0, alreadyDead: false };
     }
-    this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, killed, attach);
-    return { killed, zone, health: this.health, alreadyDead: false };
+
+    this.reactLiving(dir, part, zone, damage, shot, origin);
+    this.onHit?.(origin.x, origin.y, origin.z, -dir.x, -dir.y, -dir.z, zone, false, attach);
+    return { killed: false, zone, health: this.health, alreadyDead: false };
+  }
+
+  private killFromHit(
+    shot: { x: number; y: number; z: number },
+    part: NpcPartId,
+    zone: string,
+    origin: { x: number; y: number; z: number },
+  ): void {
+    this.dead = true;
+    this.corpseAt = performance.now();
+    this.brain.markDead();
+    const style = pickRagdollStyle(zone, true);
+    if (style === 'tense') {
+      this.windup = 0.09 + Math.random() * 0.1;
+      this.windupImpulse = shot;
+      this.windupPart = part;
+      this.windupStyle = 'tense';
+      this.windupPoint = origin;
+      this.gltf?.character.play('idle', 0.04, 0.08);
+      return;
+    }
+    this.enterRagdoll(shot, part, style, origin);
+  }
+
+  private reactLiving(
+    dir: { x: number; y: number; z: number },
+    part: NpcPartId,
+    zone: string,
+    damage: number,
+    shot: { x: number; y: number; z: number },
+    origin: { x: number; y: number; z: number },
+  ): void {
+    const v = this.locator.linvel();
+    if (zone === 'leg') {
+      this.limpSide = part.includes('L') ? -1 : 1;
+      this.flinch = 0.42;
+      this.stagger = 0.28;
+      const fall = damage >= 26 || Math.random() < 0.38 + damage / 160;
+      if (fall && this.state !== 'Ragdoll') {
+        this.enterRagdoll(
+          { x: shot.x * 0.38, y: 1.4, z: shot.z * 0.38 },
+          part,
+          Math.random() < 0.5 ? 'crumple' : 'drop',
+          origin,
+          RAGDOLL.knockdownStillSec,
+        );
+        return;
+      }
+      this.locator.setLinvel({ x: v.x + dir.x * 2.4, y: v.y + 0.55, z: v.z + dir.z * 2.4 }, true);
+      return;
+    }
+    if (zone === 'arm') {
+      this.flinch = 0.32;
+      this.stagger = 0.22;
+      this.yaw += (part.includes('L') ? -1 : 1) * (0.18 + Math.random() * 0.12);
+      this.locator.setLinvel({ x: v.x + dir.x * 1.35, y: v.y + 0.12, z: v.z + dir.z * 1.35 }, true);
+      if (damage >= 36 && Math.random() < 0.22) {
+        this.enterRagdoll(
+          { x: shot.x * 0.45, y: shot.y * 0.35, z: shot.z * 0.45 },
+          part,
+          'spin',
+          origin,
+          RAGDOLL.knockdownStillSec,
+        );
+      }
+      return;
+    }
+    if (zone === 'chest') {
+      this.flinch = 0.36;
+      this.stagger = 0.2;
+      this.locator.setLinvel({ x: v.x + dir.x * 2.1, y: v.y + 0.35, z: v.z + dir.z * 2.1 }, true);
+      if (damage >= 40 && Math.random() < 0.28) {
+        this.enterRagdoll(shot, part, pickRagdollStyle(zone, false), origin, RAGDOLL.knockdownStillSec);
+      }
+      return;
+    }
+    this.flinch = 0.26;
+    this.stagger = 0.16;
+    this.locator.setLinvel({ x: v.x + dir.x * 1.7, y: v.y + 0.22, z: v.z + dir.z * 1.7 }, true);
+    if (damage >= 44 && Math.random() < 0.2) {
+      this.enterRagdoll(
+        { x: shot.x * 0.7, y: shot.y * 0.55, z: shot.z * 0.7 },
+        part,
+        'drop',
+        origin,
+        RAGDOLL.knockdownStillSec,
+      );
+    }
+  }
+
+  private applyRagdollForces(
+    impulse: { x: number; y: number; z: number },
+    atPart: NpcPartId,
+    style: RagdollStyle,
+    hitPoint?: { x: number; y: number; z: number },
+  ): void {
+    const planar = style === 'crumple' ? 0.58 : 1;
+    const linear = {
+      x: impulse.x * planar,
+      y: style === 'crumple' ? impulse.y * 0.28 - 5.2 : impulse.y,
+      z: impulse.z * planar,
+    };
+    const target = this.parts.get(atPart)?.body ?? this.parts.get('torso')?.body;
+    if (!target) return;
+    target.applyImpulse(linear, true);
+    if (hitPoint) {
+      const t = target.translation();
+      target.applyTorqueImpulse(
+        {
+          x: (hitPoint.y - t.y) * linear.z - (hitPoint.z - t.z) * linear.y,
+          y: (hitPoint.z - t.z) * linear.x - (hitPoint.x - t.x) * linear.z,
+          z: (hitPoint.x - t.x) * linear.y - (hitPoint.y - t.y) * linear.x,
+        },
+        true,
+      );
+    }
+    if (style === 'spin') {
+      this.parts.get('torso')?.body.applyTorqueImpulse(
+        {
+          x: (Math.random() - 0.5) * 9,
+          y: (Math.random() - 0.5) * 14,
+          z: (Math.random() - 0.5) * 9,
+        },
+        true,
+      );
+    }
+    if (style === 'whip') {
+      this.parts.get('head')?.body.applyImpulse(
+        { x: linear.x * 0.28, y: 3.6, z: linear.z * 0.28 },
+        true,
+      );
+    }
+    if (style === 'drop') {
+      this.parts.get('pelvis')?.body.applyImpulse({ x: 0, y: -2.4, z: 0 }, true);
+    }
   }
 
   hitAttach(part: NpcPartId): THREE.Object3D | null {
@@ -364,8 +557,36 @@ export class SandboxNpc {
   update(dt: number): void {
     if (!this.alive) return;
     this.flinch = Math.max(0, this.flinch - dt);
+    this.stagger = Math.max(0, this.stagger - dt);
+
+    if (this.windup > 0) {
+      this.windup -= dt;
+      const v = this.locator.linvel();
+      this.locator.setLinvel({ x: v.x * 0.2, y: v.y, z: v.z * 0.2 }, true);
+      this.applyFk(idlePose(), 1);
+      this.snapRagdollToVisual();
+      this.driveGltf(dt);
+      if (this.windup <= 0 && this.windupImpulse) {
+        const impulse = this.windupImpulse;
+        const part = this.windupPart;
+        const style = this.windupStyle;
+        const point = this.windupPoint ?? undefined;
+        this.windupImpulse = null;
+        this.enterRagdoll(impulse, part, style, point);
+      }
+      return;
+    }
 
     if (this.state === 'Ragdoll' || this.state === 'Dead') {
+      if (this.tenseHold > 0) {
+        this.tenseHold -= dt;
+        if (this.tenseHold <= 0) {
+          for (const [id, part] of this.parts) {
+            const def = PART_PHYSICS[id];
+            part.body.setAngularDamping(def.angularDamping ?? RAGDOLL.angularDamping);
+          }
+        }
+      }
       this.syncVisualFromRagdoll();
       this.driveGltf(dt);
       this.sampleImpact(dt);
@@ -378,7 +599,7 @@ export class SandboxNpc {
         const v = pelvis.linvel();
         const speed = Math.hypot(v.x, v.y, v.z);
         this.stillTimer = speed < 0.55 ? this.stillTimer + dt : 0;
-        if (!this.dead && this.stillTimer > RAGDOLL.recoverStillSec) this.beginRecover();
+        if (!this.dead && this.stillTimer > this.recoverStillNeed) this.beginRecover();
       }
       return;
     }
@@ -386,7 +607,8 @@ export class SandboxNpc {
     if (this.state === 'Recovering') {
       this.recoverTimer += dt;
       const k = Math.min(1, this.recoverTimer / RAGDOLL.recoverBlendSec);
-      this.applyFk(idlePose(), k);
+      const pose = this.limpSide !== 0 ? limpPose(this.phase, 0.2, this.limpSide) : idlePose();
+      this.applyFk(pose, k);
       this.driveGltf(dt);
       if (k >= 1) this.enterLocomotion('Idle');
       return;
@@ -400,7 +622,7 @@ export class SandboxNpc {
     if (!grounded && v.y < -0.4) this.state = 'Falling';
     else if (grounded && this.state === 'Falling') {
       if (Math.abs(v.y) > RAGDOLL.ragdollImpactSpeed) {
-        this.enterRagdoll({ x: v.x * 0.4, y: 0, z: v.z * 0.4 });
+        this.enterRagdoll({ x: v.x * 0.4, y: 0, z: v.z * 0.4 }, 'pelvis', 'crumple');
         return;
       }
       this.state = planar > 0.4 ? 'Walking' : 'Idle';
@@ -408,9 +630,15 @@ export class SandboxNpc {
       this.state = planar > 0.35 ? 'Walking' : 'Idle';
     }
 
-    this.phase += dt * (this.state === 'Walking' ? 7.2 : 1.6);
+    this.phase += dt * (this.state === 'Walking' ? (this.limpSide !== 0 ? 5.4 : 7.2) : 1.6);
     const stride = this.state === 'Walking' ? Math.min(1, planar / RAGDOLL.walkSpeed) : 0.15;
-    const target = this.state === 'Walking' ? walkPose(this.phase, stride) : idlePose();
+    let target =
+      this.state === 'Walking'
+        ? this.limpSide !== 0
+          ? limpPose(this.phase, stride, this.limpSide)
+          : walkPose(this.phase, stride)
+        : idlePose();
+    if (this.flinch > 0 && this.flinchPart) target = flinchPose(target, this.flinchPart, this.flinch);
     blendPose(this.pose, target, 1 - Math.exp(-14 * dt));
     this.applyFk(this.pose, 1);
     this.snapRagdollToVisual();
@@ -459,11 +687,22 @@ export class SandboxNpc {
   }
 
   private stepLocomotion(dt: number): void {
-    this.yaw = dampAngle(this.yaw, this.cmd.yaw, 1 - Math.exp(-6 * dt));
+    const turn = signedAngle(this.yaw, this.cmd.yaw);
+    const maxTurn = 4.6 * dt;
+    this.yaw += clampNum(turn, -maxTurn, maxTurn);
+    if (this.limpSide !== 0 && this.state === 'Walking') {
+      this.yaw += Math.sin(this.phase * 0.9) * this.limpSide * 0.014;
+    }
     const grounded = this.isGrounded();
     const wounded = this.health < 45;
     let speed = this.cmd.speed;
-    if (wounded) speed *= 0.58;
+    if (this.limpSide !== 0) speed *= RAGDOLL.limpSpeed;
+    else if (wounded) speed *= 0.58;
+    if (this.stagger > 0) speed *= 0.35;
+    if (this.flinch > 0.12) speed *= 0.55;
+    const facing = Math.cos(signedAngle(this.yaw, this.cmd.yaw));
+    if (facing < 0.25) speed *= 0.08;
+    else speed *= Math.max(0.35, facing);
     if (this.state === 'Falling' || !grounded) speed = 0;
     const vx = -Math.sin(this.yaw) * speed;
     const vz = -Math.cos(this.yaw) * speed;
@@ -605,16 +844,6 @@ export class SandboxNpc {
     }
   }
 
-  private applyHighlight(hovered: boolean, selected: boolean): void {
-    const color = selected || hovered ? 0xd6ff3d : 0x000000;
-    const emit = selected ? 0.38 : hovered ? 0.2 : 0;
-    for (const mat of this.visual.materials) {
-      mat.emissive.setHex(color);
-      mat.emissiveIntensity = emit;
-    }
-    this.gltf?.character.setHighlight(color, emit);
-  }
-
   private buildPhysics(): void {
     this.locator = this.world.createRigidBody(
       this.rapier.RigidBodyDesc.dynamic()
@@ -638,8 +867,8 @@ export class SandboxNpc {
       const def = PART_PHYSICS[id];
       const body = this.world.createRigidBody(
         this.rapier.RigidBodyDesc.dynamic()
-          .setLinearDamping(RAGDOLL.linearDamping)
-          .setAngularDamping(RAGDOLL.angularDamping)
+          .setLinearDamping(def.linearDamping ?? RAGDOLL.linearDamping)
+          .setAngularDamping(def.angularDamping ?? RAGDOLL.angularDamping)
           .setCcdEnabled(true)
           .setCanSleep(true),
       );
@@ -673,16 +902,16 @@ export class SandboxNpc {
     link('pelvis', 'torso', [0, 0.1, 0], [0, -0.18, 0]);
     link('torso', 'head', [0, 0.2, 0], [0, -0.12, 0]);
     link('torso', 'upperArmL', [-0.16, 0.14, 0], [0, 0.12, 0]);
-    link('upperArmL', 'lowerArmL', [0, -0.13, 0], [0, 0.12, 0], [1, 0, 0], [0.05, 2.3]);
+    link('upperArmL', 'lowerArmL', [0, -0.13, 0], [0, 0.12, 0], [1, 0, 0], [0.08, 2.15]);
     link('lowerArmL', 'handL', [0, -0.12, 0], [0, 0.04, 0]);
     link('torso', 'upperArmR', [0.16, 0.14, 0], [0, 0.12, 0]);
-    link('upperArmR', 'lowerArmR', [0, -0.13, 0], [0, 0.12, 0], [1, 0, 0], [0.05, 2.3]);
+    link('upperArmR', 'lowerArmR', [0, -0.13, 0], [0, 0.12, 0], [1, 0, 0], [0.08, 2.15]);
     link('lowerArmR', 'handR', [0, -0.12, 0], [0, 0.04, 0]);
     link('pelvis', 'upperLegL', [-0.09, -0.1, 0], [0, 0.18, 0]);
-    link('upperLegL', 'lowerLegL', [0, -0.18, 0], [0, 0.17, 0], [1, 0, 0], [0.02, 2.2]);
+    link('upperLegL', 'lowerLegL', [0, -0.18, 0], [0, 0.17, 0], [1, 0, 0], [0.04, 2.05]);
     link('lowerLegL', 'footL', [0, -0.17, 0], [0, 0.04, -0.02]);
     link('pelvis', 'upperLegR', [0.09, -0.1, 0], [0, 0.18, 0]);
-    link('upperLegR', 'lowerLegR', [0, -0.18, 0], [0, 0.17, 0], [1, 0, 0], [0.02, 2.2]);
+    link('upperLegR', 'lowerLegR', [0, -0.18, 0], [0, 0.17, 0], [1, 0, 0], [0.04, 2.05]);
     link('lowerLegR', 'footR', [0, -0.17, 0], [0, 0.04, -0.02]);
   }
 
@@ -721,13 +950,17 @@ export class SandboxNpc {
     }
     char.root.position.set(this.feet.x, this.feet.y, this.feet.z);
     char.root.rotation.set(0, this.yaw, 0);
-    const wounded = this.health < 45;
+    const wounded = this.health < 45 || this.limpSide !== 0;
+    const planar = Math.hypot(this.locator.linvel().x, this.locator.linvel().z);
     let clip: LocoClip = 'idle';
-    if (this.state === 'Falling') clip = 'fall';
-    else if (this.flinch > 0) clip = 'idle';
-    else if (this.cmd.clip === 'run' && !wounded) clip = 'run';
-    else if (this.cmd.speed > 0.2 || this.state === 'Walking') clip = 'walk';
-    char.play(clip, 0.18, wounded ? 0.7 : 1);
+    if (this.windup > 0) clip = 'idle';
+    else if (this.state === 'Recovering') clip = 'getup';
+    else if (this.state === 'Falling') clip = 'fall';
+    else if (this.flinch > 0.08) clip = 'idle';
+    else if (planar > 2.45 && this.cmd.clip === 'run' && !wounded) clip = 'run';
+    else if (planar > 0.28 || this.state === 'Walking') clip = 'walk';
+    const scale = this.limpSide !== 0 ? 0.55 : wounded ? 0.7 : 1;
+    char.play(clip, 0.18, this.windup > 0 ? 0.08 : scale);
     char.update(dt, this.camDist);
     this.snapHitboxesFromBones();
   }
@@ -757,10 +990,12 @@ export class SandboxNpc {
   }
 
   private emitImpact(speed: number): void {
-    if (this.impactCool > 0 || !this.onImpact) return;
-    this.impactCool = 0.16;
+    if (this.impactCool > 0) return;
+    if (!this.onImpact && !this.onBloodContact) return;
+    this.impactCool = this.dead ? 0.28 : 0.16;
     const p = this.feet;
-    this.onImpact(p.x, p.y + 0.15, p.z, 0, 1, 0, speed);
+    this.onImpact?.(p.x, p.y + 0.15, p.z, 0, 1, 0, speed);
+    if (this.dead) this.onBloodContact?.(p.x, p.y + 0.02, p.z, 0, 1, 0);
   }
 }
 
@@ -816,8 +1051,70 @@ function blendPose(out: LimbPose, target: LimbPose, k: number): void {
 }
 
 function dampAngle(current: number, target: number, k: number): number {
+  return current + signedAngle(current, target) * k;
+}
+
+function signedAngle(current: number, target: number): number {
   let d = target - current;
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
-  return current + d * k;
+  return d;
+}
+
+function clampNum(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function zoneImpulseScale(zone: string): number {
+  switch (zone) {
+    case 'head':
+      return 1.15;
+    case 'chest':
+      return 0.85;
+    case 'arm':
+      return 0.5;
+    case 'leg':
+      return 0.72;
+    default:
+      return 0.7;
+  }
+}
+
+function pickRagdollStyle(zone: string, killed: boolean): RagdollStyle {
+  if (killed && zone === 'head' && Math.random() < 0.18) return 'tense';
+  const roll = Math.random();
+  if (killed) {
+    if (roll < 0.26) return 'spin';
+    if (roll < 0.5) return 'crumple';
+    if (roll < 0.74) return 'whip';
+    return 'drop';
+  }
+  if (zone === 'leg') return roll < 0.55 ? 'crumple' : 'drop';
+  if (zone === 'arm') return roll < 0.5 ? 'spin' : 'drop';
+  return roll < 0.4 ? 'spin' : 'drop';
+}
+
+function flinchPose(base: LimbPose, part: NpcPartId, amount: number): LimbPose {
+  const k = Math.min(1, amount * 3.2);
+  const pose: LimbPose = { ...base };
+  if (part === 'head') pose.torso -= 0.18 * k;
+  else if (part === 'torso' || part === 'pelvis') pose.torso += 0.22 * k;
+  else if (part.includes('ArmL') || part === 'handL') {
+    pose.upperArmL += 0.55 * k;
+    pose.lowerArmL += 0.4 * k;
+    pose.torso -= 0.08 * k;
+  } else if (part.includes('ArmR') || part === 'handR') {
+    pose.upperArmR += 0.55 * k;
+    pose.lowerArmR += 0.4 * k;
+    pose.torso -= 0.08 * k;
+  } else if (part.includes('LegL') || part === 'footL') {
+    pose.upperLegL += 0.35 * k;
+    pose.lowerLegL += 0.25 * k;
+    pose.torso += 0.1 * k;
+  } else {
+    pose.upperLegR += 0.35 * k;
+    pose.lowerLegR += 0.25 * k;
+    pose.torso += 0.1 * k;
+  }
+  return pose;
 }

@@ -6,46 +6,82 @@ import type { NpcPartId } from '../sandbox/types';
 import type { NpcLook } from '../sandbox/npcModel';
 
 const BASE = import.meta.env.BASE_URL;
-export const SOLDIER_URL = `${BASE}models/characters/soldier.glb`;
-export const HUMANOID_URL = `${BASE}models/npc/humanoid.glb`;
 
-export type CharacterKind = 'soldier';
-export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall';
+/**
+ * KayKit Adventurers (CC0). Real humanoid meshes with faces, hair, clothes and
+ * a matching skeleton + locomotion clips. The old Mixamo Vanguard / UE mannequin
+ * assets are gone — they looked like robots and their +Z bind fought the game's -Z forward.
+ */
+export const CHARACTER_KINDS = ['knight', 'mage', 'rogue', 'rogueHooded', 'barbarian'] as const;
+export type CharacterKind = (typeof CHARACTER_KINDS)[number];
+export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'getup';
+
+const KIND_FILE: Record<CharacterKind, string> = {
+  knight: 'knight.glb',
+  mage: 'mage.glb',
+  rogue: 'rogue.glb',
+  rogueHooded: 'rogue-hooded.glb',
+  barbarian: 'barbarian.glb',
+};
+
+const CLIP_ALIASES: Record<LocoClip, string[]> = {
+  idle: ['idle', 'unarmed_idle'],
+  walk: ['walking_a', 'walking_b', 'walking_c', 'walk'],
+  run: ['running_a', 'running_b', 'run'],
+  jump: ['jump_start', 'jump_full_short', 'jump'],
+  fall: ['jump_idle', 'jump_land', 'fall'],
+  getup: ['lie_standup', 'sit_floor_standup', 'standup'],
+};
 
 const BONE_ALIASES: Record<NpcPartId, string[]> = {
   pelvis: ['hips', 'pelvis', 'hip'],
-  torso: ['spine2', 'spine1', 'spine_02', 'spine_01', 'spine', 'chest'],
+  torso: ['chest', 'spine2', 'spine1', 'spine_02', 'spine_01', 'spine'],
   head: ['head'],
-  upperArmL: ['leftarm', 'upperarm_l', 'upper_arm.l'],
-  lowerArmL: ['leftforearm', 'lowerarm_l', 'forearm.l'],
-  handL: ['lefthand', 'hand_l', 'hand.l'],
-  upperArmR: ['rightarm', 'upperarm_r', 'upper_arm.r'],
-  lowerArmR: ['rightforearm', 'lowerarm_r', 'forearm.r'],
-  handR: ['righthand', 'hand_r', 'hand.r'],
-  upperLegL: ['leftupleg', 'thigh_l', 'upleg.l', 'upperleg.l'],
-  lowerLegL: ['leftleg', 'calf_l', 'leg.l', 'lowerleg.l'],
-  footL: ['leftfoot', 'foot_l', 'foot.l'],
-  upperLegR: ['rightupleg', 'thigh_r', 'upleg.r', 'upperleg.r'],
-  lowerLegR: ['rightleg', 'calf_r', 'leg.r', 'lowerleg.r'],
-  footR: ['rightfoot', 'foot_r', 'foot.r'],
+  upperArmL: ['upperarm.l', 'leftarm', 'upperarm_l', 'upper_arm.l'],
+  lowerArmL: ['lowerarm.l', 'leftforearm', 'lowerarm_l', 'forearm.l'],
+  handL: ['hand.l', 'lefthand', 'hand_l'],
+  upperArmR: ['upperarm.r', 'rightarm', 'upperarm_r', 'upper_arm.r'],
+  lowerArmR: ['lowerarm.r', 'rightforearm', 'lowerarm_r', 'forearm.r'],
+  handR: ['hand.r', 'righthand', 'hand_r'],
+  upperLegL: ['upperleg.l', 'leftupleg', 'thigh_l', 'upleg.l'],
+  lowerLegL: ['lowerleg.l', 'leftleg', 'calf_l', 'leg.l'],
+  footL: ['foot.l', 'leftfoot', 'foot_l'],
+  upperLegR: ['upperleg.r', 'rightupleg', 'thigh_r', 'upleg.r'],
+  lowerLegR: ['lowerleg.r', 'rightleg', 'calf_r', 'leg.r'],
+  footR: ['foot.r', 'rightfoot', 'foot_r'],
 };
 
-const CLOTHING = [0xffffff, 0xc9d6c2, 0xd4c4a8, 0x9bb7c9, 0xc9a4a4, 0xb7c99b, 0xd0c8e0];
+const WEAPON_NAME = /sword|shield|knife|wand|staff|bow|axe|smokebomb|spellbook|crossbow|quiver/i;
 
-export function characterUrl(_kind: CharacterKind): string {
-  return SOLDIER_URL;
+const tmpRight = new THREE.Vector3();
+const tmpUp = new THREE.Vector3();
+const tmpFwd = new THREE.Vector3();
+const tmpA = new THREE.Vector3();
+const tmpB = new THREE.Vector3();
+
+export function characterUrl(kind: CharacterKind): string {
+  return `${BASE}models/characters/${KIND_FILE[kind]}`;
 }
 
-export function randomCharacterKind(_rng: () => number): CharacterKind {
-  return 'soldier';
+export function randomCharacterKind(rng: () => number): CharacterKind {
+  return CHARACTER_KINDS[Math.floor(rng() * CHARACTER_KINDS.length)]!;
 }
 
-export async function preloadCharacter(kind: CharacterKind = 'soldier'): Promise<GLTF | null> {
+export function kindFromSeed(seed: number): CharacterKind {
+  const i = ((seed % CHARACTER_KINDS.length) + CHARACTER_KINDS.length) % CHARACTER_KINDS.length;
+  return CHARACTER_KINDS[i]!;
+}
+
+export async function preloadCharacter(kind: CharacterKind = 'knight'): Promise<GLTF | null> {
   try {
     return await assetManager.loadGltf(characterUrl(kind));
   } catch {
     return null;
   }
+}
+
+export async function preloadAllCharacters(): Promise<void> {
+  await Promise.all(CHARACTER_KINDS.map((kind) => preloadCharacter(kind)));
 }
 
 export function peekCharacter(kind: CharacterKind): GLTF | null {
@@ -58,25 +94,35 @@ export class SkinnedCharacter {
   readonly bones: Partial<Record<NpcPartId, THREE.Object3D>> = {};
   readonly extras: THREE.Object3D[] = [];
   kind: CharacterKind;
+  private readonly facing = new THREE.Group();
   private mixer: THREE.AnimationMixer | null = null;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: LocoClip | 'none' = 'none';
-  private readonly airBones: THREE.Object3D[] = [];
-  private visor: THREE.Object3D | null = null;
   private headBone: THREE.Object3D | null = null;
+  private readonly headMeshes: THREE.Object3D[] = [];
+  private readonly walkNames: string[];
+  private readonly animRate: number;
 
   constructor(kind: CharacterKind, look: NpcLook) {
     this.kind = kind;
+    this.animRate = look.animRate ?? 1;
+    this.walkNames = look.walkVariant === 1 ? ['walking_b', 'walking_c', 'walking_a'] : ['walking_a', 'walking_b'];
     this.root = new THREE.Group();
     this.root.name = `skinned:${kind}`;
+    this.facing.name = 'facing';
+    this.root.add(this.facing);
+
     const gltf = peekCharacter(kind);
     if (!gltf) return;
 
     const cloned = cloneSkinned(gltf.scene) as THREE.Group;
-    // Mixamo bind faces +Z; the game treats -Z as forward (same as the camera).
-    cloned.rotation.y = Math.PI;
+    hideGear(cloned);
     fitHeight(cloned, 1.78 * (look.heightScale ?? 1));
-    this.root.add(cloned);
+    this.facing.add(cloned);
+
+    cloned.updateMatrixWorld(true);
+    this.facing.rotation.y = detectModelYawOffset(cloned);
+    cloned.updateMatrixWorld(true);
 
     cloned.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
@@ -89,11 +135,8 @@ export class SkinnedCharacter {
         const clones = list.map((mat) => {
           const next = (mat as THREE.Material).clone();
           if (next instanceof THREE.MeshStandardMaterial) {
-            const visor = /visor/i.test(next.name) || /visor/i.test(mesh.name);
-            if (!visor) {
-              next.color.lerp(new THREE.Color(look.gltfTint), 0.55);
-              next.color.lerp(new THREE.Color(look.shirt), 0.22);
-              next.roughness = Math.min(0.95, next.roughness + 0.04);
+            if (look.gltfTint && look.gltfTint !== 0xffffff) {
+              next.color.lerp(new THREE.Color(look.gltfTint), 0.12);
             }
             next.envMapIntensity = 1.05;
             next.emissive.setHex(0x000000);
@@ -103,24 +146,23 @@ export class SkinnedCharacter {
           return next;
         });
         mesh.material = Array.isArray(src) ? clones : clones[0]!;
-        if (/visor/i.test(mesh.name)) this.visor = mesh;
+        if (/head|helmet|hood|hair|hat/i.test(mesh.name)) this.headMeshes.push(mesh);
       }
       const key = normalizeBone(obj.name);
-      if (/head$/i.test(key) && !/top/.test(key)) this.headBone = obj;
+      if (key === 'head') this.headBone = obj;
       for (const [part, aliases] of Object.entries(BONE_ALIASES) as Array<[NpcPartId, string[]]>) {
         if (this.bones[part]) continue;
-        if (aliases.some((alias) => key === alias || key.endsWith(alias))) this.bones[part] = obj;
+        if (aliases.some((alias) => key === alias || key === alias.replace(/\./g, ''))) {
+          this.bones[part] = obj;
+        }
       }
-      if (key === 'leftupleg' || key === 'rightupleg') this.airBones.push(obj);
     });
-
-    if (this.visor) this.visor.visible = look.hairStyle !== 2;
-    this.attachExtras(look);
 
     if (gltf.animations.length > 0) {
       this.mixer = new THREE.AnimationMixer(cloned);
       for (const clip of gltf.animations) {
-        const action = this.mixer.clipAction(clip);
+        const cleaned = stripRootMotion(clip);
+        const action = this.mixer.clipAction(cleaned);
         action.enabled = true;
         this.actions.set(clip.name.toLowerCase(), action);
       }
@@ -129,7 +171,7 @@ export class SkinnedCharacter {
   }
 
   get ready(): boolean {
-    return this.root.children.length > 0;
+    return this.facing.children.length > 0;
   }
 
   get hasMixer(): boolean {
@@ -138,43 +180,50 @@ export class SkinnedCharacter {
 
   setHeadVisible(visible: boolean): void {
     if (this.headBone) this.headBone.scale.setScalar(visible ? 1 : 0.001);
-    if (this.visor) this.visor.visible = visible;
-    for (const extra of this.extras) extra.visible = visible;
+    for (const mesh of this.headMeshes) mesh.visible = visible;
   }
 
-  /** Hide head and arms so an FPS camera can sit inside the chest. */
+  /** Hide head so an FPS camera can sit inside the chest. Arms stay — weapons are a separate viewmodel. */
   setFirstPersonBody(on: boolean): void {
     this.setHeadVisible(!on);
-    const limbs: NpcPartId[] = ['upperArmL', 'lowerArmL', 'handL', 'upperArmR', 'lowerArmR', 'handR'];
-    for (const id of limbs) {
-      const bone = this.bones[id];
-      if (bone) bone.scale.setScalar(on ? 0.001 : 1);
-    }
   }
 
   play(clip: LocoClip, fade = 0.18, timeScale = 1): void {
     if (!this.mixer) return;
-    const mapped = clip === 'jump' || clip === 'fall' ? 'idle' : clip;
+    const scale = timeScale * this.animRate;
     if (this.current === clip) {
-      const running = this.actionFor(mapped);
-      if (running) running.timeScale = clip === 'jump' || clip === 'fall' ? 0.35 : timeScale;
+      const running = this.actionFor(clip);
+      if (running) running.timeScale = scale;
       return;
     }
-    const next = this.actionFor(mapped) ?? this.actionFor('idle');
+    const next = this.actionFor(clip) ?? this.actionFor('idle');
     if (!next) return;
-    const prevKey = this.current === 'none' ? null : this.current === 'jump' || this.current === 'fall' ? 'idle' : this.current;
-    const prev = prevKey ? this.actionFor(prevKey) : null;
+    const prev = this.current === 'none' ? null : this.actionFor(this.current);
     next.reset().setEffectiveWeight(1).fadeIn(fade).play();
-    next.timeScale = mapped === 'idle' && (clip === 'jump' || clip === 'fall') ? 0.35 : timeScale;
+    next.timeScale = scale;
+    if (clip === 'getup') {
+      next.setLoop(THREE.LoopOnce, 1);
+      next.clampWhenFinished = true;
+    } else {
+      next.setLoop(THREE.LoopRepeat, Infinity);
+    }
     prev?.fadeOut(fade);
     this.current = clip;
   }
 
-  private actionFor(name: string): THREE.AnimationAction | undefined {
-    const exact = this.actions.get(name);
-    if (exact) return exact;
-    for (const [key, action] of this.actions) {
-      if (key.includes(name) && !key.includes('tpose')) return action;
+  private actionFor(clip: LocoClip): THREE.AnimationAction | undefined {
+    const aliases = clip === 'walk' ? this.walkNames : CLIP_ALIASES[clip];
+    for (const alias of aliases) {
+      const exact = this.actions.get(alias);
+      if (exact) return exact;
+      for (const [key, action] of this.actions) {
+        if (key === alias || key.endsWith('|' + alias) || key.endsWith('/' + alias)) return action;
+      }
+    }
+    for (const alias of aliases) {
+      for (const [key, action] of this.actions) {
+        if (key.includes(alias) && !key.includes('t-pose') && !key.includes('tpose')) return action;
+      }
     }
     return undefined;
   }
@@ -188,57 +237,15 @@ export class SkinnedCharacter {
     if (!this.mixer) return;
     const step = camDist > 70 ? dt * 0.35 : camDist > 42 ? dt * 0.65 : dt;
     this.mixer.update(step);
-    if (this.current === 'jump' || this.current === 'fall') {
-      const kick = this.current === 'jump' ? -0.55 : 0.35;
-      for (const bone of this.airBones) bone.rotation.x += kick * 0.015;
-    }
   }
 
-  setHighlight(color: number, intensity: number): void {
-    for (const mat of this.materials) {
-      mat.emissive.setHex(color);
-      mat.emissiveIntensity = intensity;
-    }
-  }
-
-  private attachExtras(look: NpcLook): void {
-    const head = this.bones.head ?? this.headBone;
-    if (!head) return;
-    if (look.hairStyle === 1 || look.hairStyle === 3) {
-      const hair = new THREE.Mesh(
-        new THREE.SphereGeometry(0.09, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55),
-        new THREE.MeshStandardMaterial({ color: look.hair, roughness: 0.86, metalness: 0.02 }),
-      );
-      hair.name = 'hairOverlay';
-      hair.position.set(0, 0.08, 0.02);
-      hair.castShadow = true;
-      head.add(hair);
-      this.extras.push(hair);
-      this.materials.push(hair.material as THREE.MeshStandardMaterial);
-    }
-    if (look.hairStyle === 3) {
-      const cap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 0.11, 0.05, 12),
-        new THREE.MeshStandardMaterial({ color: look.shirt, roughness: 0.7, metalness: 0.05 }),
-      );
-      cap.name = 'capOverlay';
-      cap.position.set(0, 0.12, 0);
-      cap.castShadow = true;
-      head.add(cap);
-      this.extras.push(cap);
-      this.materials.push(cap.material as THREE.MeshStandardMaterial);
-    }
+  setHighlight(_color: number, _intensity: number): void {
+    /* Hover highlight removed — it lit accessory quads into a white square. */
   }
 
   dispose(): void {
     this.mixer?.stopAllAction();
     this.mixer = null;
-    for (const extra of this.extras) {
-      extra.removeFromParent();
-      const mesh = extra as THREE.Mesh;
-      mesh.geometry?.dispose();
-    }
-    this.extras.length = 0;
     for (const mat of this.materials) mat.dispose();
     this.materials.length = 0;
     this.root.removeFromParent();
@@ -251,8 +258,68 @@ export function instantiateCharacter(kind: CharacterKind, look: NpcLook): Skinne
   return inst.ready ? inst : null;
 }
 
+/**
+ * Game forward is -Z (yaw 0). Rotate the un-animated facing parent so the
+ * mesh's own forward lands on -Z. Never bake this into the mixer target —
+ * clips overwrite TRS on animated nodes every frame.
+ */
+function detectModelYawOffset(rig: THREE.Object3D): number {
+  const hips = findBone(rig, ['hips', 'pelvis']);
+  const head = findBone(rig, ['head']);
+  const armL = findBone(rig, ['upperarm.l', 'leftarm']);
+  const armR = findBone(rig, ['upperarm.r', 'rightarm']);
+  if (!hips || !head || !armL || !armR) return 0;
+  hips.getWorldPosition(tmpA);
+  head.getWorldPosition(tmpB);
+  tmpUp.subVectors(tmpB, tmpA).normalize();
+  armL.getWorldPosition(tmpA);
+  armR.getWorldPosition(tmpB);
+  tmpRight.subVectors(tmpB, tmpA).normalize();
+  tmpFwd.crossVectors(tmpUp, tmpRight);
+  tmpFwd.y = 0;
+  if (tmpFwd.lengthSq() < 1e-6) return 0;
+  tmpFwd.normalize();
+  return Math.PI - Math.atan2(tmpFwd.x, tmpFwd.z);
+}
+
+function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {
+  let found: THREE.Object3D | null = null;
+  root.traverse((obj) => {
+    if (found) return;
+    const key = normalizeBone(obj.name);
+    if (names.some((n) => key === n || key === n.replace(/\./g, ''))) found = obj;
+  });
+  return found;
+}
+
+function hideGear(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    if (WEAPON_NAME.test(obj.name) && !/head|hood|hair|hat|helmet|cape|body/i.test(obj.name)) {
+      obj.visible = false;
+    }
+  });
+}
+
+/** In-place clips should not drag the character through XZ — physics owns that. */
+function stripRootMotion(clip: THREE.AnimationClip): THREE.AnimationClip {
+  const next = clip.clone();
+  for (const track of next.tracks) {
+    if (!/\.position$/.test(track.name)) continue;
+    if (!/(^|\.)(root|hips|armature|characterarmature)$/i.test(track.name.replace(/\.position$/, ''))) continue;
+    const values = track.values;
+    if (values.length < 3) continue;
+    const rootTrack = /root$/i.test(track.name.replace(/\.position$/i, ''));
+    for (let i = 0; i < values.length; i += 3) {
+      values[i] = 0;
+      values[i + 2] = 0;
+      if (rootTrack) values[i + 1] = 0;
+    }
+  }
+  return next;
+}
+
 function normalizeBone(name: string): string {
-  return name.replace(/mixamorig:?/gi, '').replace(/[|_.]/g, '').toLowerCase();
+  return name.replace(/mixamorig:?/gi, '').replace(/[|_]/g, '.').toLowerCase();
 }
 
 function fitHeight(root: THREE.Object3D, target: number): void {
@@ -266,5 +333,6 @@ function fitHeight(root: THREE.Object3D, target: number): void {
 }
 
 export function clothingTint(rng: () => number): number {
-  return CLOTHING[Math.floor(rng() * CLOTHING.length)]!;
+  const list = [0xffffff, 0xc9d6c2, 0xd4c4a8, 0x9bb7c9, 0xc9a4a4, 0xb7c99b, 0xd0c8e0];
+  return list[Math.floor(rng() * list.length)]!;
 }

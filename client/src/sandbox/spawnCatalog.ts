@@ -21,8 +21,8 @@ export const NPC_ENTRIES: SpawnEntry[] = [
   {
     id: 'npc:humanoid',
     category: 'npc',
-    name: 'Humanoid',
-    info: 'Walking ragdoll NPC',
+    name: 'Person',
+    info: 'Human NPC with walk/run and ragdoll',
     spawnable: true,
     swatch: 0x3d5a80,
     glyph: 'NPC',

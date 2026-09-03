@@ -19,7 +19,8 @@ import { buildWeaponMesh, muzzleOffsetFor } from '../weapons/weaponMeshes';
 import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual } from '../weapons/weaponAssets';
 import {
   instantiateCharacter,
-  preloadCharacter,
+  kindFromSeed,
+  preloadAllCharacters,
   type SkinnedCharacter,
 } from '../characters/skinnedHumanoid';
 import { clipFromAnimation, lookFromIdentity } from '../player/localCharacter';
@@ -170,7 +171,7 @@ export class PlayerAvatar {
     this.healthBar.position.y = PLAYER_HEIGHT_STAND + 0.25;
     this.root.add(this.healthBar);
 
-    void preloadCharacter('soldier').then(() => this.attachSkinned(identity));
+    void preloadAllCharacters().then(() => this.attachSkinned(identity));
   }
 
   setIdentity(identity: PlayerIdentity): void {
@@ -283,7 +284,7 @@ export class PlayerAvatar {
 
   private attachSkinned(identity: PlayerIdentity | undefined): void {
     if (this.skinned) return;
-    const inst = instantiateCharacter('soldier', lookFromIdentity(identity));
+    const inst = instantiateCharacter(kindFromSeed(identity?.id ?? this.playerId), lookFromIdentity(identity));
     if (!inst) return;
     this.skinned = inst;
     this.root.add(inst.root);

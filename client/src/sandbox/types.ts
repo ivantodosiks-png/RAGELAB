@@ -68,22 +68,28 @@ export const RAGDOLL = {
   gravity: -22,
   walkSpeed: 1.55,
   recoverStillSec: 1.35,
-  recoverBlendSec: 0.7,
+  knockdownStillSec: 0.88,
+  recoverBlendSec: 0.78,
   ragdollImpactSpeed: 8.5,
   shotImpulse: 22,
   deathImpulse: 16,
-  friction: 0.82,
-  restitution: 0.04,
-  linearDamping: 0.28,
-  angularDamping: 0.72,
+  friction: 0.88,
+  restitution: 0.018,
+  linearDamping: 0.36,
+  angularDamping: 0.92,
   corpseSec: 12,
   maxLiveRagdolls: 8,
+  limpSpeed: 0.5,
 } as const;
+
+export type RagdollStyle = 'drop' | 'spin' | 'crumple' | 'whip' | 'tense';
 
 export interface PartPhysDef {
   mass: number;
   friction?: number;
   restitution?: number;
+  linearDamping?: number;
+  angularDamping?: number;
   /** Rapier capsule half-height of the cylindrical section, or box half-extents. */
   shape:
     | { type: 'capsule'; halfHeight: number; radius: number }
@@ -92,21 +98,113 @@ export interface PartPhysDef {
 }
 
 export const PART_PHYSICS: Record<NpcPartId, PartPhysDef> = {
-  head: { mass: 4.2, friction: 0.35, shape: { type: 'ball', radius: 0.11 } },
-  torso: { mass: 14, friction: 0.7, shape: { type: 'capsule', halfHeight: 0.16, radius: 0.14 } },
-  pelvis: { mass: 11, friction: 0.85, shape: { type: 'cuboid', hx: 0.15, hy: 0.1, hz: 0.1 } },
-  upperArmL: { mass: 2.4, friction: 0.5, shape: { type: 'capsule', halfHeight: 0.11, radius: 0.045 } },
-  lowerArmL: { mass: 1.6, friction: 0.5, shape: { type: 'capsule', halfHeight: 0.1, radius: 0.038 } },
-  handL: { mass: 0.45, friction: 0.9, shape: { type: 'cuboid', hx: 0.04, hy: 0.03, hz: 0.055 } },
-  upperArmR: { mass: 2.4, friction: 0.5, shape: { type: 'capsule', halfHeight: 0.11, radius: 0.045 } },
-  lowerArmR: { mass: 1.6, friction: 0.5, shape: { type: 'capsule', halfHeight: 0.1, radius: 0.038 } },
-  handR: { mass: 0.45, friction: 0.9, shape: { type: 'cuboid', hx: 0.04, hy: 0.03, hz: 0.055 } },
-  upperLegL: { mass: 6.5, friction: 0.75, shape: { type: 'capsule', halfHeight: 0.16, radius: 0.07 } },
-  lowerLegL: { mass: 3.8, friction: 0.75, shape: { type: 'capsule', halfHeight: 0.15, radius: 0.055 } },
-  footL: { mass: 0.9, friction: 1.25, restitution: 0.02, shape: { type: 'cuboid', hx: 0.05, hy: 0.035, hz: 0.11 } },
-  upperLegR: { mass: 6.5, friction: 0.75, shape: { type: 'capsule', halfHeight: 0.16, radius: 0.07 } },
-  lowerLegR: { mass: 3.8, friction: 0.75, shape: { type: 'capsule', halfHeight: 0.15, radius: 0.055 } },
-  footR: { mass: 0.9, friction: 1.25, restitution: 0.02, shape: { type: 'cuboid', hx: 0.05, hy: 0.035, hz: 0.11 } },
+  head: {
+    mass: 5.1,
+    friction: 0.42,
+    linearDamping: 0.48,
+    angularDamping: 1.35,
+    shape: { type: 'ball', radius: 0.11 },
+  },
+  torso: {
+    mass: 22,
+    friction: 0.78,
+    linearDamping: 0.42,
+    angularDamping: 1.18,
+    shape: { type: 'capsule', halfHeight: 0.16, radius: 0.14 },
+  },
+  pelvis: {
+    mass: 13.5,
+    friction: 0.92,
+    linearDamping: 0.44,
+    angularDamping: 1.05,
+    shape: { type: 'cuboid', hx: 0.15, hy: 0.1, hz: 0.1 },
+  },
+  upperArmL: {
+    mass: 2.5,
+    friction: 0.55,
+    linearDamping: 0.32,
+    angularDamping: 0.72,
+    shape: { type: 'capsule', halfHeight: 0.11, radius: 0.045 },
+  },
+  lowerArmL: {
+    mass: 1.45,
+    friction: 0.55,
+    linearDamping: 0.3,
+    angularDamping: 0.62,
+    shape: { type: 'capsule', halfHeight: 0.1, radius: 0.038 },
+  },
+  handL: {
+    mass: 0.48,
+    friction: 1.05,
+    linearDamping: 0.28,
+    angularDamping: 0.5,
+    shape: { type: 'cuboid', hx: 0.04, hy: 0.03, hz: 0.055 },
+  },
+  upperArmR: {
+    mass: 2.5,
+    friction: 0.55,
+    linearDamping: 0.32,
+    angularDamping: 0.72,
+    shape: { type: 'capsule', halfHeight: 0.11, radius: 0.045 },
+  },
+  lowerArmR: {
+    mass: 1.45,
+    friction: 0.55,
+    linearDamping: 0.3,
+    angularDamping: 0.62,
+    shape: { type: 'capsule', halfHeight: 0.1, radius: 0.038 },
+  },
+  handR: {
+    mass: 0.48,
+    friction: 1.05,
+    linearDamping: 0.28,
+    angularDamping: 0.5,
+    shape: { type: 'cuboid', hx: 0.04, hy: 0.03, hz: 0.055 },
+  },
+  upperLegL: {
+    mass: 8.2,
+    friction: 0.82,
+    linearDamping: 0.4,
+    angularDamping: 0.88,
+    shape: { type: 'capsule', halfHeight: 0.16, radius: 0.07 },
+  },
+  lowerLegL: {
+    mass: 4.4,
+    friction: 0.82,
+    linearDamping: 0.38,
+    angularDamping: 0.8,
+    shape: { type: 'capsule', halfHeight: 0.15, radius: 0.055 },
+  },
+  footL: {
+    mass: 1.05,
+    friction: 1.45,
+    restitution: 0.01,
+    linearDamping: 0.36,
+    angularDamping: 0.7,
+    shape: { type: 'cuboid', hx: 0.05, hy: 0.035, hz: 0.11 },
+  },
+  upperLegR: {
+    mass: 8.2,
+    friction: 0.82,
+    linearDamping: 0.4,
+    angularDamping: 0.88,
+    shape: { type: 'capsule', halfHeight: 0.16, radius: 0.07 },
+  },
+  lowerLegR: {
+    mass: 4.4,
+    friction: 0.82,
+    linearDamping: 0.38,
+    angularDamping: 0.8,
+    shape: { type: 'capsule', halfHeight: 0.15, radius: 0.055 },
+  },
+  footR: {
+    mass: 1.05,
+    friction: 1.45,
+    restitution: 0.01,
+    linearDamping: 0.36,
+    angularDamping: 0.7,
+    shape: { type: 'cuboid', hx: 0.05, hy: 0.035, hz: 0.11 },
+  },
 };
 
 export const PART_IDS: NpcPartId[] = Object.keys(PART_PHYSICS) as NpcPartId[];

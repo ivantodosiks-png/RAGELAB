@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { AnimationState, type AnimationStateId, type PlayerIdentity } from '@ragelab/shared';
 import {
   instantiateCharacter,
-  preloadCharacter,
+  kindFromSeed,
+  preloadAllCharacters,
   type LocoClip,
   type SkinnedCharacter,
 } from '../characters/skinnedHumanoid';
@@ -21,15 +22,18 @@ export class LocalCharacter {
   readonly root = new THREE.Group();
   private character: SkinnedCharacter | null = null;
   private look: NpcLook;
+  private seed = 1;
 
   constructor(identity: PlayerIdentity | undefined) {
     this.root.name = 'localCharacter';
     this.look = lookFromIdentity(identity);
-    void preloadCharacter('soldier').then(() => this.attach());
+    this.seed = identity?.id ?? 1;
+    void preloadAllCharacters().then(() => this.attach());
   }
 
   setIdentity(identity: PlayerIdentity): void {
     this.look = lookFromIdentity(identity);
+    this.seed = identity.id;
     this.character?.dispose();
     this.character = null;
     this.attach();
@@ -58,7 +62,7 @@ export class LocalCharacter {
 
   private attach(): void {
     if (this.character) return;
-    const inst = instantiateCharacter('soldier', this.look);
+    const inst = instantiateCharacter(kindFromSeed(this.seed), this.look);
     if (!inst) return;
     inst.setFirstPersonBody(false);
     setLayerRecursive(inst.root, LAYER_LOCAL_BODY);
@@ -87,5 +91,7 @@ export function lookFromIdentity(identity: PlayerIdentity | undefined): NpcLook 
     hairStyle: 0,
     gltfTint: shirt,
     heightScale: 1,
+    animRate: 1,
+    walkVariant: 0,
   };
 }
