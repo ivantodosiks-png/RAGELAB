@@ -189,6 +189,9 @@ export class ProfileService {
     }
     return null;
   }
+
+  /** Server browser data, mirrored into Supabase by the game server. */
+  async activeServers(): Promise<RoomSummary[]> {
     if (!supabaseConfigured()) return [];
     const { data, error } = await supabase().rpc('active_servers', { p_stale_seconds: 45 });
     if (error || !data) return [];
