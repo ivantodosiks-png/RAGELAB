@@ -1,0 +1,36 @@
+{
+  "name": "ragelab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RAGELAB - browser multiplayer sandbox FPS (Three.js + Rapier + authoritative Node server + Supabase)",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev --workspace @ragelab/server",
+    "dev:client": "npm run dev --workspace @ragelab/client",
+    "build": "npm run build --workspace @ragelab/shared && npm run build --workspace @ragelab/server && npm run build --workspace @ragelab/client",
+    "build:shared": "npm run build --workspace @ragelab/shared",
+    "build:server": "npm run build --workspace @ragelab/server",
+    "build:client": "npm run build --workspace @ragelab/client",
+    "start": "npm run start --workspace @ragelab/server",
+    "preview": "npm run preview --workspace @ragelab/client",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:introspect": "node scripts/introspect-db.mjs",
+    "clean": "node -e \"const {rmSync}=require('fs');for(const p of ['shared/dist','server/dist','client/dist'])rmSync(p,{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "dotenv": "^16.4.7",
+    "pg": "^8.13.1",
+    "typescript": "^5.7.3"
+  }
+}

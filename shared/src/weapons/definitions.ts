@@ -1,0 +1,317 @@
+import { DamageFalloff, FireMode, type WeaponDefinition, type WeaponId } from '../types/weapons';
+
+const DEG = Math.PI / 180;
+
+/**
+ * Every weapon in the game is a row in this table. Adding a weapon requires no
+ * code changes anywhere else: the server validates against these numbers and
+ * the client builds its view model and audio from the same record.
+ */
+export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
+  pistol: {
+    id: 'pistol',
+    name: 'RL-9 Sidearm',
+    slot: 1,
+    fireMode: FireMode.Single,
+    burstCount: 1,
+    rpm: 380,
+    damage: 26,
+    pellets: 1,
+    magazineSize: 15,
+    reserveAmmo: 75,
+    reloadMs: 1300,
+    reloadEmptyMs: 1650,
+    range: 90,
+    falloff: DamageFalloff.Linear,
+    falloffMinMultiplier: 0.55,
+    falloffStart: 22,
+    projectileSpeed: 0,
+    impactImpulse: 3.5,
+    moveSpeedMultiplier: 1.0,
+    aimMoveSpeedMultiplier: 0.62,
+    aimFovMultiplier: 0.82,
+    aimTimeMs: 140,
+    equipMs: 320,
+    recoil: {
+      vertical: 0.9 * DEG,
+      horizontal: 0.35 * DEG,
+      recovery: 9,
+      cameraPunch: 0.55,
+      viewKick: 0.026,
+    },
+    spread: {
+      base: 0.35 * DEG,
+      perShot: 0.55 * DEG,
+      max: 4.5 * DEG,
+      recovery: 7 * DEG,
+      moveMultiplier: 2.1,
+      airMultiplier: 3.0,
+      aimMultiplier: 0.45,
+      crouchMultiplier: 0.75,
+    },
+    audio: { fire: 'pistol', reload: 'reload_light', pitch: 1.0, maxDistance: 90 },
+    visual: {
+      color: 0x2a2d33,
+      accentColor: 0x8a9099,
+      size: [0.09, 0.15, 0.28],
+      muzzleFlashScale: 0.7,
+      tracerWidth: 0.018,
+      tracerColor: 0xffd48a,
+      shellEjection: true,
+      hipPosition: [0.19, -0.19, -0.4],
+      aimPosition: [0.0, -0.1, -0.3],
+    },
+  },
+
+  smg: {
+    id: 'smg',
+    name: 'VX-4 Ripper',
+    slot: 2,
+    fireMode: FireMode.Auto,
+    burstCount: 1,
+    rpm: 900,
+    damage: 18,
+    pellets: 1,
+    magazineSize: 32,
+    reserveAmmo: 160,
+    reloadMs: 1750,
+    reloadEmptyMs: 2100,
+    range: 70,
+    falloff: DamageFalloff.Linear,
+    falloffMinMultiplier: 0.42,
+    falloffStart: 14,
+    projectileSpeed: 0,
+    impactImpulse: 2.8,
+    moveSpeedMultiplier: 0.97,
+    aimMoveSpeedMultiplier: 0.6,
+    aimFovMultiplier: 0.85,
+    aimTimeMs: 150,
+    equipMs: 380,
+    recoil: {
+      vertical: 0.55 * DEG,
+      horizontal: 0.42 * DEG,
+      recovery: 11,
+      cameraPunch: 0.32,
+      viewKick: 0.018,
+    },
+    spread: {
+      base: 0.6 * DEG,
+      perShot: 0.34 * DEG,
+      max: 6.5 * DEG,
+      recovery: 9 * DEG,
+      moveMultiplier: 1.7,
+      airMultiplier: 2.6,
+      aimMultiplier: 0.55,
+      crouchMultiplier: 0.8,
+    },
+    audio: { fire: 'smg', reload: 'reload_light', pitch: 1.18, maxDistance: 100 },
+    visual: {
+      color: 0x24272c,
+      accentColor: 0xff7a3d,
+      size: [0.1, 0.18, 0.44],
+      muzzleFlashScale: 0.8,
+      tracerWidth: 0.016,
+      tracerColor: 0xffc46a,
+      shellEjection: true,
+      hipPosition: [0.2, -0.2, -0.48],
+      aimPosition: [0.0, -0.11, -0.34],
+    },
+  },
+
+  rifle: {
+    id: 'rifle',
+    name: 'AR-70 Vanguard',
+    slot: 3,
+    fireMode: FireMode.Auto,
+    burstCount: 1,
+    rpm: 640,
+    damage: 27,
+    pellets: 1,
+    magazineSize: 30,
+    reserveAmmo: 150,
+    reloadMs: 2050,
+    reloadEmptyMs: 2500,
+    range: 140,
+    falloff: DamageFalloff.Linear,
+    falloffMinMultiplier: 0.68,
+    falloffStart: 40,
+    projectileSpeed: 0,
+    impactImpulse: 4.5,
+    moveSpeedMultiplier: 0.94,
+    aimMoveSpeedMultiplier: 0.55,
+    aimFovMultiplier: 0.7,
+    aimTimeMs: 190,
+    equipMs: 450,
+    recoil: {
+      vertical: 0.78 * DEG,
+      horizontal: 0.3 * DEG,
+      recovery: 8.5,
+      cameraPunch: 0.45,
+      viewKick: 0.024,
+    },
+    spread: {
+      base: 0.28 * DEG,
+      perShot: 0.4 * DEG,
+      max: 5.5 * DEG,
+      recovery: 7.5 * DEG,
+      moveMultiplier: 2.4,
+      airMultiplier: 3.4,
+      aimMultiplier: 0.35,
+      crouchMultiplier: 0.7,
+    },
+    audio: { fire: 'rifle', reload: 'reload_heavy', pitch: 0.94, maxDistance: 140 },
+    visual: {
+      color: 0x1f2328,
+      accentColor: 0x4d5560,
+      size: [0.1, 0.2, 0.62],
+      muzzleFlashScale: 1.0,
+      tracerWidth: 0.02,
+      tracerColor: 0xffe0a0,
+      shellEjection: true,
+      hipPosition: [0.21, -0.21, -0.55],
+      aimPosition: [0.0, -0.115, -0.38],
+    },
+  },
+
+  shotgun: {
+    id: 'shotgun',
+    name: 'BR-12 Breaker',
+    slot: 4,
+    fireMode: FireMode.Single,
+    burstCount: 1,
+    rpm: 78,
+    damage: 13,
+    pellets: 9,
+    magazineSize: 6,
+    reserveAmmo: 36,
+    reloadMs: 2600,
+    reloadEmptyMs: 3200,
+    range: 42,
+    falloff: DamageFalloff.Linear,
+    falloffMinMultiplier: 0.18,
+    falloffStart: 7,
+    projectileSpeed: 0,
+    impactImpulse: 9,
+    moveSpeedMultiplier: 0.92,
+    aimMoveSpeedMultiplier: 0.55,
+    aimFovMultiplier: 0.9,
+    aimTimeMs: 220,
+    equipMs: 520,
+    recoil: {
+      vertical: 3.4 * DEG,
+      horizontal: 0.7 * DEG,
+      recovery: 6,
+      cameraPunch: 1.6,
+      viewKick: 0.07,
+    },
+    spread: {
+      base: 3.6 * DEG,
+      perShot: 0.5 * DEG,
+      max: 6.5 * DEG,
+      recovery: 6 * DEG,
+      moveMultiplier: 1.25,
+      airMultiplier: 1.5,
+      aimMultiplier: 0.72,
+      crouchMultiplier: 0.9,
+    },
+    audio: { fire: 'shotgun', reload: 'reload_shell', pitch: 0.8, maxDistance: 160 },
+    visual: {
+      color: 0x3a2a1e,
+      accentColor: 0x9a6b3f,
+      size: [0.11, 0.19, 0.7],
+      muzzleFlashScale: 1.5,
+      tracerWidth: 0.014,
+      tracerColor: 0xffb066,
+      shellEjection: true,
+      hipPosition: [0.22, -0.2, -0.58],
+      aimPosition: [0.0, -0.12, -0.42],
+    },
+  },
+
+  sniper: {
+    id: 'sniper',
+    name: 'LR-88 Verdict',
+    slot: 5,
+    fireMode: FireMode.BoltAction,
+    burstCount: 1,
+    rpm: 48,
+    damage: 92,
+    pellets: 1,
+    magazineSize: 5,
+    reserveAmmo: 25,
+    reloadMs: 3000,
+    reloadEmptyMs: 3400,
+    range: 300,
+    falloff: DamageFalloff.None,
+    falloffMinMultiplier: 1,
+    falloffStart: 300,
+    projectileSpeed: 0,
+    impactImpulse: 14,
+    moveSpeedMultiplier: 0.88,
+    aimMoveSpeedMultiplier: 0.4,
+    aimFovMultiplier: 0.28,
+    aimTimeMs: 300,
+    equipMs: 620,
+    recoil: {
+      vertical: 4.2 * DEG,
+      horizontal: 0.5 * DEG,
+      recovery: 5,
+      cameraPunch: 2.2,
+      viewKick: 0.09,
+    },
+    spread: {
+      base: 0.05 * DEG,
+      perShot: 2.5 * DEG,
+      max: 8 * DEG,
+      recovery: 5 * DEG,
+      moveMultiplier: 12,
+      airMultiplier: 20,
+      aimMultiplier: 0.02,
+      crouchMultiplier: 0.5,
+    },
+    audio: { fire: 'sniper', reload: 'reload_heavy', pitch: 0.72, maxDistance: 260 },
+    visual: {
+      color: 0x1a1d21,
+      accentColor: 0x2f6f4f,
+      size: [0.09, 0.16, 0.9],
+      muzzleFlashScale: 1.3,
+      tracerWidth: 0.024,
+      tracerColor: 0xbfe6ff,
+      shellEjection: true,
+      hipPosition: [0.23, -0.19, -0.62],
+      aimPosition: [0.0, -0.1, -0.3],
+    },
+  },
+};
+
+export const WEAPON_IDS: WeaponId[] = Object.keys(WEAPON_DEFINITIONS);
+
+/** The loadout every player spawns with, in slot order. */
+export const DEFAULT_LOADOUT: WeaponId[] = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper'];
+
+export function getWeapon(id: WeaponId): WeaponDefinition {
+  const def = WEAPON_DEFINITIONS[id];
+  if (!def) throw new Error(`Unknown weapon id: ${id}`);
+  return def;
+}
+
+export function isWeaponId(id: unknown): id is WeaponId {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(WEAPON_DEFINITIONS, id);
+}
+
+/**
+ * Weapons are sent in snapshots as a single byte. The index is derived from the
+ * definition order so it stays stable as long as the table order is stable.
+ */
+export const WEAPON_INDEX: Record<WeaponId, number> = Object.fromEntries(
+  WEAPON_IDS.map((id, i) => [id, i]),
+);
+export const WEAPON_BY_INDEX: WeaponId[] = WEAPON_IDS.slice();
+
+export function weaponIndex(id: WeaponId): number {
+  return WEAPON_INDEX[id] ?? 0;
+}
+
+export function weaponFromIndex(index: number): WeaponId {
+  return WEAPON_BY_INDEX[index] ?? WEAPON_BY_INDEX[0]!;
+}

@@ -1,0 +1,287 @@
+import type { AudioSettings, SurfaceId, Vec3 } from '@ragelab/shared';
+import { synthesizeBank, type SoundKey } from './synth';
+
+export interface PlayOptions {
+  /** World position; omit for a 2D (UI / self) sound. */
+  position?: Vec3;
+  volume?: number;
+  /** Playback rate; also shifts pitch. */
+  rate?: number;
+  /** Random pitch variation, +-this fraction. */
+  variation?: number;
+  maxDistance?: number;
+  bus?: BusName;
+  loop?: boolean;
+}
+
+export type BusName = 'effects' | 'music' | 'ui' | 'voice';
+
+interface ActiveLoop {
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+}
+
+const MAX_CONCURRENT = 48;
+
+/**
+ * Web Audio front end.
+ *
+ * All buffers are synthesised on first use (see synth.ts) and cached. Spatial
+ * sounds go through a PannerNode with an inverse distance model, everything
+ * else goes straight to its bus. Sources are fire-and-forget: the browser
+ * reclaims them on `ended`, and we cap concurrency so a shotgun volley in a
+ * crowded room cannot stall the audio thread.
+ */
+export class AudioEngine {
+  private context: AudioContext | null = null;
+  private readonly buffers = new Map<SoundKey, AudioBuffer>();
+  private raw: Map<SoundKey, Float32Array> | null = null;
+
+  private masterGain!: GainNode;
+  private readonly busGains = new Map<BusName, GainNode>();
+  private compressor!: DynamicsCompressorNode;
+
+  private settings: AudioSettings;
+  private activeCount = 0;
+  private ambienceLoop: ActiveLoop | null = null;
+  private muted = false;
+
+  /** Last positions, so we can compute the listener velocity for doppler. */
+  private readonly lastListenerPos = { x: 0, y: 0, z: 0 };
+
+  constructor(settings: AudioSettings) {
+    this.settings = settings;
+  }
+
+  get isReady(): boolean {
+    return this.context !== null && this.context.state === 'running';
+  }
+
+  /**
+   * Must be called from a user gesture. Building the bank takes a few hundred
+   * milliseconds, so it happens once here rather than on the first gunshot.
+   */
+  async resume(): Promise<void> {
+    if (!this.context) {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.context = new Ctor({ latencyHint: 'interactive' });
+      this.buildGraph();
+      this.raw = synthesizeBank(this.context.sampleRate);
+    }
+    if (this.context.state === 'suspended') await this.context.resume();
+  }
+
+  private buildGraph(): void {
+    const ctx = this.context!;
+
+    this.compressor = ctx.createDynamicsCompressor();
+    this.compressor.threshold.value = -14;
+    this.compressor.knee.value = 22;
+    this.compressor.ratio.value = 8;
+    this.compressor.attack.value = 0.004;
+    this.compressor.release.value = 0.22;
+
+    this.masterGain = ctx.createGain();
+    this.compressor.connect(this.masterGain);
+    this.masterGain.connect(ctx.destination);
+
+    for (const bus of ['effects', 'music', 'ui', 'voice'] as BusName[]) {
+      const gain = ctx.createGain();
+      gain.connect(this.compressor);
+      this.busGains.set(bus, gain);
+    }
+
+    const listener = ctx.listener;
+    if (listener.forwardX) {
+      listener.forwardX.value = 0;
+      listener.forwardY.value = 0;
+      listener.forwardZ.value = -1;
+      listener.upX.value = 0;
+      listener.upY.value = 1;
+      listener.upZ.value = 0;
+    }
+
+    this.applySettings(this.settings);
+  }
+
+  applySettings(settings: AudioSettings): void {
+    this.settings = settings;
+    if (!this.context) return;
+    const master = this.muted ? 0 : settings.master;
+    this.masterGain.gain.value = master;
+    this.busGains.get('effects')!.gain.value = settings.effects;
+    this.busGains.get('music')!.gain.value = settings.music;
+    this.busGains.get('ui')!.gain.value = settings.ui;
+    this.busGains.get('voice')!.gain.value = settings.voice;
+
+    if (settings.ambience > 0) this.startAmbience();
+    else this.stopAmbience();
+    if (this.ambienceLoop) this.ambienceLoop.gain.gain.value = settings.ambience * 0.5;
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (this.context) this.masterGain.gain.value = muted ? 0 : this.settings.master;
+  }
+
+  private buffer(key: SoundKey): AudioBuffer | null {
+    const ctx = this.context;
+    if (!ctx || !this.raw) return null;
+    const cached = this.buffers.get(key);
+    if (cached) return cached;
+    const data = this.raw.get(key);
+    if (!data) return null;
+    const buffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+    buffer.getChannelData(0).set(data);
+    this.buffers.set(key, buffer);
+    return buffer;
+  }
+
+  /** Move the listener; call once per frame with the camera transform. */
+  updateListener(position: Vec3, forward: Vec3, up: Vec3, dtSec: number): void {
+    const ctx = this.context;
+    if (!ctx) return;
+    const listener = ctx.listener;
+    const t = ctx.currentTime;
+
+    if (listener.positionX) {
+      listener.positionX.setTargetAtTime(position.x, t, 0.01);
+      listener.positionY.setTargetAtTime(position.y, t, 0.01);
+      listener.positionZ.setTargetAtTime(position.z, t, 0.01);
+      listener.forwardX.setTargetAtTime(forward.x, t, 0.01);
+      listener.forwardY.setTargetAtTime(forward.y, t, 0.01);
+      listener.forwardZ.setTargetAtTime(forward.z, t, 0.01);
+      listener.upX.setTargetAtTime(up.x, t, 0.01);
+      listener.upY.setTargetAtTime(up.y, t, 0.01);
+      listener.upZ.setTargetAtTime(up.z, t, 0.01);
+    } else {
+      // Safari still uses the deprecated API.
+      listener.setPosition?.(position.x, position.y, position.z);
+      listener.setOrientation?.(forward.x, forward.y, forward.z, up.x, up.y, up.z);
+    }
+
+    void dtSec;
+    this.lastListenerPos.x = position.x;
+    this.lastListenerPos.y = position.y;
+    this.lastListenerPos.z = position.z;
+  }
+
+  play(key: SoundKey, options: PlayOptions = {}): void {
+    const ctx = this.context;
+    if (!ctx || ctx.state !== 'running') return;
+    if (this.activeCount >= MAX_CONCURRENT) return;
+    const buffer = this.buffer(key);
+    if (!buffer) return;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const variation = options.variation ?? 0;
+    const rate = (options.rate ?? 1) * (1 + (Math.random() * 2 - 1) * variation);
+    source.playbackRate.value = Math.max(0.05, rate);
+    source.loop = options.loop ?? false;
+
+    const gain = ctx.createGain();
+    gain.gain.value = options.volume ?? 1;
+
+    const bus = this.busGains.get(options.bus ?? 'effects')!;
+
+    if (options.position) {
+      const panner = ctx.createPanner();
+      panner.panningModel = 'HRTF';
+      panner.distanceModel = 'inverse';
+      panner.refDistance = 2.5;
+      panner.maxDistance = options.maxDistance ?? 120;
+      panner.rolloffFactor = 1.1;
+      if (panner.positionX) {
+        panner.positionX.value = options.position.x;
+        panner.positionY.value = options.position.y;
+        panner.positionZ.value = options.position.z;
+      } else {
+        panner.setPosition?.(options.position.x, options.position.y, options.position.z);
+      }
+      source.connect(gain).connect(panner).connect(bus);
+    } else {
+      source.connect(gain).connect(bus);
+    }
+
+    this.activeCount += 1;
+    source.onended = () => {
+      this.activeCount -= 1;
+      source.disconnect();
+      gain.disconnect();
+    };
+    source.start();
+  }
+
+  /** Distance-attenuated one-shot helper used by the game event handler. */
+  playAt(key: SoundKey, position: Vec3, volume = 1, maxDistance = 120, variation = 0.06): void {
+    this.play(key, { position, volume, maxDistance, variation });
+  }
+
+  playUi(key: SoundKey, volume = 0.6): void {
+    this.play(key, { bus: 'ui', volume });
+  }
+
+  startAmbience(): void {
+    const ctx = this.context;
+    if (!ctx || this.ambienceLoop) return;
+    const buffer = this.buffer('ambience');
+    if (!buffer) return;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const gain = ctx.createGain();
+    gain.gain.value = this.settings.ambience * 0.5;
+    source.connect(gain).connect(this.busGains.get('music')!);
+    source.start();
+    this.ambienceLoop = { source, gain };
+  }
+
+  stopAmbience(): void {
+    if (!this.ambienceLoop) return;
+    try {
+      this.ambienceLoop.source.stop();
+    } catch {
+      // Already stopped.
+    }
+    this.ambienceLoop.source.disconnect();
+    this.ambienceLoop.gain.disconnect();
+    this.ambienceLoop = null;
+  }
+
+  dispose(): void {
+    this.stopAmbience();
+    void this.context?.close();
+    this.context = null;
+    this.buffers.clear();
+    this.raw = null;
+  }
+}
+
+const FOOTSTEP_BY_SURFACE: Record<SurfaceId, SoundKey> = {
+  concrete: 'footstep_concrete',
+  metal: 'footstep_metal',
+  wood: 'footstep_wood',
+  sand: 'footstep_dirt',
+  glass: 'footstep_metal',
+  rubber: 'footstep_dirt',
+  grass: 'footstep_grass',
+};
+
+const IMPACT_BY_SURFACE: Record<SurfaceId, SoundKey> = {
+  concrete: 'impact_concrete',
+  metal: 'impact_metal',
+  wood: 'impact_wood',
+  sand: 'impact_dirt',
+  glass: 'impact_glass',
+  rubber: 'impact_dirt',
+  grass: 'impact_grass',
+};
+
+export function footstepSound(surface: SurfaceId): SoundKey {
+  return FOOTSTEP_BY_SURFACE[surface] ?? 'footstep_concrete';
+}
+
+export function impactSound(surface: SurfaceId): SoundKey {
+  return IMPACT_BY_SURFACE[surface] ?? 'impact_concrete';
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@ragelab/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Types, constants, network protocol, weapon/map data and shared simulation for RAGELAB",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "typescript": "^5.7.3"
+  }
+}
