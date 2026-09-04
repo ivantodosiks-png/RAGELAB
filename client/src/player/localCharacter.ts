@@ -62,8 +62,11 @@ export class LocalCharacter {
 
   private attach(): void {
     if (this.character) return;
-    const inst = instantiateCharacter(kindFromSeed(this.seed), this.look);
-    if (!inst) return;
+    const preferred = kindFromSeed(this.seed);
+    const inst =
+      instantiateCharacter(preferred, this.look) ??
+      instantiateCharacter(preferred === 'man' ? 'woman' : 'man', this.look);
+    if (!inst || !inst.ready) return;
     inst.setFirstPersonBody(false);
     setLayerRecursive(inst.root, LAYER_LOCAL_BODY);
     this.character = inst;

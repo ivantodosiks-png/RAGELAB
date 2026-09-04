@@ -65,7 +65,10 @@ export function randomCharacterKind(rng: () => number): CharacterKind {
 }
 
 export function kindFromSeed(seed: number): CharacterKind {
-  const i = ((seed % CHARACTER_KINDS.length) + CHARACTER_KINDS.length) % CHARACTER_KINDS.length;
+  // Player id 1 (lobby host) previously always mapped to `woman`, whose Mixamo
+  // bind pose was frustum-culled and looked "invisible". Start at man, then
+  // alternate so both models still get used.
+  const i = ((Math.abs(seed) - 1) % CHARACTER_KINDS.length + CHARACTER_KINDS.length) % CHARACTER_KINDS.length;
   return CHARACTER_KINDS[i]!;
 }
 
@@ -126,7 +129,9 @@ export class SkinnedCharacter {
       if (mesh.isMesh) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        mesh.frustumCulled = true;
+        // Skinned bind-pose bounds drift from animated poses — culling hides
+        // players (especially Mixamo Michelle / woman) for remote viewers.
+        mesh.frustumCulled = false;
         const src = mesh.material;
         const list = Array.isArray(src) ? src : [src];
         const clones = list.map((mat) => {

@@ -284,8 +284,15 @@ export class PlayerAvatar {
 
   private attachSkinned(identity: PlayerIdentity | undefined): void {
     if (this.skinned) return;
-    const inst = instantiateCharacter(kindFromSeed(identity?.id ?? this.playerId), lookFromIdentity(identity));
-    if (!inst) return;
+    const look = lookFromIdentity(identity);
+    const preferred = kindFromSeed(identity?.id ?? this.playerId);
+    const inst =
+      instantiateCharacter(preferred, look) ??
+      instantiateCharacter(preferred === 'man' ? 'woman' : 'man', look);
+    if (!inst || !inst.ready) return;
+    inst.root.traverse((obj) => {
+      obj.layers.set(0);
+    });
     this.skinned = inst;
     this.root.add(inst.root);
     this.weaponHolder.removeFromParent();
