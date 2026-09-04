@@ -53,7 +53,7 @@ export class MapMeshBuilder {
       transparent: def.transparent ?? false,
       opacity: def.opacity ?? 1,
       side: def.transparent ? THREE.DoubleSide : THREE.FrontSide,
-      envMapIntensity: 0.35,
+      envMapIntensity: 0.45,
     });
     if (def.emissive !== undefined) {
       material.emissive = new THREE.Color(def.emissive);
@@ -74,7 +74,9 @@ export class MapMeshBuilder {
       material.map = cloneMap(pbr.map);
       material.roughnessMap = cloneMap(pbr.roughnessMap);
       material.normalMap = cloneMap(pbr.normalMap);
-      material.normalScale = new THREE.Vector2(0.72, 0.72);
+      material.aoMap = cloneMap(pbr.aoMap);
+      material.aoMapIntensity = 1;
+      material.normalScale = new THREE.Vector2(0.95, 0.95);
     }
     if (def.decal) {
       material.polygonOffset = true;
@@ -152,6 +154,8 @@ export class MapMeshBuilder {
 
     const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
     const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 18, 1);
+    boxGeometry.setAttribute('uv2', boxGeometry.attributes.uv!.clone());
+    cylinderGeometry.setAttribute('uv2', cylinderGeometry.attributes.uv!.clone());
     boxGeometry.computeTangents();
     cylinderGeometry.computeTangents();
     this.disposables.push(boxGeometry, cylinderGeometry);
@@ -292,6 +296,9 @@ export function propGeometry(kind: PropKind): THREE.BufferGeometry {
       geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
       break;
   }
+  if (geometry.attributes.uv) {
+    geometry.setAttribute('uv2', geometry.attributes.uv.clone());
+  }
   if (shape.type !== 'sphere') geometry.computeTangents();
   return geometry;
 }
@@ -302,7 +309,7 @@ export function propMaterial(kind: PropKind): THREE.MeshStandardMaterial {
     color: def.color,
     roughness: def.roughness,
     metalness: def.metalness,
-    envMapIntensity: 0.4,
+    envMapIntensity: 0.45,
   });
   if (def.emissive !== undefined) {
     material.emissive = new THREE.Color(def.emissive);
@@ -322,7 +329,9 @@ export function propMaterial(kind: PropKind): THREE.MeshStandardMaterial {
     material.map = cloneMap(pbr.map);
     material.roughnessMap = cloneMap(pbr.roughnessMap);
     material.normalMap = cloneMap(pbr.normalMap);
-    material.normalScale = new THREE.Vector2(0.5, 0.5);
+    material.aoMap = cloneMap(pbr.aoMap);
+    material.aoMapIntensity = 1;
+    material.normalScale = new THREE.Vector2(0.95, 0.95);
   }
   return material;
 }

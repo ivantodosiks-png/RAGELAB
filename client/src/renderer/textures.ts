@@ -16,12 +16,13 @@ export type ProceduralTextureKind =
 
 const cache = new Map<string, THREE.Texture>();
 const pbrCache = new Map<string, ProceduralPbrMaps>();
-const SIZE = 512;
+const SIZE = 1024;
 
 export interface ProceduralPbrMaps {
   map: THREE.Texture;
   roughnessMap: THREE.Texture;
   normalMap: THREE.Texture;
+  aoMap: THREE.Texture;
 }
 
 /**
@@ -41,11 +42,13 @@ export function proceduralPbr(kind: ProceduralTextureKind): ProceduralPbrMaps {
   const pixels = albedo.getContext('2d')!.getImageData(0, 0, SIZE, SIZE);
   const roughness = imageDataCanvas(roughnessFromAlbedo(pixels, kind));
   const normal = imageDataCanvas(normalFromAlbedo(pixels, kind));
+  const ao = imageDataCanvas(aoFromAlbedo(pixels));
 
   const maps: ProceduralPbrMaps = {
     map: canvasTexture(albedo, THREE.SRGBColorSpace),
     roughnessMap: canvasTexture(roughness, THREE.NoColorSpace),
     normalMap: canvasTexture(normal, THREE.NoColorSpace),
+    aoMap: canvasTexture(ao, THREE.NoColorSpace),
   };
   pbrCache.set(kind, maps);
   cache.set(kind, maps.map);
@@ -110,7 +113,8 @@ function canvasTexture(canvas: HTMLCanvasElement, colorSpace: THREE.ColorSpace):
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.colorSpace = colorSpace;
-  texture.anisotropy = 8;
+  texture.anisotropy = 16;
+  texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.needsUpdate = true;
@@ -146,17 +150,17 @@ const ROUGHNESS_VARIATION: Record<ProceduralTextureKind, number> = {
 };
 
 const NORMAL_STRENGTH: Record<ProceduralTextureKind, number> = {
-  concrete: 1.8,
+  concrete: 2.8,
   metal: 0.7,
-  wood: 1.6,
+  wood: 1.8,
   crate: 1.9,
   grid: 1.4,
-  sand: 2.2,
+  sand: 2.4,
   hazard: 0.9,
-  asphalt: 1.5,
-  grass: 2.6,
-  brick: 3.1,
-  pavement: 1.7,
+  asphalt: 2.6,
+  grass: 3.8,
+  brick: 4.2,
+  pavement: 2.9,
 };
 
 function roughnessFromAlbedo(src: ImageData, kind: ProceduralTextureKind): ImageData {
@@ -206,6 +210,85 @@ function normalFromAlbedo(src: ImageData, kind: ProceduralTextureKind): ImageDat
   return out;
 }
 
+/** Cavity-style AO from local albedo contrast (darker recesses, brighter flats). */
+function aoFromAlbedo(src: ImageData): ImageData {
+  const w = src.width;
+  const h = src.height;
+  const lum = new Float32Array(w * h);
+  for (let i = 0, p = 0; i < src.data.length; i += 4, p++) {
+    lum[p] = (src.data[i]! * 0.3 + src.data[i + 1]! * 0.59 + src.data[i + 2]! * 0.11) / 255;
+  }
+  const sample = (x: number, y: number): number => {
+    const xx = ((x % w) + w) % w;
+    const yy = ((y % h) + h) % h;
+    return lum[yy * w + xx]!;
+  };
+  const out = new ImageData(w, h);
+  const radius = 3;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const center = sample(x, y);
+      let sum = 0;
+      let count = 0;
+      for (let oy = -radius; oy <= radius; oy++) {
+        for (let ox = -radius; ox <= radius; ox++) {
+          if (ox === 0 && oy === 0) continue;
+          sum += sample(x + ox, y + oy);
+          count++;
+        }
+      }
+      const avg = sum / count;
+      // Recesses (darker than neighborhood) get more occlusion.
+      const cavity = Math.max(0, avg - center);
+      const ao = clamp255((1 - cavity * 2.4) * 220 + 35);
+      const i = (y * w + x) * 4;
+      out.data[i] = ao;
+      out.data[i + 1] = ao;
+      out.data[i + 2] = ao;
+      out.data[i + 3] = 255;
+    }
+  }
+  return out;
+}
+
+function fade(t: number): number {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/** Deterministic value noise in [0, 1]. */
+function valueNoise(x: number, y: number, seed: number): number {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const xf = x - xi;
+  const yf = y - yi;
+  const hash = (ix: number, iy: number): number => {
+    const n = Math.imul(((ix * 374761393) ^ (iy * 668265263) ^ seed) >>> 0, 0x27d4eb2d);
+    return ((n ^ (n >>> 15)) >>> 0) / 4294967296;
+  };
+  const u = fade(xf);
+  const v = fade(yf);
+  return lerp(lerp(hash(xi, yi), hash(xi + 1, yi), u), lerp(hash(xi, yi + 1), hash(xi + 1, yi + 1), u), v);
+}
+
+/** Fractal Brownian motion — layered value noise. */
+function fbm(x: number, y: number, seed: number, octaves = 4): number {
+  let value = 0;
+  let amp = 0.5;
+  let freq = 1;
+  let norm = 0;
+  for (let i = 0; i < octaves; i++) {
+    value += valueNoise(x * freq, y * freq, seed + i * 1013) * amp;
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return value / norm;
+}
+
 function noiseFill(
   ctx: CanvasRenderingContext2D,
   base: [number, number, number],
@@ -225,97 +308,198 @@ function noiseFill(
   ctx.putImageData(image, 0, 0);
 }
 
+/** FBM-based base fill for richer large-scale color variation. */
+function fbmFill(
+  ctx: CanvasRenderingContext2D,
+  base: [number, number, number],
+  amplitude: number,
+  seed: number,
+  scale = 0.012,
+  octaves = 5,
+): void {
+  const image = ctx.createImageData(SIZE, SIZE);
+  const data = image.data;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const n = (fbm(x * scale, y * scale, seed, octaves) - 0.5) * amplitude;
+      const i = (y * SIZE + x) * 4;
+      data[i] = clamp255(base[0] + n);
+      data[i + 1] = clamp255(base[1] + n);
+      data[i + 2] = clamp255(base[2] + n);
+      data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
 function clamp255(v: number): number {
   return v < 0 ? 0 : v > 255 ? 255 : v | 0;
 }
 
 function drawConcrete(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [214, 214, 214], 40, 12345);
+  fbmFill(ctx, [196, 198, 200], 38, 12345, 0.008, 5);
+  const image = ctx.getImageData(0, 0, SIZE, SIZE);
+  const data = image.data;
+  // Fine aggregate + pore noise layered on FBM.
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const grain = (valueNoise(x * 0.35, y * 0.35, 901) - 0.5) * 28;
+      const pore = fbm(x * 0.06, y * 0.06, 333, 3);
+      const i = (y * SIZE + x) * 4;
+      const darken = pore < 0.32 ? (0.32 - pore) * 55 : 0;
+      data[i] = clamp255(data[i]! + grain - darken);
+      data[i + 1] = clamp255(data[i + 1]! + grain - darken);
+      data[i + 2] = clamp255(data[i + 2]! + grain - darken * 0.9);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
   const rand = mulberry32(777);
-  // Blotches + hairline cracks.
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 140; i++) {
     const x = rand() * SIZE;
     const y = rand() * SIZE;
-    const r = 4 + rand() * 26;
-    const shade = 150 + rand() * 60;
-    ctx.fillStyle = `rgba(${shade | 0},${shade | 0},${shade | 0},0.16)`;
+    const r = 6 + rand() * 36;
+    const shade = 140 + rand() * 70;
+    ctx.fillStyle = `rgba(${shade | 0},${shade | 0},${shade | 0},0.14)`;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.strokeStyle = 'rgba(90,90,90,0.35)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 12; i++) {
+  // Hairline cracks with slight branching.
+  ctx.strokeStyle = 'rgba(70,72,74,0.4)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 18; i++) {
     let x = rand() * SIZE;
     let y = rand() * SIZE;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    for (let s = 0; s < 8; s++) {
-      x += (rand() - 0.5) * 34;
-      y += (rand() - 0.5) * 34;
+    for (let s = 0; s < 12; s++) {
+      x += (rand() - 0.5) * 42;
+      y += (rand() - 0.5) * 42;
       ctx.lineTo(x, y);
     }
+    ctx.stroke();
+  }
+  // Soft formwork lines.
+  ctx.strokeStyle = 'rgba(120,122,124,0.18)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    const p = ((i + 0.5) / 4) * SIZE;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p + (rand() - 0.5) * 8, SIZE);
     ctx.stroke();
   }
 }
 
 function drawMetal(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [206, 210, 216], 18, 4242);
-  // Brushed streaks.
+  fbmFill(ctx, [198, 202, 208], 16, 4242, 0.02, 3);
   const rand = mulberry32(99);
-  ctx.globalAlpha = 0.22;
-  for (let i = 0; i < 340; i++) {
+  // Brushed streaks with slight vertical wobble.
+  ctx.globalAlpha = 0.28;
+  for (let i = 0; i < 520; i++) {
     const y = rand() * SIZE;
-    const shade = 130 + rand() * 100;
-    ctx.strokeStyle = `rgb(${shade | 0},${shade | 0},${(shade + 6) | 0})`;
-    ctx.lineWidth = rand() * 1.8;
+    const shade = 120 + rand() * 110;
+    ctx.strokeStyle = `rgb(${shade | 0},${shade | 0},${(shade + 8) | 0})`;
+    ctx.lineWidth = 0.6 + rand() * 1.6;
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(SIZE, y + (rand() - 0.5) * 3);
+    for (let x = 0; x <= SIZE; x += 48) {
+      ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 1.5 + (rand() - 0.5) * 2);
+    }
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
+  // Oxidation freckles.
+  for (let i = 0; i < 80; i++) {
+    const x = rand() * SIZE;
+    const y = rand() * SIZE;
+    const r = 2 + rand() * 10;
+    ctx.fillStyle = `rgba(${(90 + rand() * 40) | 0},${(70 + rand() * 30) | 0},${(50 + rand() * 20) | 0},0.18)`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Panel seams and rivets.
-  ctx.strokeStyle = 'rgba(70,74,80,0.75)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(2, 2, SIZE - 4, SIZE - 4);
-  ctx.fillStyle = 'rgba(210,214,220,0.6)';
-  for (const [x, y] of [
+  ctx.strokeStyle = 'rgba(55,58,64,0.8)';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(3, 3, SIZE - 6, SIZE - 6);
+  ctx.beginPath();
+  ctx.moveTo(SIZE / 2, 4);
+  ctx.lineTo(SIZE / 2, SIZE - 4);
+  ctx.moveTo(4, SIZE / 2);
+  ctx.lineTo(SIZE - 4, SIZE / 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(210,214,220,0.65)';
+  const rivets = [
     [14, 14],
     [SIZE - 14, 14],
     [14, SIZE - 14],
     [SIZE - 14, SIZE - 14],
-  ]) {
+    [SIZE / 2, 14],
+    [SIZE / 2, SIZE - 14],
+    [14, SIZE / 2],
+    [SIZE - 14, SIZE / 2],
+  ];
+  for (const [x, y] of rivets) {
     ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(40,42,48,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 }
 
 function drawWood(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [214, 176, 122], 18, 31337);
+  fbmFill(ctx, [186, 142, 92], 22, 31337, 0.015, 4);
+  const image = ctx.getImageData(0, 0, SIZE, SIZE);
+  const data = image.data;
+  // Grain rings via warped sine along Y.
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const warp = fbm(x * 0.004, y * 0.01, 88, 3) * 40;
+      const grain = Math.sin((y + warp) * 0.085) * 18 + Math.sin((y + warp) * 0.22) * 8;
+      const pore = valueNoise(x * 0.4, y * 0.08, 55) * 14;
+      const i = (y * SIZE + x) * 4;
+      data[i] = clamp255(data[i]! + grain - pore * 0.4);
+      data[i + 1] = clamp255(data[i + 1]! + grain * 0.75 - pore * 0.3);
+      data[i + 2] = clamp255(data[i + 2]! + grain * 0.45 - pore * 0.2);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
   const rand = mulberry32(5150);
-  for (let i = 0; i < 26; i++) {
-    const y = (i / 26) * SIZE + (rand() - 0.5) * 4;
-    ctx.strokeStyle = `rgba(${(120 + rand() * 40) | 0},${(88 + rand() * 30) | 0},${(56 + rand() * 20) | 0},0.5)`;
-    ctx.lineWidth = 1 + rand() * 3;
+  for (let i = 0; i < 32; i++) {
+    const y = (i / 32) * SIZE + (rand() - 0.5) * 6;
+    ctx.strokeStyle = `rgba(${(100 + rand() * 50) | 0},${(70 + rand() * 35) | 0},${(40 + rand() * 25) | 0},0.45)`;
+    ctx.lineWidth = 1 + rand() * 2.5;
     ctx.beginPath();
     ctx.moveTo(0, y);
-    for (let x = 0; x <= SIZE; x += 16) {
-      ctx.lineTo(x, y + Math.sin((x / SIZE) * Math.PI * 3 + i) * 3);
+    for (let x = 0; x <= SIZE; x += 12) {
+      ctx.lineTo(x, y + Math.sin((x / SIZE) * Math.PI * 4 + i) * 4 + (rand() - 0.5));
     }
     ctx.stroke();
   }
-  // Knots.
-  for (let i = 0; i < 3; i++) {
+  // Knots with concentric rings.
+  for (let i = 0; i < 5; i++) {
     const x = rand() * SIZE;
     const y = rand() * SIZE;
-    const grad = ctx.createRadialGradient(x, y, 1, x, y, 16);
-    grad.addColorStop(0, 'rgba(88,60,34,0.9)');
-    grad.addColorStop(1, 'rgba(88,60,34,0)');
+    const r = 10 + rand() * 18;
+    for (let ring = 0; ring < 4; ring++) {
+      const rr = r * (1 - ring * 0.2);
+      ctx.strokeStyle = `rgba(${(70 + ring * 12) | 0},${(48 + ring * 8) | 0},${(28 + ring * 4) | 0},${0.55 - ring * 0.1})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(x, y, rr * 1.3, rr * 0.7, rand() * 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    const grad = ctx.createRadialGradient(x, y, 1, x, y, r);
+    grad.addColorStop(0, 'rgba(70,46,26,0.85)');
+    grad.addColorStop(1, 'rgba(70,46,26,0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -367,12 +551,26 @@ function drawGrid(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawSand(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [224, 206, 168], 28, 2024);
+  fbmFill(ctx, [214, 192, 148], 32, 2024, 0.01, 5);
+  const image = ctx.getImageData(0, 0, SIZE, SIZE);
+  const data = image.data;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const ripple = Math.sin(x * 0.04 + fbm(x * 0.01, y * 0.01, 7, 2) * 6) * 10;
+      const grain = (valueNoise(x * 0.5, y * 0.5, 4004) - 0.5) * 30;
+      const dune = (fbm(x * 0.006, y * 0.012, 11, 3) - 0.5) * 22;
+      const i = (y * SIZE + x) * 4;
+      data[i] = clamp255(data[i]! + ripple + grain + dune);
+      data[i + 1] = clamp255(data[i + 1]! + ripple * 0.85 + grain + dune * 0.9);
+      data[i + 2] = clamp255(data[i + 2]! + ripple * 0.55 + grain * 0.7 + dune * 0.6);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
   const rand = mulberry32(4004);
-  for (let i = 0; i < 700; i++) {
+  for (let i = 0; i < 1200; i++) {
     const x = rand() * SIZE;
     const y = rand() * SIZE;
-    ctx.fillStyle = `rgba(${(150 + rand() * 60) | 0},${(130 + rand() * 50) | 0},${(96 + rand() * 40) | 0},0.5)`;
+    ctx.fillStyle = `rgba(${(140 + rand() * 70) | 0},${(120 + rand() * 55) | 0},${(80 + rand() * 45) | 0},0.45)`;
     ctx.fillRect(x, y, 1 + rand() * 2, 1 + rand() * 2);
   }
 }
@@ -405,88 +603,239 @@ function drawHazard(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawAsphalt(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [42, 44, 48], 22, 91001);
-  const rand = mulberry32(44);
-  for (let i = 0; i < 220; i++) {
-    ctx.fillStyle = `rgba(${(62 + rand() * 48) | 0},${(64 + rand() * 48) | 0},${(68 + rand() * 48) | 0},0.3)`;
-    ctx.fillRect(rand() * SIZE, rand() * SIZE, 2 + rand() * 12, 1 + rand() * 5);
+  fbmFill(ctx, [38, 40, 44], 28, 91001, 0.009, 5);
+  const image = ctx.getImageData(0, 0, SIZE, SIZE);
+  const data = image.data;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const agg = valueNoise(x * 0.45, y * 0.45, 44);
+      const patch = fbm(x * 0.02, y * 0.02, 910, 3);
+      const i = (y * SIZE + x) * 4;
+      // Light aggregate flecks.
+      const fleck = agg > 0.72 ? (agg - 0.72) * 120 : agg < 0.18 ? -(0.18 - agg) * 40 : 0;
+      const wear = (patch - 0.5) * 18;
+      data[i] = clamp255(data[i]! + fleck + wear);
+      data[i + 1] = clamp255(data[i + 1]! + fleck + wear);
+      data[i + 2] = clamp255(data[i + 2]! + fleck * 0.95 + wear + 2);
+    }
   }
-  // Fine aggregate speckles.
-  for (let i = 0; i < 1400; i++) {
-    const shade = 28 + rand() * 70;
-    ctx.fillStyle = `rgba(${shade | 0},${shade | 0},${(shade + 4) | 0},0.45)`;
-    ctx.fillRect(rand() * SIZE, rand() * SIZE, 1, 1);
-  }
-  // Soft seam lines so large UV repeats do not look like one flat slab.
-  ctx.strokeStyle = 'rgba(20,20,22,0.35)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(SIZE * 0.5, 0);
-  ctx.lineTo(SIZE * 0.5, SIZE);
-  ctx.stroke();
-}
+  ctx.putImageData(image, 0, 0);
 
-function drawGrass(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [78, 112, 58], 32, 2202);
-  const rand = mulberry32(19);
-  for (let i = 0; i < 1400; i++) {
+  const rand = mulberry32(44);
+  // Oil stains / dark patches.
+  for (let i = 0; i < 28; i++) {
     const x = rand() * SIZE;
     const y = rand() * SIZE;
-    ctx.strokeStyle = `rgba(${(36 + rand() * 55) | 0},${(88 + rand() * 90) | 0},${(28 + rand() * 42) | 0},0.6)`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + (rand() - 0.5) * 5, y - 5 - rand() * 8);
-    ctx.stroke();
-  }
-  // Occasional dry patches.
-  for (let i = 0; i < 18; i++) {
-    const x = rand() * SIZE;
-    const y = rand() * SIZE;
-    const r = 10 + rand() * 28;
+    const r = 18 + rand() * 55;
     const g = ctx.createRadialGradient(x, y, 2, x, y, r);
-    g.addColorStop(0, 'rgba(140,128,72,0.28)');
-    g.addColorStop(1, 'rgba(140,128,72,0)');
+    g.addColorStop(0, 'rgba(12,12,14,0.35)');
+    g.addColorStop(1, 'rgba(12,12,14,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Tar seams / repair strips.
+  ctx.strokeStyle = 'rgba(18,18,20,0.45)';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 5; i++) {
+    let x = rand() * SIZE;
+    let y = rand() * SIZE;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let s = 0; s < 6; s++) {
+      x += (rand() - 0.4) * 80;
+      y += (rand() - 0.5) * 50;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // Soft slab seam so large UV repeats do not look like one flat slab.
+  ctx.strokeStyle = 'rgba(22,22,24,0.4)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(SIZE * 0.5, 0);
+  ctx.lineTo(SIZE * 0.5 + (rand() - 0.5) * 4, SIZE);
+  ctx.stroke();
+  // Fine light gravel speckles.
+  for (let i = 0; i < 2200; i++) {
+    const shade = 50 + rand() * 90;
+    ctx.fillStyle = `rgba(${shade | 0},${shade | 0},${(shade + 6) | 0},0.4)`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 1, 1);
+  }
+}
+
+function drawGrass(ctx: CanvasRenderingContext2D): void {
+  fbmFill(ctx, [62, 98, 46], 40, 2202, 0.011, 5);
+  const image = ctx.getImageData(0, 0, SIZE, SIZE);
+  const data = image.data;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const clump = fbm(x * 0.03, y * 0.03, 19, 4);
+      const blade = valueNoise(x * 0.2, y * 0.55, 77);
+      const i = (y * SIZE + x) * 4;
+      const greenShift = (clump - 0.5) * 35;
+      const tip = blade > 0.65 ? 18 : blade < 0.25 ? -12 : 0;
+      data[i] = clamp255(data[i]! + greenShift * 0.3 + tip * 0.4);
+      data[i + 1] = clamp255(data[i + 1]! + greenShift + tip);
+      data[i + 2] = clamp255(data[i + 2]! + greenShift * 0.25);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
+  const rand = mulberry32(19);
+  // Dense blade strokes in overlapping layers.
+  for (let i = 0; i < 3200; i++) {
+    const x = rand() * SIZE;
+    const y = rand() * SIZE;
+    const lean = (rand() - 0.5) * 7;
+    const h = 4 + rand() * 12;
+    ctx.strokeStyle = `rgba(${(28 + rand() * 50) | 0},${(70 + rand() * 110) | 0},${(22 + rand() * 40) | 0},${0.35 + rand() * 0.4})`;
+    ctx.lineWidth = 0.8 + rand() * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + lean * 0.5, y - h * 0.5, x + lean, y - h);
+    ctx.stroke();
+  }
+  // Dry / bare earth patches.
+  for (let i = 0; i < 28; i++) {
+    const x = rand() * SIZE;
+    const y = rand() * SIZE;
+    const r = 12 + rand() * 40;
+    const g = ctx.createRadialGradient(x, y, 2, x, y, r);
+    g.addColorStop(0, 'rgba(130,118,62,0.32)');
+    g.addColorStop(1, 'rgba(130,118,62,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Tiny flower / weed flecks.
+  for (let i = 0; i < 40; i++) {
+    ctx.fillStyle =
+      rand() > 0.5 ? `rgba(200,190,70,${0.35 + rand() * 0.3})` : `rgba(160,70,90,${0.25 + rand() * 0.3})`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 1 + rand() * 2, 1 + rand() * 2);
+  }
 }
 
 function drawBrick(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = '#6a4034';
-  ctx.fillRect(0, 0, SIZE, SIZE);
+  // Mortar base.
+  fbmFill(ctx, [150, 144, 132], 18, 7001, 0.04, 3);
   const rand = mulberry32(71);
-  const bw = 42;
-  const bh = 20;
-  for (let row = 0; row < SIZE / bh + 1; row++) {
+  const bw = 96;
+  const bh = 40;
+  const mortar = 5;
+
+  for (let row = 0; row < SIZE / bh + 2; row++) {
     const ox = row % 2 === 0 ? 0 : bw / 2;
-    for (let col = -1; col < SIZE / bw + 1; col++) {
+    for (let col = -1; col < SIZE / bw + 2; col++) {
       const x = col * bw + ox;
       const y = row * bh;
-      const r = 150 + rand() * 40;
-      const g = 78 + rand() * 28;
-      const b = 58 + rand() * 22;
-      ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
-      ctx.fillRect(x + 1, y + 1, bw - 2, bh - 2);
+      const baseR = 138 + rand() * 55;
+      const baseG = 62 + rand() * 38;
+      const baseB = 48 + rand() * 28;
+      // Per-brick body with slight color noise.
+      const brick = ctx.createImageData(bw - mortar, bh - mortar);
+      for (let by = 0; by < bh - mortar; by++) {
+        for (let bx = 0; bx < bw - mortar; bx++) {
+          const n = (valueNoise((x + bx) * 0.08, (y + by) * 0.08, 71 + row) - 0.5) * 28;
+          const edge =
+            Math.min(bx, by, bw - mortar - 1 - bx, bh - mortar - 1 - by) < 2 ? -18 : 0;
+          const i = (by * (bw - mortar) + bx) * 4;
+          brick.data[i] = clamp255(baseR + n + edge);
+          brick.data[i + 1] = clamp255(baseG + n * 0.7 + edge);
+          brick.data[i + 2] = clamp255(baseB + n * 0.5 + edge);
+          brick.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(brick, x + mortar / 2, y + mortar / 2);
+
+      // Soft bevel highlight on top edge.
+      ctx.fillStyle = 'rgba(255,220,200,0.12)';
+      ctx.fillRect(x + mortar / 2, y + mortar / 2, bw - mortar, 2);
+      // Bottom shadow into mortar.
+      ctx.fillStyle = 'rgba(40,20,16,0.22)';
+      ctx.fillRect(x + mortar / 2, y + bh - mortar / 2 - 2, bw - mortar, 2);
+
+      // Occasional chip / spall.
+      if (rand() > 0.88) {
+        const cx = x + mortar + rand() * (bw - mortar * 2);
+        const cy = y + mortar + rand() * (bh - mortar * 2);
+        ctx.fillStyle = `rgba(${(baseR - 30) | 0},${(baseG - 20) | 0},${(baseB - 15) | 0},0.7)`;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2 + rand() * 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
+  // Weathering wash over the whole wall.
+  ctx.globalAlpha = 0.12;
+  for (let i = 0; i < 60; i++) {
+    const shade = rand() > 0.5 ? 20 : 200;
+    ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 20 + rand() * 80, 8 + rand() * 30);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawPavement(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [168, 164, 156], 20, 6061);
-  ctx.strokeStyle = 'rgba(90,88,84,0.55)';
-  ctx.lineWidth = 3;
+  fbmFill(ctx, [162, 158, 150], 22, 6061, 0.01, 4);
+  const tiles = 8;
+  const gap = 4;
+  const cell = SIZE / tiles;
+  const rand = mulberry32(6061);
+
+  for (let ty = 0; ty < tiles; ty++) {
+    for (let tx = 0; tx < tiles; tx++) {
+      const x = tx * cell;
+      const y = ty * cell;
+      const tint = (rand() - 0.5) * 18;
+      // Per-slab shade variation.
+      ctx.fillStyle = `rgba(${(155 + tint) | 0},${(151 + tint) | 0},${(143 + tint) | 0},0.35)`;
+      ctx.fillRect(x + gap / 2, y + gap / 2, cell - gap, cell - gap);
+
+      // Micro roughness inside slab via noise overlay.
+      const slab = ctx.getImageData(x + gap / 2, y + gap / 2, cell - gap, cell - gap);
+      for (let py = 0; py < slab.height; py++) {
+        for (let px = 0; px < slab.width; px++) {
+          const n = (valueNoise((x + px) * 0.12, (y + py) * 0.12, 99) - 0.5) * 20;
+          const i = (py * slab.width + px) * 4;
+          slab.data[i] = clamp255(slab.data[i]! + n);
+          slab.data[i + 1] = clamp255(slab.data[i + 1]! + n);
+          slab.data[i + 2] = clamp255(slab.data[i + 2]! + n);
+        }
+      }
+      ctx.putImageData(slab, x + gap / 2, y + gap / 2);
+
+      // Bevel.
+      ctx.strokeStyle = 'rgba(210,206,198,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x + gap / 2 + 1, y + gap / 2 + 1, cell - gap - 2, cell - gap - 2);
+    }
+  }
+
+  // Grout / joint lines (darker, slightly uneven).
+  ctx.strokeStyle = 'rgba(70,68,64,0.65)';
+  ctx.lineWidth = gap;
   ctx.beginPath();
-  for (let i = 0; i <= 8; i++) {
-    const p = (i / 8) * SIZE;
-    ctx.moveTo(p, 0);
-    ctx.lineTo(p, SIZE);
-    ctx.moveTo(0, p);
-    ctx.lineTo(SIZE, p);
+  for (let i = 0; i <= tiles; i++) {
+    const p = i * cell;
+    ctx.moveTo(p + (rand() - 0.5) * 1.5, 0);
+    ctx.lineTo(p + (rand() - 0.5) * 1.5, SIZE);
+    ctx.moveTo(0, p + (rand() - 0.5) * 1.5);
+    ctx.lineTo(SIZE, p + (rand() - 0.5) * 1.5);
   }
   ctx.stroke();
+
+  // Wear / dirt in joints and corners.
+  for (let i = 0; i < 80; i++) {
+    const x = rand() * SIZE;
+    const y = rand() * SIZE;
+    ctx.fillStyle = `rgba(90,86,78,${0.08 + rand() * 0.15})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 4 + rand() * 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 /** Soft radial sprite used for smoke, muzzle flash and blood particles. */
@@ -664,6 +1013,7 @@ export function disposeTextureCache(): void {
     drop(maps.map);
     drop(maps.roughnessMap);
     drop(maps.normalMap);
+    drop(maps.aoMap);
   }
   cache.clear();
   pbrCache.clear();

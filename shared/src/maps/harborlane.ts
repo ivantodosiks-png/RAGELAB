@@ -78,7 +78,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0,
     surface: 'grass',
     texture: 'grass',
-    textureScale: 36,
+    textureScale: 28,
   },
   asphalt: {
     color: 0x45484e,
@@ -86,7 +86,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0.03,
     surface: 'concrete',
     texture: 'asphalt',
-    textureScale: 14,
+    textureScale: 11,
   },
   pavement: {
     color: 0xb0aca4,
@@ -94,7 +94,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0.02,
     surface: 'concrete',
     texture: 'pavement',
-    textureScale: 8,
+    textureScale: 6.5,
   },
   curb: {
     color: 0xc4c0b6,
@@ -102,7 +102,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0.04,
     surface: 'concrete',
     texture: 'concrete',
-    textureScale: 2.4,
+    textureScale: 2,
   },
   brick: {
     color: 0x9a5a48,
@@ -110,7 +110,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0.02,
     surface: 'concrete',
     texture: 'brick',
-    textureScale: 5.5,
+    textureScale: 4.2,
   },
   concrete: {
     color: 0x8a8e94,
@@ -118,7 +118,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0.03,
     surface: 'concrete',
     texture: 'concrete',
-    textureScale: 4.5,
+    textureScale: 3.8,
   },
   metal: {
     color: 0x6a7380,
@@ -134,7 +134,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0,
     surface: 'wood',
     texture: 'wood',
-    textureScale: 2,
+    textureScale: 1.6,
   },
   paint: {
     color: 0xe8e0cc,
@@ -150,7 +150,7 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0,
     surface: 'sand',
     texture: 'sand',
-    textureScale: 10,
+    textureScale: 8,
   },
   stall: {
     color: 0xece6d0,

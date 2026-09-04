@@ -1216,7 +1216,6 @@ export class GameSession {
     if (weaponPrompt) return weaponPrompt;
     const propPrompt = this.sandbox.lookPropPrompt();
     if (propPrompt) return propPrompt;
-    if (this.loadout[this.input.firearmSlot] && !this.input.toolGunEquipped) return 'G  drop weapon';
     return null;
   }
 
