@@ -245,7 +245,9 @@ export class WeaponViewModel {
       const procedural = this.model.children.find((child) => child !== this.muzzlePoint && child !== this.ejectPoint);
       if (procedural) this.model.remove(procedural);
       visual.name = 'weaponGltf';
-      visual.position.z += 0.04;
+      // Keep the fitted origin; only a tiny forward nudge so the grip clears
+      // the near plane without rotating the barrel toward the camera.
+      visual.position.z -= 0.02;
       this.model.add(visual);
     };
     const ready = instantiateWeaponVisual(def.id, length, { lod: false, shadows: false });

@@ -73,52 +73,60 @@ function spawn(
 
 const materials: Record<string, MaterialDef> = {
   grass: {
-    color: 0x6f8f4e,
-    roughness: 0.95,
+    color: 0x6a8a48,
+    roughness: 0.96,
     metalness: 0,
     surface: 'grass',
     texture: 'grass',
-    textureScale: 48,
+    textureScale: 36,
   },
   asphalt: {
-    color: 0x4a4d52,
-    roughness: 0.92,
-    metalness: 0.04,
+    color: 0x45484e,
+    roughness: 0.94,
+    metalness: 0.03,
     surface: 'concrete',
     texture: 'asphalt',
-    textureScale: 18,
+    textureScale: 14,
   },
   pavement: {
-    color: 0xb7b3ab,
-    roughness: 0.88,
+    color: 0xb0aca4,
+    roughness: 0.9,
     metalness: 0.02,
     surface: 'concrete',
     texture: 'pavement',
-    textureScale: 10,
+    textureScale: 8,
+  },
+  curb: {
+    color: 0xc4c0b6,
+    roughness: 0.82,
+    metalness: 0.04,
+    surface: 'concrete',
+    texture: 'concrete',
+    textureScale: 2.4,
   },
   brick: {
     color: 0x9a5a48,
-    roughness: 0.86,
+    roughness: 0.88,
     metalness: 0.02,
     surface: 'concrete',
     texture: 'brick',
-    textureScale: 6,
+    textureScale: 5.5,
   },
   concrete: {
-    color: 0x8e9298,
+    color: 0x8a8e94,
     roughness: 0.9,
     metalness: 0.03,
     surface: 'concrete',
     texture: 'concrete',
-    textureScale: 5,
+    textureScale: 4.5,
   },
   metal: {
     color: 0x6a7380,
-    roughness: 0.38,
-    metalness: 0.78,
+    roughness: 0.36,
+    metalness: 0.82,
     surface: 'metal',
     texture: 'metal',
-    textureScale: 3,
+    textureScale: 2.8,
   },
   wood: {
     color: 0x8d6a42,
@@ -129,24 +137,41 @@ const materials: Record<string, MaterialDef> = {
     textureScale: 2,
   },
   paint: {
-    color: 0xf2ead4,
-    roughness: 0.55,
-    metalness: 0.05,
+    color: 0xe8e0cc,
+    roughness: 0.62,
+    metalness: 0.04,
     surface: 'concrete',
+    texture: 'concrete',
+    textureScale: 3.2,
+  },
+  dirt: {
+    color: 0x7a6a52,
+    roughness: 0.95,
+    metalness: 0,
+    surface: 'sand',
+    texture: 'sand',
+    textureScale: 10,
   },
   stall: {
-    color: 0xe8e2c8,
-    roughness: 0.6,
-    metalness: 0.05,
+    color: 0xece6d0,
+    roughness: 0.55,
+    metalness: 0.04,
     surface: 'concrete',
+    texture: 'pavement',
+    textureScale: 1.5,
     decal: true,
   },
 };
 
 // ── Ground, grass, perimeter ────────────────────────────────────────────────
 // Kenney tiles sit on y=0 (road slab 0–0.20 m at scale 10). The grass slab
-// tops out below that so the two never share a plane.
-box([0, -0.55, 0], [BOUNDS * 2, 1, BOUNDS * 2], 'grass');
+// tops out well below that so the two never share a plane (no z-fight).
+box([0, -0.62, 0], [BOUNDS * 2, 1, BOUNDS * 2], 'grass');
+// Soft dirt verge under perimeter walls so brick doesn't float on a flat green.
+box([0, -0.08, -BOUNDS + 1.4], [BOUNDS * 2 - 4, 0.12, 2.2], 'dirt', { noCollide: true });
+box([0, -0.08, BOUNDS - 1.4], [BOUNDS * 2 - 4, 0.12, 2.2], 'dirt', { noCollide: true });
+box([-BOUNDS + 1.4, -0.08, 0], [2.2, 0.12, BOUNDS * 2 - 4], 'dirt', { noCollide: true });
+box([BOUNDS - 1.4, -0.08, 0], [2.2, 0.12, BOUNDS * 2 - 4], 'dirt', { noCollide: true });
 box([0, 3.4, -BOUNDS], [BOUNDS * 2, 6.8, 1.1], 'brick');
 box([0, 3.4, BOUNDS], [BOUNDS * 2, 6.8, 1.1], 'brick');
 box([-BOUNDS, 3.4, 0], [1.1, 6.8, BOUNDS * 2], 'brick');
@@ -162,11 +187,27 @@ box([0, ROAD_Y, 0], [10.2, ROAD_H, 80], 'asphalt', { invisible: true });
 box([35, ROAD_Y, 35], [20.2, ROAD_H, 20.2], 'asphalt', { invisible: true });
 box([30, ROAD_Y, 15], [10.2, ROAD_H, 20], 'asphalt', { invisible: true });
 
-// Corner plazas sit in the grass quadrants, inset from Kenney tile edges
-// (|x| or |z| = 5) and away from the intersection signs at (±8, ±8).
+// Sidewalk pads in grass quadrants — raised above grass, clear of road edges.
 for (const x of [-12, 12]) {
   for (const z of [-12, 12]) {
-    box([x, 0.07, z], [6.0, 0.14, 6.0], 'pavement');
+    box([x, 0.055, z], [6.2, 0.11, 6.2], 'pavement');
+    // Outer curb lip (not coplanar with plaza top).
+    box([x, 0.12, z + 3.2], [6.4, 0.14, 0.22], 'curb', { noCollide: true });
+    box([x, 0.12, z - 3.2], [6.4, 0.14, 0.22], 'curb', { noCollide: true });
+    box([x + 3.2, 0.12, z], [0.22, 0.14, 6.0], 'curb', { noCollide: true });
+    box([x - 3.2, 0.12, z], [0.22, 0.14, 6.0], 'curb', { noCollide: true });
+  }
+}
+
+// Continuous curb strips along the cross roads (outside Kenney sidewalk lips).
+for (const z of [-5.55, 5.55]) {
+  for (const tx of [-3, -2, -1, 1, 2, 3]) {
+    box([tx * TILE, 0.13, z], [9.2, 0.16, 0.26], 'curb', { noCollide: true });
+  }
+}
+for (const x of [-5.55, 5.55]) {
+  for (const tz of [-3, -2, -1, 1, 2, 3]) {
+    box([x, 0.13, tz * TILE], [0.26, 0.16, 9.2], 'curb', { noCollide: true });
   }
 }
 
@@ -185,12 +226,19 @@ place('road-square', 30, 30, 0);
 place('road-square', 40, 30, 0);
 place('road-square', 30, 40, 0);
 place('road-square', 40, 40, 0);
-place('driveway', 34, -14, 0, 0.02);
+place('driveway', 34, -14, 0, 0.04);
 
+// Parking stall lines sit ABOVE the Kenney road surface (0.20) — never coplanar.
 for (let i = 0; i < 5; i++) {
   const x = 26.6 + i * 3.4;
-  box([x, 0.214, 30], [0.08, 0.008, 8.4], 'stall', { noCollide: true });
-  box([x, 0.214, 40], [0.08, 0.008, 8.4], 'stall', { noCollide: true });
+  box([x, 0.228, 30], [0.07, 0.01, 8.2], 'stall', { noCollide: true });
+  box([x, 0.228, 40], [0.07, 0.01, 8.2], 'stall', { noCollide: true });
+}
+// End stops for each stall bay.
+for (const z of [25.9, 34.1, 35.9, 44.1]) {
+  for (let i = 0; i < 4; i++) {
+    box([28.3 + i * 3.4, 0.228, z], [2.4, 0.01, 0.08], 'stall', { noCollide: true });
+  }
 }
 
 // ── Buildings (visual + cheap hull) ─────────────────────────────────────────
@@ -250,6 +298,26 @@ box([-17.2, 1.3, -26], [6.1, 2.6, 2.44], 'metal', { rotation: [0, 22 * DEG, 0] }
 function bench(x: number, z: number, yaw: number): void {
   box([x, 0.42, z], [1.7, 0.12, 0.48], 'wood', { rotation: [0, yaw, 0] });
   box([x, 0.28, z], [1.55, 0.44, 0.08], 'wood', { rotation: [0, yaw, 0] });
+  // Legs
+  const ox = Math.cos(yaw);
+  const oz = Math.sin(yaw);
+  box([x - ox * 0.65, 0.18, z - oz * 0.65], [0.1, 0.36, 0.1], 'metal', { noCollide: true });
+  box([x + ox * 0.65, 0.18, z + oz * 0.65], [0.1, 0.36, 0.1], 'metal', { noCollide: true });
+}
+
+function trash(x: number, z: number): void {
+  box([x, 0.45, z], [0.42, 0.9, 0.42], 'metal', { noCollide: true });
+  box([x, 0.92, z], [0.46, 0.06, 0.46], 'metal', { noCollide: true });
+}
+
+function bollard(x: number, z: number): void {
+  box([x, 0.42, z], [0.18, 0.84, 0.18], 'metal', { noCollide: true });
+  box([x, 0.86, z], [0.22, 0.06, 0.22], 'paint', { noCollide: true });
+}
+
+function hydrant(x: number, z: number): void {
+  box([x, 0.35, z], [0.28, 0.7, 0.28], 'paint', { noCollide: true });
+  box([x, 0.55, z], [0.55, 0.12, 0.18], 'paint', { noCollide: true });
 }
 
 bench(-26, 22, 0);
@@ -258,16 +326,51 @@ bench(-12, 24, 90 * DEG);
 bench(8, 12, 90 * DEG);
 bench(-8, -12, 90 * DEG);
 bench(10, -28, 0);
+bench(12, 12, 0);
+bench(-14, -14, 0);
+bench(22, 12, 90 * DEG);
+bench(-30, -10, 90 * DEG);
+
+trash(-10, 14);
+trash(10, -14);
+trash(-28, 18);
+trash(28, 18);
+trash(38, -20);
+trash(-18, -28);
+trash(8, 40);
+trash(-40, 20);
+
+bollard(24.4, 26);
+bollard(24.4, 34);
+bollard(24.4, 36);
+bollard(24.4, 44);
+bollard(41.6, 26);
+bollard(41.6, 44);
+bollard(26, 12);
+bollard(34, -12);
+
+hydrant(-14, 8);
+hydrant(14, -8);
+hydrant(-30, 8);
+hydrant(38, 18);
 
 place('planter', -12, 22, 0);
 place('planter', -44, 22, 30 * DEG);
 place('planter', 10, 12, 0);
 place('planter', -12, -12, 0);
 place('planter', 10, 40, 15 * DEG);
+place('planter', 12, -28, 20 * DEG);
+place('planter', -30, 12, -10 * DEG);
+place('planter', 40, 22, 0);
+place('planter', -8, 40, 40 * DEG);
 place('parasol', -23, 22, 20 * DEG);
 place('parasol', -17, 24, -15 * DEG);
-place('path-stones', -28, 22, 0, 0.02);
-place('path-long', -22, 20, 90 * DEG, 0.02);
+place('parasol', 8, -26, 35 * DEG);
+place('path-stones', -28, 22, 0, 0.045);
+place('path-long', -22, 20, 90 * DEG, 0.045);
+place('path-stones', 12, -30, 90 * DEG, 0.045);
+place('path-long', 10, 14, 0, 0.045);
+place('path-stones', -14, 14, 45 * DEG, 0.045);
 
 const trees: Array<[number, number, string]> = [
   [-44, 42, 'tree-large'],
@@ -284,6 +387,12 @@ const trees: Array<[number, number, string]> = [
   [44, -8, 'tree-small'],
   [-10, 12, 'tree-small'],
   [10, -12, 'tree-small'],
+  [-36, 8, 'tree-small'],
+  [36, 8, 'tree-small'],
+  [-16, -36, 'tree-small'],
+  [22, -40, 'tree-large'],
+  [-40, 36, 'tree-small'],
+  [12, 36, 'tree-small'],
 ];
 for (const [x, z, model] of trees) place(model, x, z, (x + z) * 0.04);
 
@@ -293,6 +402,8 @@ for (let i = 0; i < 5; i++) {
 }
 place('fence', -46, 24, 90 * DEG);
 place('fence', -46, 14, 90 * DEG);
+place('fence-low', 42, -40, 90 * DEG);
+place('fence-low', 42, -35, 90 * DEG);
 
 box([-34, 0.7, 42], [24, 1.4, 0.18], 'wood', { invisible: true });
 box([34, 0.55, 42], [22, 1.1, 0.16], 'wood', { invisible: true });
@@ -308,6 +419,10 @@ const lamps: Array<[number, number, number]> = [
   [-6.6, 20, 90 * DEG],
   [24, 12, 0],
   [-24, 12, 0],
+  [36, 24, -90 * DEG],
+  [-36, -24, 90 * DEG],
+  [16, -36, Math.PI],
+  [-16, 36, 0],
 ];
 for (const [x, z, yaw] of lamps) {
   place('lamp', x, z, yaw);
@@ -316,18 +431,24 @@ for (const [x, z, yaw] of lamps) {
     kind: 'point',
     position: [x, 5.6, z],
     color: 0xffd8a0,
-    intensity: 7.5,
-    distance: 16,
+    intensity: 6.8,
+    distance: 15,
     quality: 'medium',
   });
 }
 place('lamp-curve', 42, 24, -90 * DEG);
+place('lamp-curve', -42, -24, 90 * DEG);
 place('light-square', 8, 8, 0);
 place('light-square', -8, -8, 180 * DEG);
+place('light-square', -8, 8, 90 * DEG);
+place('light-square', 8, -8, -90 * DEG);
 place('sign', -8, 8, 45 * DEG);
 place('sign', 8, -8, 225 * DEG);
+place('sign', 24, 8, 0);
+place('sign', -24, -8, Math.PI);
 place('sign-highway', 8, 8, -45 * DEG);
 place('sign-highway-wide', -8, -8, 135 * DEG);
+place('sign-highway', -24, 24, 30 * DEG);
 hull(-8, 8, 0.4, 7, 0.4);
 hull(8, -8, 0.4, 7, 0.4);
 hull(8, 8, 0.4, 7, 0.4);
@@ -336,10 +457,21 @@ hull(-8, -8, 0.4, 7, 0.4);
 place('cone', 24, 14, 0);
 place('cone', 25.2, 14.4, 20 * DEG);
 place('cone', 23.4, 15.0, -10 * DEG);
+place('cone', 28, 22, 15 * DEG);
+place('cone', 32, -12, -20 * DEG);
 place('barrier', 26.4, 14.8, 18 * DEG);
+place('barrier', -22, -24, 40 * DEG);
 place('construction-light', 27.2, 16, 0);
 box([24.6, 0.25, 14.6], [1.6, 0.5, 1.4], 'paint', { invisible: true });
 box([26.4, 0.35, 14.8], [1.1, 0.7, 0.4], 'metal', { invisible: true });
+
+// Low garden beds beside houses / plazas for depth (no overlap with roads).
+box([-14, 0.2, 18], [2.4, 0.4, 1.1], 'dirt', { noCollide: true });
+box([14, 0.2, -18], [2.4, 0.4, 1.1], 'dirt', { noCollide: true });
+box([-32, 0.2, 28], [3.2, 0.36, 1.2], 'dirt', { noCollide: true });
+box([18, 0.2, 36], [2.8, 0.36, 1.0], 'dirt', { noCollide: true });
+box([-14, 0.42, 18], [2.5, 0.08, 1.2], 'curb', { noCollide: true });
+box([14, 0.42, -18], [2.5, 0.08, 1.2], 'curb', { noCollide: true });
 
 // ── Physics playground (west plaza, clear of buildings) ─────────────────────
 ramp([-28, 0.85, 23], [4.2, 0.28, 6.4], 18, 'pavement', 90 * DEG);
@@ -420,15 +552,15 @@ export const HARBORLANE: MapDefinition = {
   bounds: BOUNDS,
   killPlaneY: -12,
   environment: {
-    skyTop: 0x5e93c8,
-    skyBottom: 0xead4ae,
-    sunColor: 0xffe8c4,
-    sunIntensity: 2.35,
-    sunDirection: [0.48, 0.74, 0.42],
-    ambientColor: 0x9eb4cc,
-    ambientIntensity: 0.58,
-    fogColor: 0xc8c0b4,
-    fogDensity: 0.002,
+    skyTop: 0x5a98d4,
+    skyBottom: 0xf0d8b0,
+    sunColor: 0xffe6c0,
+    sunIntensity: 2.55,
+    sunDirection: [0.52, 0.78, 0.36],
+    ambientColor: 0xa8bdd4,
+    ambientIntensity: 0.64,
+    fogColor: 0xd0c8bc,
+    fogDensity: 0.0016,
     ambience: 'yard',
   },
   materials,

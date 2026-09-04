@@ -31,9 +31,11 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 
 const jobs = [
   {
-    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Pistol_Compact_West.glb',
+    // Large-frame West pistol (Desert Eagle silhouette). Barrel is authored
+    // along -Z after bind pose is stripped; runtime fitWeaponModel enforces it.
+    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Pistol_Full_West.glb',
     dest: 'client/public/models/weapons/pistol.glb',
-    length: 0.22,
+    length: 0.26,
   },
   {
     src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Rifle_Battle_West.glb',

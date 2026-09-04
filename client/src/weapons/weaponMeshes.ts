@@ -303,7 +303,7 @@ export function muzzleOffsetFor(def: WeaponDefinition): [number, number, number]
     case 'rifle':
       return [0, 0.04, -0.67];
     case 'pistol':
-      return [0, 0.02, -0.19];
+      return [0, 0.028, -0.22];
     case 'smg':
       return [0, 0.032, -0.37];
     case 'shotgun':

@@ -405,26 +405,52 @@ function drawHazard(ctx: CanvasRenderingContext2D): void {
 }
 
 function drawAsphalt(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [48, 50, 54], 26, 91001);
+  noiseFill(ctx, [42, 44, 48], 22, 91001);
   const rand = mulberry32(44);
-  for (let i = 0; i < 160; i++) {
-    ctx.fillStyle = `rgba(${(70 + rand() * 50) | 0},${(72 + rand() * 50) | 0},${(76 + rand() * 50) | 0},0.28)`;
-    ctx.fillRect(rand() * SIZE, rand() * SIZE, 2 + rand() * 10, 1 + rand() * 4);
+  for (let i = 0; i < 220; i++) {
+    ctx.fillStyle = `rgba(${(62 + rand() * 48) | 0},${(64 + rand() * 48) | 0},${(68 + rand() * 48) | 0},0.3)`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 2 + rand() * 12, 1 + rand() * 5);
   }
+  // Fine aggregate speckles.
+  for (let i = 0; i < 1400; i++) {
+    const shade = 28 + rand() * 70;
+    ctx.fillStyle = `rgba(${shade | 0},${shade | 0},${(shade + 4) | 0},0.45)`;
+    ctx.fillRect(rand() * SIZE, rand() * SIZE, 1, 1);
+  }
+  // Soft seam lines so large UV repeats do not look like one flat slab.
+  ctx.strokeStyle = 'rgba(20,20,22,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(SIZE * 0.5, 0);
+  ctx.lineTo(SIZE * 0.5, SIZE);
+  ctx.stroke();
 }
 
 function drawGrass(ctx: CanvasRenderingContext2D): void {
-  noiseFill(ctx, [86, 118, 64], 28, 2202);
+  noiseFill(ctx, [78, 112, 58], 32, 2202);
   const rand = mulberry32(19);
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < 1400; i++) {
     const x = rand() * SIZE;
     const y = rand() * SIZE;
-    ctx.strokeStyle = `rgba(${(40 + rand() * 50) | 0},${(90 + rand() * 80) | 0},${(30 + rand() * 40) | 0},0.55)`;
+    ctx.strokeStyle = `rgba(${(36 + rand() * 55) | 0},${(88 + rand() * 90) | 0},${(28 + rand() * 42) | 0},0.6)`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + (rand() - 0.5) * 4, y - 4 - rand() * 6);
+    ctx.lineTo(x + (rand() - 0.5) * 5, y - 5 - rand() * 8);
     ctx.stroke();
+  }
+  // Occasional dry patches.
+  for (let i = 0; i < 18; i++) {
+    const x = rand() * SIZE;
+    const y = rand() * SIZE;
+    const r = 10 + rand() * 28;
+    const g = ctx.createRadialGradient(x, y, 2, x, y, r);
+    g.addColorStop(0, 'rgba(140,128,72,0.28)');
+    g.addColorStop(1, 'rgba(140,128,72,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 

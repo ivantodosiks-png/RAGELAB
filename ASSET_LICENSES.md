@@ -37,7 +37,7 @@ KayKit Adventurers (knight / mage / rogue / barbarian) are no longer shipped. Th
 
 | File | Source model | Tris (baked) | Size |
 | --- | --- | --- | --- |
-| `pistol.glb` | Pichuliru — Pistol Compact West | ~1.2k | ~50 KB |
+| `pistol.glb` | Pichuliru — Pistol Full West (Desert Eagle frame) | ~1.4k | ~55 KB |
 | `smg.glb` | Pichuliru — SMG Full West | ~2.0k | ~77 KB |
 | `rifle.glb` | Pichuliru — Rifle Battle West | ~3.1k | ~117 KB |
 | `shotgun.glb` | Pichuliru — Shotgun Pump West | ~1.1k | ~43 KB |

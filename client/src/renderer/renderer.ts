@@ -36,7 +36,7 @@ export class GameRenderer {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.18;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false;
 
@@ -44,16 +44,16 @@ export class GameRenderer {
     this.camera.layers.set(LAYER_WORLD);
     this.viewModelCamera = new THREE.PerspectiveCamera(65, 1, 0.005, 6);
 
-    this.ambient = new THREE.HemisphereLight(0xb8cce0, 0x6a6458, 0.62);
+    this.ambient = new THREE.HemisphereLight(0xc2d6ec, 0x6e685c, 0.7);
     this.scene.add(this.ambient);
 
-    this.sun = new THREE.DirectionalLight(0xfff1d4, 2.15);
+    this.sun = new THREE.DirectionalLight(0xfff2d8, 2.35);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(settings.shadowResolution, settings.shadowResolution);
     this.sun.shadow.camera.near = 1;
     this.sun.shadow.camera.far = 220;
-    this.sun.shadow.bias = -0.0006;
-    this.sun.shadow.normalBias = 0.035;
+    this.sun.shadow.bias = -0.00045;
+    this.sun.shadow.normalBias = 0.04;
     const shadowExtent = 70;
     this.sun.shadow.camera.left = -shadowExtent;
     this.sun.shadow.camera.right = shadowExtent;
@@ -79,9 +79,9 @@ export class GameRenderer {
     const envMap = pmrem.fromScene(room, 0.03).texture;
     room.dispose();
     this.scene.environment = envMap;
-    this.scene.environmentIntensity = 0.38;
+    this.scene.environmentIntensity = 0.46;
     this.viewModelScene.environment = envMap;
-    this.viewModelScene.environmentIntensity = 0.7;
+    this.viewModelScene.environmentIntensity = 0.85;
     pmrem.dispose();
 
     this.sky = this.createSky();
@@ -152,8 +152,8 @@ export class GameRenderer {
     this.ambient.groundColor.setHex(env.fogColor);
     this.ambient.intensity = env.ambientIntensity;
 
-    const fogColor = new THREE.Color(env.fogColor).lerp(new THREE.Color(env.skyBottom), 0.4);
-    this.scene.fog = new THREE.FogExp2(fogColor, env.fogDensity * 0.42);
+    const fogColor = new THREE.Color(env.fogColor).lerp(new THREE.Color(env.skyBottom), 0.45);
+    this.scene.fog = new THREE.FogExp2(fogColor, env.fogDensity * 0.38);
 
     // Rebuild the map's dynamic lights at the current quality level.
     for (const light of this.dynamicLights) {

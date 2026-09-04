@@ -74,12 +74,13 @@ export class MapMeshBuilder {
       material.map = cloneMap(pbr.map);
       material.roughnessMap = cloneMap(pbr.roughnessMap);
       material.normalMap = cloneMap(pbr.normalMap);
-      material.normalScale = new THREE.Vector2(0.55, 0.55);
+      material.normalScale = new THREE.Vector2(0.72, 0.72);
     }
     if (def.decal) {
       material.polygonOffset = true;
-      material.polygonOffsetFactor = -2;
-      material.polygonOffsetUnits = -2;
+      material.polygonOffsetFactor = -4;
+      material.polygonOffsetUnits = -4;
+      material.depthWrite = false;
     }
     this.disposables.push(material);
     return material;

@@ -10,6 +10,19 @@ const tmpQuat = new THREE.Quaternion();
 const tmpScale = new THREE.Vector3();
 const tmpEuler = new THREE.Euler();
 
+/** Small props cast no shadows — keeps the sun map cheap on dense city dressing. */
+const NO_SHADOW_CAST = new Set([
+  'cone',
+  'barrier',
+  'planter',
+  'path-stones',
+  'path-long',
+  'parasol',
+  'sign',
+  'fence',
+  'fence-low',
+]);
+
 /**
  * Client-only Kenney scenery. Physics stays on cheap brush colliders so the
  * server and the prediction world never load GLBs.
@@ -73,7 +86,8 @@ export class MapDecor {
     gltf.scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
-      mesh.castShadow = true;
+      const cast = !NO_SHADOW_CAST.has(id);
+      mesh.castShadow = cast;
       mesh.receiveShadow = true;
       mesh.frustumCulled = true;
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -81,12 +95,15 @@ export class MapDecor {
         if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
         if (!mat.map) {
           console.error(`[MapDecor] missing texture on ${url} (${mesh.name || mesh.uuid})`);
+          // Avoid blown-out white placeholders when a colormap failed to embed.
+          mat.color.setHex(0x8a9098);
+          mat.roughness = 0.85;
         }
         // Kenney colormaps are already fully lit albedo. Strong env/metal
         // reads as blown-out white once the texture is actually loaded.
-        mat.envMapIntensity = 0.2;
+        mat.envMapIntensity = 0.18;
         mat.metalness = 0;
-        mat.roughness = Math.max(0.62, mat.roughness);
+        mat.roughness = Math.max(0.58, mat.roughness);
         if (mat.map) {
           mat.map.colorSpace = THREE.SRGBColorSpace;
           mat.map.anisotropy = 8;
@@ -113,7 +130,7 @@ export class MapDecor {
       clone.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh) return;
-        mesh.castShadow = true;
+        mesh.castShadow = !NO_SHADOW_CAST.has(id);
         mesh.receiveShadow = true;
         mesh.frustumCulled = true;
       });
@@ -127,7 +144,7 @@ export class MapDecor {
     const material = src.material;
     const inst = new THREE.InstancedMesh(geometry, material, items.length);
     inst.name = `decor:${id}`;
-    inst.castShadow = true;
+    inst.castShadow = !NO_SHADOW_CAST.has(id);
     inst.receiveShadow = true;
     inst.frustumCulled = true;
     src.matrixWorld.decompose(tmpPos, tmpQuat, tmpScale);
