@@ -124,7 +124,10 @@ export function buildWeaponMesh(def: WeaponDefinition, disposables: Array<{ disp
     case 'rifle':
       return buildM4(def, disposables);
     case 'pistol':
+    case 'glock':
       return buildPistol(def, disposables);
+    case 'magnum':
+      return buildMagnum(def, disposables);
     case 'smg':
       return buildSmg(def, disposables);
     case 'shotgun':
@@ -235,6 +238,30 @@ function buildM4(def: WeaponDefinition, disposables: Array<{ dispose(): void }>)
   return { root, magRestY: mag.position.y };
 }
 
+function buildMagnum(def: WeaponDefinition, disposables: Array<{ dispose(): void }>): BuiltWeapon {
+  const k = kit(def, disposables);
+  const root = new THREE.Group();
+  root.name = 'magnum';
+
+  box(root, k.steel, [0.046, 0.04, 0.24], [0, 0.03, -0.02], undefined, disposables);
+  box(root, k.body, [0.044, 0.03, 0.2], [0, 0.004, 0.01], undefined, disposables);
+  box(root, k.brass, [0.048, 0.008, 0.22], [0, 0.052, -0.03], undefined, disposables);
+  cyl(root, k.steel, 0.012, 0.012, 0.18, [0, 0.028, -0.16], ALONG_Z, disposables, 16);
+  cyl(root, k.brass, 0.016, 0.014, 0.036, [0, 0.028, -0.255], ALONG_Z, disposables, 12);
+  for (const z of [-0.248, -0.258, -0.268]) {
+    box(root, k.body, [0.028, 0.004, 0.008], [0, 0.04, z], undefined, disposables);
+  }
+  const mag = box(root, k.polymer, [0.032, 0.1, 0.04], [0, -0.062, 0.032], [0.12, 0, 0], disposables, 'magazine');
+  box(mag, k.brass, [0.03, 0.008, 0.02], [0, -0.042, 0], undefined, disposables);
+  box(root, k.polymer, [0.036, 0.12, 0.044], [0, -0.078, 0.072], [0.32, 0, 0], disposables);
+  box(root, k.brass, [0.01, 0.022, 0.012], [0, -0.008, 0.048], [0.2, 0, 0], disposables);
+  box(root, k.steel, [0.024, 0.005, 0.036], [0, -0.022, 0.058], undefined, disposables);
+  box(root, k.sight, [0.006, 0.014, 0.006], [0, 0.058, -0.12], undefined, disposables);
+  box(root, k.body, [0.02, 0.012, 0.01], [0, 0.056, 0.08], undefined, disposables);
+  box(root, k.brass, [0.008, 0.008, 0.008], [0.022, 0.02, 0.06], undefined, disposables);
+  return { root, magRestY: mag.position.y };
+}
+
 function buildPistol(def: WeaponDefinition, disposables: Array<{ dispose(): void }>): BuiltWeapon {
   const k = kit(def, disposables);
   const root = new THREE.Group();
@@ -304,6 +331,10 @@ export function muzzleOffsetFor(def: WeaponDefinition): [number, number, number]
       return [0, 0.04, -0.67];
     case 'pistol':
       return [0, 0.028, -0.22];
+    case 'glock':
+      return [0, 0.02, -0.19];
+    case 'magnum':
+      return [0, 0.028, -0.27];
     case 'smg':
       return [0, 0.032, -0.37];
     case 'shotgun':
@@ -320,6 +351,8 @@ export function ejectOffsetFor(def: WeaponDefinition): [number, number, number] 
     case 'rifle':
       return [0.03, 0.05, -0.015];
     case 'pistol':
+    case 'glock':
+    case 'magnum':
       return [0.02, 0.03, 0.0];
     default:
       return [0.04, 0.04, 0.0];

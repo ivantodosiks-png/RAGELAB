@@ -9,6 +9,7 @@ export interface LoadedProfile {
   level: number;
   banned: boolean;
   banReason: string | null;
+  isAdmin: boolean;
 }
 
 /**
@@ -20,7 +21,7 @@ export async function loadProfile(userId: string): Promise<LoadedProfile | null>
   const client = serviceClient();
   if (!client) return null;
 
-  const [{ data: profile, error: profileError }, banResult, statsResult] = await Promise.all([
+  const [{ data: profile, error: profileError }, banResult, statsResult, staffResult] = await Promise.all([
     client.from('profiles').select('id, username, avatar_url').eq('id', userId).maybeSingle(),
     client
       .from('bans')
@@ -29,6 +30,7 @@ export async function loadProfile(userId: string): Promise<LoadedProfile | null>
       .order('created_at', { ascending: false })
       .limit(5),
     client.from('player_stats').select('level').eq('profile_id', userId).maybeSingle(),
+    client.from('staff').select('profile_id').eq('profile_id', userId).maybeSingle(),
   ]);
 
   if (profileError) {
@@ -54,6 +56,7 @@ export async function loadProfile(userId: string): Promise<LoadedProfile | null>
     level: statsResult.data?.level ?? 1,
     banned,
     banReason,
+    isAdmin: Boolean(staffResult.data),
   };
 }
 

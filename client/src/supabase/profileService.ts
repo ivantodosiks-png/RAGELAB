@@ -216,6 +216,7 @@ export class ProfileService {
       name: row.name,
       mapId: row.map_id,
       mode: row.mode === 'deathmatch' ? 'deathmatch' : 'sandbox',
+      phase: 'lobby',
       playerCount: row.player_count,
       maxPlayers: row.max_players,
       hasPassword: row.has_password,

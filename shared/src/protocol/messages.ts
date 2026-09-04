@@ -1,6 +1,6 @@
 import type { GameEvent } from '../types/events';
 import type { PlayerId, PlayerIdentity, PlayerScore } from '../types/player';
-import type { GameModeId, RoomConfig, RoomSummary } from '../types/room';
+import type { GameModeId, RoomConfig, RoomPhaseId, RoomSummary } from '../types/room';
 import type { WeaponId } from '../types/weapons';
 
 // ── client -> server JSON payloads ──────────────────────────────────────────
@@ -17,6 +17,8 @@ export interface HelloPayload {
   password?: string;
   /** Used when auto-matching or creating a room. */
   mapId?: string;
+  /** 1 = Alpha, 2 = Bravo on duel maps. */
+  team?: number;
   mode?: GameModeId;
   /** Create a new room and become its host instead of auto-matching. */
   create?: Partial<RoomConfig>;
@@ -53,6 +55,7 @@ export interface WelcomePayload {
         host?: boolean;
         /** Public websocket for invite links (tunnel or dedicated host). */
         wsUrl?: string;
+        phase: RoomPhaseId;
       };
   tickRate: number;
   snapshotRate: number;
@@ -72,6 +75,24 @@ export interface RosterPayload {
   players: PlayerIdentity[];
   scores: PlayerScore[];
   matchEndsAt: number;
+  phase?: RoomPhaseId;
+  joinCode?: string;
+  hostPlayerId?: number | null;
+}
+
+export interface LobbyStatePayload {
+  phase: RoomPhaseId;
+  joinCode: string;
+  hostPlayerId: number | null;
+  mapId: string;
+  name: string;
+  maxPlayers: number;
+  players: PlayerIdentity[];
+}
+
+export interface StartMatchPayload {
+  /** Reserved; start is implicit. */
+  confirm?: boolean;
 }
 
 export interface EventsPayload {

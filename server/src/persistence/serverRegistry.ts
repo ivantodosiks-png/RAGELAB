@@ -69,7 +69,6 @@ export class ServerRegistry {
         for (const row of rows) this.known.add(String(row.id));
       }
 
-      // Remove rows for rooms that no longer exist.
       const live = new Set(rows.map((r) => String(r.id)));
       const stale = [...this.known].filter((id) => !live.has(id));
       if (stale.length > 0) {

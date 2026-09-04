@@ -2,10 +2,13 @@ import type { SoundKey } from './synth';
 
 const BASE = import.meta.env.BASE_URL;
 
+const AWM_SHOT_URL = new URL('../../../assets/awm/single-shot-with-awn.mp3', import.meta.url).href;
+/** CC0 field recording — Desert Eagle .50AE, vabadus / Freesound 151071. */
+const MAGNUM_SHOT_URL = new URL('../../../assets/hammer/deagle_50ae_shot.mp3', import.meta.url).href;
+
 /**
- * Recorded one-shots served from `client/public/sounds`. Vite copies that
- * folder into the build. Distant variants replace the close shot when another
- * player fires far from the listener.
+ * Recorded one-shots. Most live in `client/public/sounds`; AWM / Hammer shots
+ * load from repo `assets/` so we do not duplicate the files.
  */
 export const RECORDED_SAMPLES: Partial<Record<SoundKey, string>> = {
   pistol: `${BASE}sounds/glock_17_shot.wav`,
@@ -15,6 +18,10 @@ export const RECORDED_SAMPLES: Partial<Record<SoundKey, string>> = {
   rifle_distant: `${BASE}sounds/m4a1_shot_distant.wav`,
   shotgun: `${BASE}sounds/remington_870_shot.wav`,
   shotgun_distant: `${BASE}sounds/remington_870_shot_distant.wav`,
+  sniper: AWM_SHOT_URL,
+  magnum: MAGNUM_SHOT_URL,
+  footstep_1: `${BASE}sounds/foot1.mp3`,
+  footstep_2: `${BASE}sounds/foot2.mp3`,
 };
 
 export const DISTANT_FOR: Partial<Record<SoundKey, SoundKey>> = {
@@ -27,5 +34,5 @@ export const DISTANT_FOR: Partial<Record<SoundKey, SoundKey>> = {
 export const DISTANT_FIRE_RANGE = 28;
 
 export function isRecordedGunshot(key: string): boolean {
-  return key === 'pistol' || key === 'rifle' || key === 'shotgun';
+  return key === 'pistol' || key === 'rifle' || key === 'shotgun' || key === 'sniper' || key === 'magnum';
 }

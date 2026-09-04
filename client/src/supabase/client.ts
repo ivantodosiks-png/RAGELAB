@@ -122,15 +122,6 @@ export function shouldQueryConfiguredGameHttp(): boolean {
   }
 }
 
-/** Vite / local page can talk to the Node process directly. */
-export function canDirectConnectToGameServer(): boolean {
-  if (__GAME_SERVER_DEV_PROXY__) return true;
-  if (sameOriginPlay()) return true;
-  if (isPublicGameServerUrl(GAME_SERVER_URL)) return true;
-  if (typeof window !== 'undefined' && isLoopbackHost(window.location.hostname)) return true;
-  return false;
-}
-
 async function fetchOk(url: string, ms = 2000): Promise<boolean> {
   const ctrl = new AbortController();
   const timer = window.setTimeout(() => ctrl.abort(), ms);
@@ -145,9 +136,8 @@ async function fetchOk(url: string, ms = 2000): Promise<boolean> {
 }
 
 /**
- * True when a game process is reachable from this browser: Vite proxy, a
- * public hub, or Node on this PC (`localhost:8080`) even if the page is the
- * hosted website.
+ * True when a game process is reachable from this browser: Vite proxy, or
+ * Node on this PC (`localhost:8080`) even if the page is the hosted website.
  */
 export async function localGameServerReachable(): Promise<boolean> {
   const bases: string[] = [];

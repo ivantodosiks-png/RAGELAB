@@ -1,13 +1,16 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
+import { randomInt } from 'node:crypto';
 import {
   ABSOLUTE_MAX_PLAYERS_PER_ROOM,
   DEFAULT_MAP_ID,
   GameMode,
+  LOBBY_CODE_ALPHABET,
+  LOBBY_CODE_LENGTH,
   MIN_PLAYERS_PER_ROOM,
+  RoomPhase,
   isLobbyCode,
   isMapId,
   normalizeLobbyCode,
-  randomLobbyCode,
   type RoomConfig,
   type RoomSummary,
 } from '@ragelab/shared';
@@ -81,60 +84,82 @@ export class RoomManager {
   }
 
   private allocateJoinCode(): string {
-    for (let i = 0; i < 24; i++) {
-      const code = randomLobbyCode();
+    for (let i = 0; i < 48; i++) {
+      const code = this.secureLobbyCode();
       if (!this.getRoomByCode(code)) return code;
     }
-    return randomLobbyCode();
+    throw new Error('failed to allocate a unique lobby code');
+  }
+
+  private secureLobbyCode(): string {
+    let out = '';
+    for (let i = 0; i < LOBBY_CODE_LENGTH; i++) {
+      out += LOBBY_CODE_ALPHABET[randomInt(LOBBY_CODE_ALPHABET.length)]!;
+    }
+    return out;
+  }
+
+  findHostedLobby(profileId: string): Room | undefined {
+    for (const room of this.rooms.values()) {
+      if (room.dissolving || room.phase === RoomPhase.Closed) continue;
+      if (!room.hostPlayerId) continue;
+      const host = room.getEntity(room.hostPlayerId);
+      if (host?.identity.profileId === profileId) return room;
+    }
+    return undefined;
   }
 
   listRooms(): RoomSummary[] {
     return [...this.rooms.values()].map((room) => room.summary());
   }
 
-  /** Join an explicit room, or the emptiest joinable one, creating if needed. */
-  findOrCreateRoom(options: {
+  /**
+   * Join an existing lobby/match. Never creates a room — only an admin can
+   * create via createAdminLobby.
+   */
+  findRoom(options: {
     roomId?: string;
     roomCode?: string;
     password?: string;
-    mapId?: string;
-    mode?: RoomConfig['mode'];
-  }): { room: Room } | { error: 'room_not_found' | 'room_full' | 'bad_password' } {
+  }): { room: Room } | { error: 'room_not_found' | 'room_full' | 'bad_password' | 'room_closed' } {
     if (options.roomCode) {
-      const room = this.getRoomByCode(options.roomCode);
-      if (!room) return { error: 'room_not_found' };
-      if (room.config.password && room.config.password !== options.password) {
-        return { error: 'bad_password' };
-      }
-      if (room.isFull) return { error: 'room_full' };
-      return { room };
+      return this.evaluateJoin(this.getRoomByCode(options.roomCode), options.password);
     }
     if (options.roomId) {
-      const room = this.rooms.get(options.roomId);
-      if (!room) return { error: 'room_not_found' };
-      if (room.config.password && room.config.password !== options.password) {
-        return { error: 'bad_password' };
+      return this.evaluateJoin(this.rooms.get(options.roomId), options.password);
+    }
+    return { error: 'room_not_found' };
+  }
+
+  private evaluateJoin(
+    room: Room | undefined,
+    password?: string,
+  ): { room: Room } | { error: 'room_not_found' | 'room_full' | 'bad_password' | 'room_closed' } {
+    if (!room) return { error: 'room_not_found' };
+    if (room.dissolving || room.phase === RoomPhase.Closed) return { error: 'room_closed' };
+    if (room.config.password && room.config.password !== password) return { error: 'bad_password' };
+    if (room.isFull) return { error: 'room_full' };
+    return { room };
+  }
+
+  createAdminLobby(
+    connection: Connection,
+    partial: Partial<RoomConfig> = {},
+  ): { room: Room } | { error: 'not_admin' | 'already_in_room' } {
+    if (!connection.isAdmin) return { error: 'not_admin' };
+
+    if (connection.profileId) {
+      const hosted = this.findHostedLobby(connection.profileId);
+      if (hosted && hosted.phase === RoomPhase.Lobby && !hosted.dissolving) {
+        if (connection.room === hosted) return { room: hosted };
+        hosted.removePlayerByProfile(connection.profileId, connection);
+        if (connection.room && connection.room !== hosted) return { error: 'already_in_room' };
+        return { room: hosted };
       }
-      if (room.isFull) return { error: 'room_full' };
-      return { room };
     }
 
-    let best: Room | null = null;
-    for (const room of this.rooms.values()) {
-      if (room.isFull || room.config.password) continue;
-      if (options.mapId && isMapId(options.mapId) && room.map.id !== options.mapId) continue;
-      if (options.mode && room.config.mode !== options.mode) continue;
-      // Prefer the fullest non-full room so players actually meet each other.
-      if (!best || room.playerCount > best.playerCount) best = room;
-    }
-    if (best) return { room: best };
-
-    return {
-      room: this.createRoom({
-        mapId: options.mapId,
-        mode: options.mode,
-      }),
-    };
+    if (connection.room) return { error: 'already_in_room' };
+    return { room: this.createRoom(partial) };
   }
 
   async removePlayer(connection: Connection): Promise<void> {
@@ -164,6 +189,7 @@ export class RoomManager {
    */
   private async dissolveRoom(room: Room, reason: string, hostConnection: Connection): Promise<void> {
     room.dissolving = true;
+    room.closeLobby();
     log.info('host left, ending session', { room: room.id, reason, players: room.playerCount });
 
     const snapshot = room.playerConnections();

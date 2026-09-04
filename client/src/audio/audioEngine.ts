@@ -287,16 +287,6 @@ export class AudioEngine {
   }
 }
 
-const FOOTSTEP_BY_SURFACE: Record<SurfaceId, SoundKey> = {
-  concrete: 'footstep_concrete',
-  metal: 'footstep_metal',
-  wood: 'footstep_wood',
-  sand: 'footstep_dirt',
-  glass: 'footstep_metal',
-  rubber: 'footstep_dirt',
-  grass: 'footstep_grass',
-};
-
 const IMPACT_BY_SURFACE: Record<SurfaceId, SoundKey> = {
   concrete: 'impact_concrete',
   metal: 'impact_metal',
@@ -307,8 +297,12 @@ const IMPACT_BY_SURFACE: Record<SurfaceId, SoundKey> = {
   grass: 'impact_grass',
 };
 
-export function footstepSound(surface: SurfaceId): SoundKey {
-  return FOOTSTEP_BY_SURFACE[surface] ?? 'footstep_concrete';
+let footstepIndex = 0;
+
+export function footstepSound(_surface?: SurfaceId): SoundKey {
+  const key = footstepIndex % 2 === 0 ? 'footstep_1' : 'footstep_2';
+  footstepIndex += 1;
+  return key;
 }
 
 export function impactSound(surface: SurfaceId): SoundKey {

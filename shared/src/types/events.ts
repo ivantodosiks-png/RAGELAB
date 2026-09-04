@@ -103,6 +103,7 @@ export type GameEvent =
   | { t: 'chat'; p: PlayerId; name: string; msg: string }
   | { t: 'join'; p: PlayerId; name: string }
   | { t: 'leave'; p: PlayerId; name: string }
-  | { t: 'matchEnd'; winner: PlayerId | null };
+  | { t: 'matchEnd'; winner: PlayerId | null }
+  | { t: 'matchStart' };
 
 export type GameEventType = GameEvent['t'];

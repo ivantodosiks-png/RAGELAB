@@ -38,6 +38,7 @@ import {
   npcRagdollOnSpawn,
   propKindFromEntry,
   toolFromEntry,
+  weaponKindFromEntry,
   type SpawnEntry,
 } from './spawnCatalog';
 import {
@@ -129,6 +130,7 @@ export class SandboxController {
   private selected: SandboxNpc | null = null;
   private hovered: SandboxNpc | null = null;
   private lookProp: SandboxProp | null = null;
+  private lookWeapon: SandboxWeapon | null = null;
   lookHint: 'none' | 'npc' | 'prop' | 'weapon' | 'spawn' = 'none';
   private accum = 0;
   private lastPointer = { x: 0, y: 0 };
@@ -309,7 +311,10 @@ export class SandboxController {
   private handleToolGun(aim: { origin: Vec3; dir: Vec3 }, camera: THREE.Camera): boolean {
     const entry = this.selection;
     if (entry.category === 'weapons') {
-      this.onCannotSpawnWeapon?.();
+      const kind = weaponKindFromEntry(entry.id);
+      const point = this.groundPoint(aim.origin, aim.dir);
+      if (!point || !kind) return true;
+      this.spawnWeaponAt(point, Math.atan2(-aim.dir.x, -aim.dir.z), kind);
       return true;
     }
     if (entry.category === 'tools') {
@@ -494,16 +499,34 @@ export class SandboxController {
     return this.spawnWeaponAt(point, Math.atan2(-aimDir.x, -aimDir.z));
   }
 
-  spawnWeaponAt(point: { x: number; y: number; z: number }, yaw: number): boolean {
+  spawnWeaponAt(point: { x: number; y: number; z: number }, yaw: number, kind?: SandboxWeaponKind): boolean {
     if (this.liveWeapons.length >= this.settings.maxWeapons) {
       if (this.settings.autoCleanup) this.removeOldestWeapon();
       else return false;
     }
-    const kind = (SANDBOX_WEAPON_KINDS as readonly string[]).includes(this.settings.weaponKind)
-      ? this.settings.weaponKind
-      : 'pistol';
+    const picked =
+      kind ??
+      ((SANDBOX_WEAPON_KINDS as readonly string[]).includes(this.settings.weaponKind)
+        ? this.settings.weaponKind
+        : 'pistol');
     const weapon = this.acquireWeapon();
-    weapon.spawn(kind as SandboxWeaponKind, point.x, point.y + this.settings.spawnHeight, point.z, yaw);
+    weapon.spawn(picked, point.x, point.y + this.settings.spawnHeight, point.z, yaw);
+    this.emit();
+    return true;
+  }
+
+  throwWeapon(kind: string, origin: Vec3, dir: Vec3): boolean {
+    const picked = (SANDBOX_WEAPON_KINDS as readonly string[]).includes(kind)
+      ? (kind as SandboxWeaponKind)
+      : 'pistol';
+    if (this.liveWeapons.length >= this.settings.maxWeapons) {
+      if (this.settings.autoCleanup) this.removeOldestWeapon();
+      else return false;
+    }
+    const yaw = Math.atan2(-dir.x, -dir.z);
+    const weapon = this.acquireWeapon();
+    weapon.spawn(picked, origin.x + dir.x * 0.7, origin.y + dir.y * 0.7 - 0.12, origin.z + dir.z * 0.7, yaw);
+    weapon.throw(dir);
     this.emit();
     return true;
   }
@@ -521,6 +544,7 @@ export class SandboxController {
 
   removeWeapon(weapon: SandboxWeapon): void {
     if (this.heldWeapon === weapon) this.heldWeapon = null;
+    if (this.lookWeapon === weapon) this.lookWeapon = null;
     weapon.despawn();
     const index = this.liveWeapons.indexOf(weapon);
     if (index >= 0) this.liveWeapons.splice(index, 1);
@@ -779,6 +803,7 @@ export class SandboxController {
       this.hovered = hover ?? null;
     }
     this.lookProp = this.pickProp(ctx.camera, origin, dir);
+    this.lookWeapon = this.pickWeapon(ctx.camera, origin, dir);
     this.lookHint = this.resolveLookHint(ctx.camera, origin, dir, hover, spawnPoint);
 
     if (this.selected && !this.selected.active) this.selected = null;
@@ -786,6 +811,10 @@ export class SandboxController {
 
   get hoveredNpc(): SandboxNpc | null {
     return this.hovered;
+  }
+
+  get aimedWeapon(): SandboxWeapon | null {
+    return this.lookWeapon;
   }
 
   inspectLookTarget(): boolean {
@@ -806,6 +835,21 @@ export class SandboxController {
   lookPropPrompt(): string | null {
     if (!this.lookProp?.active) return null;
     return interactPromptFor(this.lookProp.kind);
+  }
+
+  lookWeaponPrompt(): string | null {
+    if (!this.lookWeapon?.active) return null;
+    return 'E  pick up';
+  }
+
+  takeLookWeapon(origin: Vec3, maxDistance = 3): SandboxWeaponKind | null {
+    const weapon = this.lookWeapon;
+    if (!weapon?.active) return null;
+    const t = weapon.translation;
+    if (Math.hypot(t.x - origin.x, t.y - origin.y, t.z - origin.z) > maxDistance) return null;
+    const kind = weapon.kind;
+    this.removeWeapon(weapon);
+    return kind;
   }
 
   dispose(): void {

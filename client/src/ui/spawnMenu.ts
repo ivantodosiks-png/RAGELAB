@@ -7,10 +7,13 @@ import {
   isPropCategory,
   propKindFromEntry,
   spawnEntryById,
+  toolFromEntry,
+  weaponKindFromEntry,
   type SpawnCategory,
   type SpawnEntry,
 } from '../sandbox/spawnCatalog';
 import { propIconUrl, warmupPropIcons } from '../sandbox/propIcons';
+import { toolIconUrl, warmupSpawnIcons, weaponIconUrl } from '../sandbox/spawnIcons';
 
 const TABS: Array<[SpawnCategory, string]> = [
   ['npc', 'NPC'],
@@ -89,7 +92,7 @@ export class SpawnMenu {
     this.search.addEventListener('keydown', (event) => event.stopPropagation());
     tools.append(this.search);
 
-    this.notice = el('div', 'spawn-notice', 'Weapons are not spawnable with Tool Gun');
+    this.notice = el('div', 'spawn-notice', 'LMB drops it in the world. E picks it up into an empty slot.');
     this.notice.hidden = true;
 
     this.grid = el('div', 'spawn-grid');
@@ -162,6 +165,7 @@ export class SpawnMenu {
     this.openTimer = window.setTimeout(() => this.root.classList.add('shown'), 16);
     window.addEventListener('keydown', this.onKey, true);
     warmupPropIcons();
+    warmupSpawnIcons();
     this.renderGrid();
   }
 
@@ -220,13 +224,13 @@ export class SpawnMenu {
       card.type = 'button';
       card.classList.toggle('locked', !entry.spawnable);
       const thumb = el('div', 'spawn-thumb');
-      const kind = isPropCategory(entry.category) ? propKindFromEntry(entry.id) : null;
-      if (kind) {
+      const iconSrc = iconForEntry(entry);
+      if (iconSrc) {
         const img = document.createElement('img');
         img.className = 'spawn-thumb-img';
         img.alt = entry.name;
         img.draggable = false;
-        img.src = propIconUrl(kind);
+        img.src = iconSrc;
         thumb.append(img);
       } else {
         thumb.style.background = `#${entry.swatch.toString(16).padStart(6, '0')}`;
@@ -274,6 +278,22 @@ export class SpawnMenu {
     window.removeEventListener('keydown', this.onKey, true);
     this.root.remove();
   }
+}
+
+function iconForEntry(entry: SpawnEntry): string | null {
+  if (isPropCategory(entry.category)) {
+    const kind = propKindFromEntry(entry.id);
+    return kind ? propIconUrl(kind) : null;
+  }
+  if (entry.category === 'weapons') {
+    const kind = weaponKindFromEntry(entry.id);
+    return kind ? weaponIconUrl(kind) : null;
+  }
+  if (entry.category === 'tools') {
+    const tool = toolFromEntry(entry.id);
+    return tool ? toolIconUrl(tool) : null;
+  }
+  return null;
 }
 
 function matchesQuery(entry: SpawnEntry, query: string): boolean {

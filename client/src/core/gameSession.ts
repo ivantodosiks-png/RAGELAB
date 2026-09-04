@@ -4,11 +4,14 @@ import {
   BULLET_FILTER_GROUPS,
   Button,
   DEFAULT_LOADOUT,
+  DEFAULT_MAP_ID,
   EYE_HEIGHT_STAND,
   INTERACT_RANGE,
   MAX_HEALTH,
   MAX_INPUTS_PER_PACKET,
+  PROTOCOL_VERSION,
   PlayerFlag,
+  RoomPhase,
   SPEED_WALK,
   buttonPressed,
   clamp,
@@ -18,19 +21,23 @@ import {
   getWeapon,
   type GameEvent,
   type InputCommand,
+  type LobbyStatePayload,
   type MapDefinition,
   type PlayerIdentity,
   type PlayerScore,
+  type RoomPhaseId,
   type Vec3,
   type WeaponId,
   type WelcomePayload,
   animationStateFor,
+  isMapId,
+  isWeaponId,
 } from '@ragelab/shared';
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
 import { MapMeshBuilder } from '../maps/mapMeshBuilder';
 import { MapDecor } from '../maps/mapDecor';
-import { pickMapSpawn } from '../maps/spawnLayout';
+import { pickMapSpawn, pickTeamSpawn } from '../maps/spawnLayout';
 import { LocalPlayer } from '../player/localPlayer';
 import { LocalCharacter, clipFromAnimation } from '../player/localCharacter';
 import { InputController, TOOL_GUN_UI_SLOT } from '../player/inputController';
@@ -50,6 +57,7 @@ import { NPC_MENU_ENABLED } from '../sandbox/spawnCatalog';
 import { ToolGunView } from '../sandbox/toolGunView';
 import { resolveJoinWsUrl } from '../supabase/client';
 import { assetManager } from '../assets/assetManager';
+import { preloadWeaponModels } from '../weapons/weaponAssets';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
 
@@ -71,6 +79,8 @@ export interface SessionStart {
   mapId?: string;
   password?: string;
   wsUrl?: string;
+  offline?: boolean;
+  team?: number;
   create?: { name: string; mapId: string; maxPlayers: number; password: string };
 }
 
@@ -91,7 +101,7 @@ export class GameSession {
   private local!: LocalPlayer;
   private input!: InputController;
   private camera!: CameraRig;
-  private net!: NetClient;
+  private net: NetClient | null = null;
   private interp!: SnapshotInterpolator;
   private entities!: EntityManager;
   private effects!: EffectsManager;
@@ -103,7 +113,7 @@ export class GameSession {
   private localCharacter: LocalCharacter | null = null;
 
   private localId = 0;
-  private loadout: WeaponId[] = [...DEFAULT_LOADOUT];
+  private loadout: Array<WeaponId | null> = [...DEFAULT_LOADOUT];
   private identities = new Map<number, PlayerIdentity>();
   private scores: PlayerScore[] = [];
   private lastButtons = 0;
@@ -118,6 +128,16 @@ export class GameSession {
   private frames = 0;
   private fpsAccum = 0;
   private paused = false;
+  private lobbyHold = false;
+  private offline = false;
+  private lobbyStarting = false;
+  private roomPhase: RoomPhaseId = RoomPhase.Playing;
+  private joinCode = '';
+  private roomName = '';
+  private hostPlayerId: number | null = null;
+  private localTeam = 0;
+  private isHost = false;
+  private maxPlayers = 16;
   private running = false;
   private disposed = false;
   private remoteStep = new Map<number, number>();
@@ -144,6 +164,7 @@ export class GameSession {
     const rapier = await loadRapier();
     this.audio = new AudioEngine(settingsStore.audio);
     await this.audio.resume();
+    preloadWeaponModels();
 
     this.renderer = new GameRenderer(this.canvas, settingsStore.graphics);
     this.effects = new EffectsManager(settingsStore.graphics);
@@ -152,26 +173,29 @@ export class GameSession {
     this.input = new InputController(this.canvas, settingsStore.controls);
     this.input.attach();
     this.interp = new SnapshotInterpolator();
-    this.net = new NetClient();
     assetManager.setErrorHandler((_url, message) => this.ui.toast(`NPC model: ${message}`));
 
-    const welcome = await this.connect({
-      url: resolveJoinWsUrl(start.wsUrl),
-      token: start.token,
-      username: start.username,
-      roomId: start.roomId,
-      roomCode: start.roomCode,
-      password: start.password,
-      mapId: start.mapId,
-      create: start.create
-        ? {
-            name: start.create.name,
-            mapId: start.create.mapId,
-            maxPlayers: start.create.maxPlayers,
-            password: start.create.password || undefined,
-          }
-        : undefined,
-    });
+    this.offline = Boolean(start.offline);
+    const welcome = this.offline
+      ? this.offlineWelcome(start)
+      : await this.connect({
+          url: resolveJoinWsUrl(start.wsUrl),
+          token: start.token,
+          username: start.username,
+          roomId: start.roomId,
+          roomCode: start.roomCode,
+          password: start.password,
+          mapId: start.mapId,
+          team: start.team,
+          create: start.create
+            ? {
+                name: start.create.name,
+                mapId: start.create.mapId,
+                maxPlayers: start.create.maxPlayers,
+                password: start.create.password || undefined,
+              }
+            : undefined,
+        });
 
     this.buildWorld(rapier, welcome);
     this.bindUi();
@@ -187,9 +211,14 @@ export class GameSession {
   }
 
   private connect(options: ConnectOptions): Promise<WelcomePayload> {
+    this.net = new NetClient();
+    const net = this.net;
     return new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error('Timed out waiting for the game server')), 25_000);
-      this.net.setHandlers({
+      const timeout = window.setTimeout(
+        () => reject(new Error('Не удалось подключиться к игровому серверу.')),
+        25_000,
+      );
+      net.setHandlers({
         onWelcome: (payload) => {
           window.clearTimeout(timeout);
           if (!this.local) {
@@ -208,6 +237,9 @@ export class GameSession {
           if (!this.local) return;
           for (const event of payload.events) this.handleEvent(event);
         },
+        onLobbyState: (payload) => {
+          this.applyLobbyState(payload);
+        },
         onRoster: (payload) => {
           if (!this.entities) return;
           this.identities.clear();
@@ -216,8 +248,14 @@ export class GameSession {
           this.scores = payload.scores;
           const self = payload.players.find((p) => p.id === this.localId);
           if (self) this.localCharacter?.setIdentity(self);
+          if (payload.phase) this.roomPhase = payload.phase;
+          if (payload.joinCode) this.joinCode = payload.joinCode;
+          if (payload.hostPlayerId !== undefined) this.hostPlayerId = payload.hostPlayerId;
+          this.syncLobbyWait();
         },
         onError: (payload) => {
+          this.lobbyStarting = false;
+          this.syncLobbyWait();
           this.ui.toast(payload.message);
           if (payload.fatal) {
             window.clearTimeout(timeout);
@@ -239,7 +277,7 @@ export class GameSession {
           if (state === 'reconnecting') this.ui.toast(detail ? `Reconnecting (${detail})` : 'Reconnecting…');
         },
       });
-      this.net.connect(options);
+      net.connect(options);
     });
   }
 
@@ -248,7 +286,8 @@ export class GameSession {
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : [...DEFAULT_LOADOUT];
     this.input.loadoutSize = this.loadout.length;
     this.map = getMap(welcome.room.mapId);
-    const spawn = pickMapSpawn(this.map, 'player')!;
+    this.localTeam = welcome.players.find((p) => p.id === welcome.playerId)?.team ?? 0;
+    const spawn = pickTeamSpawn(this.map, this.localTeam) ?? pickMapSpawn(this.map, 'player')!;
     const spawnPos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
 
     this.physics = new ClientPhysicsWorld(rapier, this.map, spawnPos);
@@ -266,8 +305,8 @@ export class GameSession {
 
     this.local = new LocalPlayer(this.physics, spawnPos);
     this.input.setAim(spawn.yaw, 0);
-    this.weapon = new WeaponController(
-      this.loadout[0]!,
+      this.weapon = new WeaponController(
+      this.loadout[0] ?? DEFAULT_LOADOUT[0]!,
       this.effects,
       this.audio,
       this.camera,
@@ -307,9 +346,6 @@ export class GameSession {
       this.ui.hud.showToast('Scene cleared');
     };
     this.sandbox.setSelection(this.spawnMenu.selected);
-    this.sandbox.onCannotSpawnWeapon = () => {
-      this.ui.hud.showToast('Weapons are not spawnable with Tool Gun');
-    };
     this.ui.hud.setLoadout(this.loadoutRows());
     this.ui.hud.setActiveSlot(this.input.uiSlot);
 
@@ -331,17 +367,111 @@ export class GameSession {
       this.mapBuilder.setPickupVisible(id, false);
     }
 
-    this.ui.showGame();
+    this.joinCode = welcome.room.joinCode ?? '';
+    this.roomName = welcome.room.name;
+    this.maxPlayers = welcome.room.maxPlayers;
+    this.isHost = Boolean(welcome.room.host);
+    this.hostPlayerId = welcome.players.find((p) => welcome.room.host && p.id === welcome.playerId)?.id ?? (welcome.room.host ? welcome.playerId : null);
+    this.applyRoomPhase(welcome.room.phase ?? RoomPhase.Playing);
     this.ui.hud.setLobbyInvite(welcome.room.joinCode ?? null, welcome.room.wsUrl);
-    if (welcome.room.joinCode) {
-      this.ui.hud.showToast(
-        welcome.room.host
-          ? `Lobby ${welcome.room.joinCode} — click the code to copy invite`
-          : `Lobby ${welcome.room.joinCode}`,
-      );
-    } else {
-      this.ui.hud.showToast(`${welcome.room.name} · ${this.map.name}`);
+  }
+
+  private offlineWelcome(start: SessionStart): WelcomePayload {
+    const mapId = isMapId(start.mapId) ? start.mapId! : DEFAULT_MAP_ID;
+    const username = start.username || 'Operator';
+    return {
+      protocol: PROTOCOL_VERSION,
+      playerId: 1,
+      profile: null,
+      room: {
+        id: 'offline',
+        name: 'Offline',
+        mapId,
+        mode: 'sandbox',
+        maxPlayers: 1,
+        host: true,
+        phase: RoomPhase.Playing,
+      },
+      tickRate: 60,
+      snapshotRate: 20,
+      serverTimeMs: 0,
+      players: [
+        {
+          id: 1,
+          profileId: null,
+          username,
+          avatarUrl: null,
+          isGuest: true,
+          team: start.team === 2 ? 2 : start.team === 1 ? 1 : 0,
+        },
+      ],
+      scores: [{ id: 1, kills: 0, deaths: 0, score: 0, pingMs: 0 }],
+      loadout: [...DEFAULT_LOADOUT],
+      worldState: { doorsOpen: [], switchesOn: [], pickupsTaken: [] },
+    };
+  }
+
+  requestStartMatch(): void {
+    if (this.offline || !this.net) return;
+    if (!this.isHost || this.roomPhase !== RoomPhase.Lobby) return;
+    this.lobbyStarting = true;
+    this.syncLobbyWait();
+    this.net.startMatch();
+  }
+
+  private applyLobbyState(payload: LobbyStatePayload): void {
+    this.joinCode = payload.joinCode;
+    this.roomName = payload.name;
+    this.maxPlayers = payload.maxPlayers;
+    this.hostPlayerId = payload.hostPlayerId;
+    this.isHost = payload.hostPlayerId === this.localId;
+    this.identities.clear();
+    for (const id of payload.players) this.identities.set(id.id, id);
+    this.entities?.setIdentities(payload.players);
+    this.applyRoomPhase(payload.phase);
+  }
+
+  private applyRoomPhase(phase: RoomPhaseId): void {
+    this.roomPhase = phase;
+    if (phase === RoomPhase.Lobby) {
+      this.lobbyHold = true;
+      this.input?.releaseLock();
+      this.ui.showLobbyWait(this.lobbyView());
+      return;
     }
+    this.lobbyHold = false;
+    this.lobbyStarting = false;
+    this.ui.hideLobbyWait();
+    this.ui.showGame();
+    if (this.offline) {
+      this.ui.hud.showToast('Офлайн игра');
+      return;
+    }
+    if (this.joinCode) {
+      this.ui.hud.showToast(`Лобби ${this.joinCode}`);
+    } else {
+      this.ui.hud.showToast(`${this.roomName || this.map.name}`);
+    }
+  }
+
+  private syncLobbyWait(): void {
+    if (!this.lobbyHold || this.roomPhase !== RoomPhase.Lobby) return;
+    this.ui.showLobbyWait(this.lobbyView());
+  }
+
+  private lobbyView() {
+    return {
+      code: this.joinCode,
+      name: this.roomName || this.map?.name || 'Lobby',
+      mapId: this.map?.id ?? '',
+      isHost: this.isHost,
+      isAdmin: this.ui.menu.isAdmin,
+      starting: this.lobbyStarting,
+      players: [...this.identities.values()],
+      hostPlayerId: this.hostPlayerId,
+      localPlayerId: this.localId,
+      maxPlayers: this.maxPlayers,
+    };
   }
 
   private onWelcomeLive(welcome: WelcomePayload): void {
@@ -367,8 +497,11 @@ export class GameSession {
       this.ui.menu.show('settings');
       this.ui.onLeaveMatch?.();
     };
-    this.ui.hud.onChat = (text) => this.net.sendChat(text);
-    this.ui.hud.onRespawn = () => this.net.sendRespawnRequest();
+    this.ui.hud.onChat = (text) => this.net?.sendChat(text);
+    this.ui.hud.onRespawn = () => {
+      if (this.offline) this.offlineRespawn();
+      else this.net?.sendRespawnRequest();
+    };
   }
 
   private bindSettings(): void {
@@ -473,6 +606,11 @@ export class GameSession {
       this.fpsAccum = 0;
     }
 
+    if (this.lobbyHold) {
+      this.renderer?.render();
+      return;
+    }
+
     if (this.input.consumeEdge('sandbox') && !this.paused) {
       if (this.spawnMenu?.isOpen) this.closeSpawnMenu();
       const cursor = this.sandbox.toggleCursorMode();
@@ -518,13 +656,13 @@ export class GameSession {
     const predicted = this.local.update(dtMs, () => this.input.sample(), this.input.yaw, this.input.pitch, commands);
     const latest = commands.length > 0 ? commands[commands.length - 1]! : null;
     const localButtons = latest ? latest.buttons : this.lastButtons;
-    if (this.input.toolGunEquipped || this.sandbox.menuOpen) {
+    if (this.input.toolGunEquipped || this.sandbox.menuOpen || !this.loadout[this.input.firearmSlot]) {
       for (const command of commands) {
         command.buttons &= ~(Button.Fire | Button.Aim);
         command.weaponSlot = this.input.firearmSlot;
       }
     }
-    if (commands.length > 0) {
+    if (commands.length > 0 && this.net) {
       this.net.sendInput({
         ackSnapshotTick: this.net.ackTick,
         commands: commands.slice(-MAX_INPUTS_PER_PACKET),
@@ -534,10 +672,10 @@ export class GameSession {
     if (this.input.uiSlot !== this.lastUiSlot) {
       this.applyUiSlot(this.input.uiSlot, now);
     }
-    if (this.local.weaponId !== this.weapon.weaponId) {
-      this.weapon.equip(this.local.weaponId, now);
+    this.syncHeldWeapon(now);
+    if (!this.offline) {
+      this.weapon.syncFromServer(this.local.ammoInMag, this.local.ammoReserve, now);
     }
-    this.weapon.syncFromServer(this.local.ammoInMag, this.local.ammoReserve, now);
 
     this.feetPos.set(predicted.position.x, predicted.position.y, predicted.position.z);
     this.camera.update(
@@ -557,12 +695,17 @@ export class GameSession {
 
     directionFromAngles(aimDir, this.input.yaw, this.input.pitch);
     const toolGun = this.sandbox.toolGunActive;
-    this.weapon.blockFire = this.sandbox.interceptsFire || this.sandbox.menuOpen || this.input.weaponWheelOpen;
+    this.weapon.blockFire =
+      this.sandbox.interceptsFire ||
+      this.sandbox.menuOpen ||
+      this.input.weaponWheelOpen ||
+      !this.weapon.hasWeapon;
     this.weapon.blockAim = toolGun || this.sandbox.menuOpen || this.input.weaponWheelOpen;
     this.weapon.hideViewModel = toolGun;
     const fireEdge = buttonPressed(localButtons, this.lastButtons, Button.Fire);
     const aimEdge = buttonPressed(localButtons, this.lastButtons, Button.Aim);
     const interactEdge = buttonPressed(localButtons, this.lastButtons, Button.Interact);
+    const dropEdge = buttonPressed(localButtons, this.lastButtons, Button.Drop);
 
     this.weapon.update(dt, {
       buttons: localButtons,
@@ -575,6 +718,9 @@ export class GameSession {
       carrying: this.local.carrying,
       cameraPosition: this.renderer.camera.position,
     });
+    if (this.weapon.definition.scoped && this.weapon.aimBlend > 0.55) {
+      this.weapon.viewModel.setVisible(false);
+    }
     this.toolGunView.setVisible(toolGun && this.local.alive && !this.local.carrying);
     this.toolGunView.update(dt, predicted.speed / SPEED_WALK, predicted.grounded, predicted.crouching);
     this.lastButtons = localButtons;
@@ -596,8 +742,21 @@ export class GameSession {
     }
     if (interactEdge && !this.paused && !this.ui.hud.chatting) {
       this.sandbox.inspectLookTarget();
-      const interacted = this.sandbox.interactLookProp(aimDir);
-      if (interacted?.sound) this.audio.play(propInteractSound(interacted.sound), { volume: 0.55, variation: 0.04 });
+      if (this.tryPickupWorldWeapon(aimDir)) {
+        this.audio.play('pickup', { volume: 0.6 });
+      } else {
+        const interacted = this.sandbox.interactLookProp(aimDir);
+        if (interacted?.sound) this.audio.play(propInteractSound(interacted.sound), { volume: 0.55, variation: 0.04 });
+      }
+    }
+    if (
+      dropEdge &&
+      !this.paused &&
+      !this.ui.hud.chatting &&
+      !this.local.carrying &&
+      !toolGun
+    ) {
+      this.dropHeldWeapon(aimDir);
     }
 
     if (this.weapon.didFire) {
@@ -608,12 +767,19 @@ export class GameSession {
 
     if (this.local.footstepThisFrame) {
       const surface = this.physics.querySurfaceBelow(predicted.position);
-      this.audio.play(footstepSound(surface), { volume: 0.68, variation: 0.06 });
+      this.audio.play(footstepSound(surface), { volume: 0.78, variation: 0.02 });
       this.effects.footstepDust(predicted.position, surface);
     }
-    if (this.local.jumpedThisFrame) this.audio.play('jump', { volume: 0.45, variation: 0.05 });
-    if (this.local.landedThisFrame) {
-      this.audio.play('land', { volume: clamp(this.local.landingSpeed / 16, 0.25, 1), variation: 0.04 });
+    if (this.local.jumpedThisFrame) {
+      this.audio.play(footstepSound(), { volume: 0.42, variation: 0.02 });
+    }
+    // Sprint / crate steps briefly unground the capsule; the old synth `land`
+    // thud was firing on every one of those. Only real drops get a landing.
+    if (this.local.landedThisFrame && this.local.landingSpeed >= 5) {
+      this.audio.play(footstepSound(), {
+        volume: clamp(this.local.landingSpeed / 12, 0.55, 1),
+        variation: 0.02,
+      });
       this.camera.onLanded(this.local.landingSpeed);
     }
 
@@ -622,11 +788,17 @@ export class GameSession {
         this.input.closeWeaponWheel();
         this.ui.hud.cancelWeaponWheel();
       }
-      if (this.input.isActionHeld('jump') && this.net.serverNowMs() >= this.respawnAt) {
+      if (this.input.isActionHeld('jump') && this.offline) {
+        this.offlineRespawn();
+      } else if (this.input.isActionHeld('jump') && this.net && this.net.serverNowMs() >= this.respawnAt) {
         this.net.sendRespawnRequest();
       }
     } else {
       this.ui.hud.hideDeath();
+    }
+
+    if (this.offline && this.local.alive && predicted.position.y < this.map.killPlaneY) {
+      this.offlineRespawn();
     }
 
     this.interp.sample(now, this.localId);
@@ -667,7 +839,7 @@ export class GameSession {
     this.audio.updateListener(this.renderer.camera.position, listenerFwd, listenerUp, dt);
 
     this.renderer.render();
-    this.updateHud(dt, predicted.speed / SPEED_WALK, !predicted.grounded, predicted.crouching);
+    this.updateHud(dt, predicted.speed / SPEED_WALK, !predicted.grounded, predicted.crouching, now);
   }
 
   private spawnPredictedTracer(): void {
@@ -759,7 +931,7 @@ export class GameSession {
         if (event.victim === this.localId) {
           this.respawnAt = event.respawnAt;
           this.audio.play('death', { volume: 0.8 });
-          this.ui.hud.showDeath(event.respawnAt, this.net.serverNowMs());
+          this.ui.hud.showDeath(event.respawnAt, this.net?.serverNowMs() ?? performance.now());
         }
         break;
       case 'respawn':
@@ -803,10 +975,12 @@ export class GameSession {
         this.mapBuilder.setPickupVisible(event.id, true);
         break;
       case 'jump':
-        if (!local) this.audio.playAt('jump', vec(event.pos), 0.4, 30);
+        if (!local) this.audio.playAt(footstepSound(), vec(event.pos), 0.4, 30, 0.02);
         break;
       case 'land':
-        if (!local) this.audio.playAt('land', vec(event.pos), clamp(event.v / 16, 0.2, 1), 40);
+        if (!local && event.v >= 5) {
+          this.audio.playAt(footstepSound(), vec(event.pos), clamp(event.v / 12, 0.4, 1), 40, 0.02);
+        }
         break;
       case 'chat':
         this.ui.hud.addChat(event.name, event.msg);
@@ -816,6 +990,9 @@ export class GameSession {
         break;
       case 'leave':
         this.ui.hud.showToast(`${event.name} left`);
+        break;
+      case 'matchStart':
+        this.applyRoomPhase(RoomPhase.Playing);
         break;
       default:
         break;
@@ -832,11 +1009,84 @@ export class GameSession {
     }
     this.closeSpawnMenu();
     this.sandbox.setTool('none');
-    const id = this.loadout[slot] ?? this.loadout[0]!;
+    this.syncHeldWeapon(now);
+  }
+
+  private syncHeldWeapon(now: number): void {
+    if (this.input.toolGunEquipped) return;
+    const id = this.loadout[this.input.firearmSlot];
+    if (!id) {
+      this.weapon.unequip();
+      return;
+    }
+    if (this.weapon.hasWeapon && this.weapon.weaponId === id) return;
+    this.local.weaponId = id;
     this.weapon.equip(id, now);
   }
 
-  private updateHud(dt: number, speedRatio: number, airborne: boolean, crouching: boolean): void {
+  private dropHeldWeapon(aimDir: Vec3): void {
+    const slot = this.input.firearmSlot;
+    const id = this.loadout[slot];
+    if (!id) return;
+    this.sandbox.throwWeapon(id, this.cameraVec(), aimDir);
+    this.loadout[slot] = null;
+    this.weapon.unequip();
+    this.ui.hud.setLoadout(this.loadoutRows());
+    this.audio.play('equip', { volume: 0.45 });
+  }
+
+  private tryPickupWorldWeapon(aimDir: Vec3): boolean {
+    const world = this.sandbox.aimedWeapon;
+    if (!world?.active) return false;
+    const kind = world.kind;
+    const origin = {
+      x: this.local.renderPosition.x,
+      y: this.local.renderPosition.y + EYE_HEIGHT_STAND,
+      z: this.local.renderPosition.z,
+    };
+    if (!isWeaponId(kind)) {
+      this.ui.hud.showToast('This one cannot go in a weapon slot');
+      return true;
+    }
+    const taken = this.sandbox.takeLookWeapon(origin, INTERACT_RANGE);
+    if (!taken || !isWeaponId(taken)) return false;
+
+    const slot = this.slotForPickup();
+    const previous = this.loadout[slot];
+    if (previous) this.sandbox.throwWeapon(previous, this.cameraVec(), aimDir);
+    this.loadout[slot] = taken;
+    if (slot === this.input.firearmSlot && !this.input.toolGunEquipped) {
+      this.local.weaponId = taken;
+      this.weapon.equip(taken, performance.now());
+    }
+    this.ui.hud.setLoadout(this.loadoutRows());
+    return true;
+  }
+
+  private slotForPickup(): number {
+    const current = this.input.firearmSlot;
+    if (!this.loadout[current]) return current;
+    const empty = this.loadout.findIndex((id) => !id);
+    return empty >= 0 ? empty : current;
+  }
+
+  private offlineRespawn(): void {
+    const spawn = pickTeamSpawn(this.map, this.localTeam) ?? pickMapSpawn(this.map, 'player');
+    if (!spawn) return;
+    const pos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
+    this.local.health = MAX_HEALTH;
+    this.local.teleport(pos);
+    this.input.setAim(spawn.yaw, 0);
+    this.input.resetToggles();
+    this.camera.reset();
+    this.weapon.unequip();
+    if (this.loadout[this.input.firearmSlot]) {
+      this.weapon.equip(this.loadout[this.input.firearmSlot]!, performance.now());
+    }
+    this.ui.hud.hideDeath();
+  }
+
+  private updateHud(dt: number, speedRatio: number, airborne: boolean, crouching: boolean, now: number): void {
     const def = this.weapon.definition;
     this.ui.hud.setHealth(this.local.health, MAX_HEALTH);
     this.ui.hud.setActiveSlot(this.input.uiSlot);
@@ -853,11 +1103,19 @@ export class GameSession {
               ? 'Weapon'
               : 'Prop';
       this.ui.hud.setToolGun(true, kind, this.sandbox.selection.spawnable);
+      this.ui.hud.setScope(0, 'none');
       this.ui.hud.setCrosshairMotion(
         speedRatio,
         this.sandbox.lookHint === 'npc' || this.sandbox.lookHint === 'prop' || this.sandbox.lookHint === 'weapon',
         this.sandbox.lookHint === 'spawn' && this.sandbox.selection.spawnable,
       );
+    } else if (!this.weapon.hasWeapon) {
+      this.ui.hud.setAmmo(0, 0, 1);
+      this.ui.hud.setWeapon('EMPTY');
+      this.ui.hud.setSpread(0.004 + speedRatio * 0.006);
+      this.ui.hud.setToolGun(false, 'NPC', true);
+      this.ui.hud.setCrosshairMotion(speedRatio, Boolean(this.sandbox.aimedWeapon), false);
+      this.ui.hud.setScope(0, 'none');
     } else {
       this.ui.hud.setAmmo(this.weapon.ammoInMag, this.weapon.ammoReserve, def.magazineSize);
       this.ui.hud.setWeapon(def.name);
@@ -870,28 +1128,39 @@ export class GameSession {
         }),
       );
       this.ui.hud.setToolGun(false, 'NPC', true);
-      this.ui.hud.setCrosshairMotion(speedRatio, false, false);
+      this.ui.hud.setCrosshairMotion(speedRatio, Boolean(this.sandbox.aimedWeapon), false);
+      this.ui.hud.setScope(this.local.alive && def.scoped ? this.weapon.aimBlend : 0, def.scoped ? 'optic' : 'none');
     }
-    this.ui.hud.setNet(this.fps, this.net.rttMs, settingsStore.graphics.debugOverlay);
+    this.ui.hud.setNet(this.fps, this.offline ? 0 : (this.net?.rttMs ?? 0), settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
+    const scopedOut =
+      !this.sandbox.toolGunActive &&
+      this.weapon.hasWeapon &&
+      Boolean(def.scoped) &&
+      this.weapon.aimBlend > 0.55;
     this.ui.hud.setCrosshairVisible(
-      this.local.alive && !this.paused && !this.ui.hud.weaponWheelOpen && !this.spawnMenu?.isOpen,
+      this.local.alive &&
+        !this.paused &&
+        !this.ui.hud.weaponWheelOpen &&
+        !this.spawnMenu?.isOpen &&
+        !scopedOut,
     );
     this.ui.hud.setScoreboard(this.scoreRows(), this.input.isActionHeld('scoreboard') && !this.ui.hud.chatting);
     this.ui.hud.setDebug(
-      `tick ack ${this.net.ackTick}\n` +
-        `rtt ${this.net.rttMs.toFixed(0)} ms\n` +
+      `tick ack ${this.net?.ackTick ?? 0}\n` +
+        `rtt ${this.offline ? 'offline' : (this.net?.rttMs ?? 0).toFixed(0)} ms\n` +
         `draws ${this.renderer.drawCalls}  tris ${this.renderer.triangles}\n` +
         `particles ${this.effects.particleCount}\n` +
         `corr ${this.local.correctionCount}  err ${this.local.lastError.toFixed(3)}\n` +
         `pos ${this.local.renderPosition.x.toFixed(1)} ${this.local.renderPosition.y.toFixed(1)} ${this.local.renderPosition.z.toFixed(1)}`,
       settingsStore.graphics.debugOverlay,
     );
-    this.ui.hud.update(dt, this.net.serverNowMs());
+    this.ui.hud.update(dt, this.offline ? now : this.net?.serverNowMs() ?? now);
   }
 
   private loadoutRows() {
     return this.loadout.map((id, index) => {
+      if (!id) return { id: '', name: '—' };
       const def = getWeapon(id);
       const live = index === this.input.uiSlot && !this.input.toolGunEquipped;
       return {
@@ -943,8 +1212,11 @@ export class GameSession {
       if (!def || !getArchetype(def.kind).carryable) continue;
       if (inFront(origin, aimDir, prop.position, INTERACT_RANGE)) return 'E  pick up';
     }
+    const weaponPrompt = this.sandbox.lookWeaponPrompt();
+    if (weaponPrompt) return weaponPrompt;
     const propPrompt = this.sandbox.lookPropPrompt();
     if (propPrompt) return propPrompt;
+    if (this.loadout[this.input.firearmSlot] && !this.input.toolGunEquipped) return 'G  drop weapon';
     return null;
   }
 
@@ -991,6 +1263,7 @@ export class GameSession {
     this.physics?.dispose();
     this.audio?.dispose();
     this.ui.hud.setLobbyInvite(null);
+    this.ui.hideLobbyWait();
     this.renderer?.dispose();
   }
 }

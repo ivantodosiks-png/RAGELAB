@@ -75,6 +75,7 @@ export class Hud {
   private readonly wheelCursor: HTMLElement;
   private readonly vitals: HTMLElement;
   private readonly lobbyChip: HTMLButtonElement;
+  private readonly scope: HTMLElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -114,6 +115,10 @@ export class Hud {
     this.hairW = el('i', 'ch-tick w');
     this.crosshair.append(this.hairN, this.hairE, this.hairS, this.hairW);
 
+    this.scope = el('div', 'scope');
+    this.scope.innerHTML =
+      '<div class="scope-shade"></div><div class="scope-lens"><i class="sr-ring"></i><i class="sr-h"></i><i class="sr-v"></i><i class="sr-dot"></i><i class="sr-hash n"></i><i class="sr-hash e"></i><i class="sr-hash s"></i><i class="sr-hash w"></i></div>';
+
     this.toolGunHud = el('div', 'toolgun-hud');
     this.toolGunHud.append(el('div', 'toolgun-title', 'Tool Gun'));
     this.toolGunSelected = el('div', 'toolgun-selected', 'NPC');
@@ -130,14 +135,16 @@ export class Hud {
     this.dirHit.append(el('i'));
 
     this.vitals = el('div', 'hud-vitals');
+    const hpKicker = el('div', 'vital-kicker', 'Vitals');
     const hpLabel = el('div', 'vital-meta');
     hpLabel.append(el('span', '', 'Health'), (this.healthText = el('span', '', '100')));
     const hpBar = el('div', 'bar');
     this.healthFill = el('span');
     hpBar.append(this.healthFill);
-    this.vitals.append(hpLabel, hpBar);
+    this.vitals.append(hpKicker, hpLabel, hpBar);
 
     this.ammoPanel = el('div', 'hud-weapon');
+    const ammoKicker = el('div', 'vital-kicker', 'Weapon');
     this.ammoName = el('div', 'name', '—');
     this.ammoBig = el('div', 'ammo', '0');
     const magRow = el('div', 'vital-meta');
@@ -145,7 +152,7 @@ export class Hud {
     const magBar = el('div', 'bar ammo');
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);
-    this.ammoPanel.append(this.ammoName, this.ammoBig, magRow, magBar);
+    this.ammoPanel.append(ammoKicker, this.ammoName, this.ammoBig, magRow, magBar);
 
     this.weaponBar = el('div', 'weapon-bar');
     for (let i = 0; i < WHEEL_SLOTS; i++) {
@@ -214,6 +221,7 @@ export class Hud {
     this.root.append(
       this.hurt,
       this.dirHit,
+      this.scope,
       this.crosshair,
       this.toolGunHud,
       this.hitmarker,
@@ -311,12 +319,12 @@ export class Hud {
       const name = this.slotNames[i];
       const icon = this.slotIcons[i];
       if (!name || !icon) continue;
-      name.textContent = info ? shortWeaponName(info.name) : '—';
-      icon.innerHTML = slotGlyph(info?.id ?? 'pistol');
+      name.textContent = info && info.id ? shortWeaponName(info.name) : '—';
+      icon.innerHTML = slotGlyph(info?.id || 'empty');
       const wName = this.wheelNames[i];
       const wIcon = this.wheelIcons[i];
-      if (wName) wName.textContent = info ? shortWeaponName(info.name) : '—';
-      if (wIcon) wIcon.innerHTML = slotGlyph(info?.id ?? 'pistol');
+      if (wName) wName.textContent = info && info.id ? shortWeaponName(info.name) : '—';
+      if (wIcon) wIcon.innerHTML = slotGlyph(info?.id || 'empty');
     }
     const toolName = this.slotNames[TOOL_GUN_UI_SLOT];
     const toolIcon = this.slotIcons[TOOL_GUN_UI_SLOT];
@@ -373,6 +381,15 @@ export class Hud {
 
   setCrosshairVisible(visible: boolean): void {
     this.crosshair.classList.toggle('is-hidden', !visible);
+  }
+
+  setScope(amount: number, kind: 'none' | 'optic' | 'ads'): void {
+    const t = Math.max(0, Math.min(1, amount));
+    this.scope.style.setProperty('--scope', t.toFixed(3));
+    this.scope.classList.toggle('on', kind !== 'none' && t > 0.04);
+    this.scope.classList.toggle('optic', kind === 'optic');
+    this.scope.classList.toggle('ads', kind === 'ads');
+    this.crosshair.classList.toggle('ads', kind === 'ads' && t > 0.4);
   }
 
   openWeaponWheel(activeSlot: number): void {
@@ -632,8 +649,8 @@ export class Hud {
     const info = tool
       ? { id: 'toolgun', name: 'Tool Gun', blurb: 'Spawn, grab and inspect the sandbox.', mag: undefined, reserve: undefined }
       : this.loadout[slot];
-    this.wheelCenterIcon.innerHTML = slotGlyph(info?.id ?? 'pistol');
-    this.wheelCenterName.textContent = info?.name ?? 'Empty';
+    this.wheelCenterIcon.innerHTML = slotGlyph(info?.id || 'empty');
+    this.wheelCenterName.textContent = info?.id ? info.name : 'Empty';
     this.wheelCenterBlurb.textContent = info?.blurb ?? (tool ? 'Sandbox manipulator.' : weaponBlurb(info?.id ?? ''));
     if (tool) {
       this.wheelCenterAmmo.textContent = 'Slot 6';
@@ -670,6 +687,10 @@ function weaponBlurb(id: string): string {
   switch (id) {
     case 'pistol':
       return 'Compact sidearm. Fast draw, close range.';
+    case 'glock':
+      return 'Glock 17. 17-round 9mm — spawn it with Tool Gun.';
+    case 'magnum':
+      return 'DX-50 Hammer. Fat .50 hand cannon. Tool Gun only.';
     case 'smg':
       return 'High cyclic rate. Close-range pressure.';
     case 'rifle':
@@ -680,6 +701,8 @@ function weaponBlurb(id: string): string {
       return 'Bolt-action. Long-range precision.';
     case 'toolgun':
       return 'Spawn, grab and inspect the sandbox.';
+    case 'empty':
+      return 'Empty slot. Spawn a gun with Tool Gun, then E to pick up.';
     default:
       return 'Equipped firearm.';
   }
@@ -691,6 +714,13 @@ function slotGlyph(id: string): string {
   switch (id) {
     case 'toolgun':
       return `<svg ${common}><path d="M14 7l3-3 3 3-3 3"/><path d="M11 10L4 17v3h3l7-7"/><circle cx="16.5" cy="7.5" r="1"/></svg>`;
+    case 'empty':
+    case '':
+      return `<svg ${common}><rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="3 2"/></svg>`;
+    case 'magnum':
+      return `<svg ${common}><path d="M4 13h11l3-5h3"/><path d="M9 13v6H6"/><path d="M7 9h5"/><path d="M15 8v3"/></svg>`;
+    case 'glock':
+      return `<svg ${common}><path d="M8 13h8l2-4"/><path d="M10 13v6H8"/><path d="M7 9h4"/></svg>`;
     case 'smg':
       return `<svg ${common}><path d="M3 14h12l2-5h3"/><path d="M7 14v5H5"/><path d="M11 14v3"/></svg>`;
     case 'rifle':

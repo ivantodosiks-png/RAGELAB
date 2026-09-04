@@ -273,6 +273,7 @@ export class GameRenderer {
   dispose(): void {
     for (const light of this.dynamicLights) light.dispose();
     this.dynamicLights.length = 0;
+    // Keep the canvas WebGL-capable — MenuBackdrop reuses #viewport after leave.
     this.renderer.dispose();
   }
 }

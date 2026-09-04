@@ -1,18 +1,36 @@
 import {
   ACTION_LABELS,
+  DEFAULT_LOADOUT,
   DEFAULT_MAP_ID,
   MAP_IDS,
+  WEAPON_DEFINITIONS,
+  getMap,
+  getWeapon,
   isLobbyCode,
+  mapHasSides,
   normalizeLobbyCode,
   type QualityLevelId,
   type RoomSummary,
   type UserSettings,
+  type WeaponId,
 } from '@ragelab/shared';
 import type { FullProfile, WeaponStatRow, AdminUserRow } from '../supabase/profileService';
 import type { LeaderboardEntry } from '../../../supabase/types/database';
 import { formatCode, el, clear } from './dom';
+import { WeaponPreview } from './weaponPreview';
 
-export type MenuScreen = 'play' | 'servers' | 'profile' | 'settings' | 'controls' | 'auth' | 'admin';
+export type MenuScreen =
+  | 'play'
+  | 'servers'
+  | 'loadout'
+  | 'inventory'
+  | 'profile'
+  | 'settings'
+  | 'controls'
+  | 'auth'
+  | 'admin';
+
+type SettingsTab = 'video' | 'audio' | 'controls' | 'gameplay';
 
 export interface MenuCallbacks {
   play: (opts: {
@@ -22,9 +40,10 @@ export interface MenuCallbacks {
     mapId?: string;
     password?: string;
     wsUrl?: string;
+    team?: number;
   }) => void;
-  createRoom: (opts: { name: string; mapId: string; maxPlayers: number; password: string }) => void;
-  joinByCode: (opts: { username: string; code: string; mapId?: string; wsUrl?: string }) => void;
+  createRoom: (opts: { name: string; mapId: string; maxPlayers: number; password: string; team?: number }) => void;
+  joinByCode: (opts: { username: string; code: string; mapId?: string; wsUrl?: string; team?: number }) => void;
   refreshServers: () => Promise<RoomSummary[]>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, username: string) => Promise<string | null>;
@@ -42,96 +61,158 @@ export interface MenuCallbacks {
   quit: () => void;
 }
 
+const NAV: Array<{ id: MenuScreen; label: string; hero?: boolean }> = [
+  { id: 'play', label: 'Play', hero: true },
+  { id: 'servers', label: 'Servers' },
+  { id: 'loadout', label: 'Loadout' },
+  { id: 'inventory', label: 'Inventory' },
+  { id: 'settings', label: 'Settings' },
+];
+
+const INTRO_MS = 1850;
+
+const LOADOUT_GROUPS: Array<{ title: string; ids: WeaponId[] }> = [
+  { title: 'Primary', ids: ['rifle', 'smg', 'shotgun', 'sniper'] },
+  { title: 'Secondary', ids: ['pistol', 'glock', 'magnum'] },
+];
+
 export class MainMenu {
   readonly root: HTMLElement;
-  private readonly panel: HTMLElement;
+  private readonly stage: HTMLElement;
   private readonly status: HTMLElement;
+  private readonly profileChip: HTMLButtonElement;
+  private readonly adminBtn: HTMLButtonElement;
   private readonly navButtons = new Map<MenuScreen, HTMLButtonElement>();
   private screen: MenuScreen = 'play';
+  private settingsTab: SettingsTab = 'video';
   private guestName: string;
   private rebinding: string | null = null;
+  private preview: WeaponPreview | null = null;
+  private loadoutFocus: WeaponId = 'rifle';
 
   signedIn = false;
   username = 'Guest';
   supabaseReady = false;
   pendingJoinCode = '';
+  private pendingTeam = 1;
   isAdmin = false;
   profile: FullProfile | null = null;
   weaponStats: WeaponStatRow[] = [];
   leaderboard: LeaderboardEntry[] = [];
   settings!: UserSettings;
-  private readonly adminBtn: HTMLButtonElement;
   private adminUsers: AdminUserRow[] = [];
   private adminQuery = '';
   private pendingBanId: string | null = null;
   private adminNotice = '';
+  private createBusy = false;
 
   constructor(
     host: HTMLElement,
     private readonly callbacks: MenuCallbacks,
   ) {
     this.guestName = `Operator-${Math.floor(1000 + Math.random() * 9000)}`;
-    this.root = el('div', 'rl-screen');
-    const menu = el('div', 'rl-menu');
+    this.root = el('div', 'rl-screen mm-root is-intro');
 
-    const brand = el('div', 'rl-brand');
-    const logo = el('h1', 'rl-logo');
-    logo.innerHTML = 'RAGE<span>LAB</span>';
-    brand.append(logo, el('p', 'rl-tag', 'sandbox fps'));
+    const fx = el('div', 'mm-fx');
+    fx.append(
+      el('div', 'mm-vignette'),
+      el('div', 'mm-glow'),
+      el('div', 'mm-grain'),
+      el('div', 'mm-scan'),
+    );
+    this.root.append(fx);
 
-    const nav = el('div', 'rl-nav');
-    for (const [id, label] of [
-      ['play', 'Play'],
-      ['servers', 'Servers'],
-      ['profile', 'Profile'],
-      ['settings', 'Settings'],
-      ['controls', 'Controls'],
-    ] as const) {
-      const btn = el('button', '', label);
-      btn.addEventListener('click', () => this.show(id));
+    const intro = el('div', 'mm-intro');
+    intro.innerHTML = `
+      <div class="mm-intro-core">
+        <div class="mm-intro-mark">RAGE<span>LAB</span></div>
+        <p class="mm-intro-sub">SANDBOX MULTIPLAYER</p>
+        <div class="mm-intro-bar" aria-hidden="true"></div>
+      </div>`;
+    this.root.append(intro);
+
+    const shell = el('div', 'mm-shell');
+    const top = el('div', 'mm-top');
+    const word = el('div', 'mm-wordmark');
+    word.innerHTML = `
+      <p class="mm-brand-tag">TACTICAL SANDBOX</p>
+      <h1>RAGE<span>LAB</span></h1>
+      <p class="mm-brand-sub">BROWSER MULTIPLAYER FPS</p>`;
+    this.profileChip = el('button', 'mm-profile');
+    this.profileChip.type = 'button';
+    this.profileChip.title = 'Profile';
+    this.profileChip.addEventListener('click', () => this.show(this.signedIn ? 'profile' : 'auth'));
+    top.append(word, this.profileChip);
+
+    const body = el('div', 'mm-body');
+    const nav = el('nav', 'mm-nav');
+    let navIndex = 0;
+    for (const item of NAV) {
+      const btn = el('button', item.hero ? 'mm-nav-btn is-play' : 'mm-nav-btn', '');
+      if (item.hero) {
+        btn.innerHTML = `<span class="mm-play-ico" aria-hidden="true"></span><span>${item.label}</span>`;
+      } else {
+        navIndex += 1;
+        btn.innerHTML = `<span class="mm-nav-index">${String(navIndex).padStart(2, '0')}</span><span>${item.label}</span>`;
+      }
+      btn.addEventListener('click', () => this.show(item.id));
       nav.append(btn);
-      this.navButtons.set(id, btn);
+      this.navButtons.set(item.id, btn);
     }
-    const authBtn = el('button', '', 'Sign in');
-    authBtn.addEventListener('click', () => this.show('auth'));
-    nav.append(authBtn);
-    this.navButtons.set('auth', authBtn);
-    this.adminBtn = el('button', '', 'Admin');
+    this.adminBtn = el('button', 'mm-nav-btn', '');
+    this.adminBtn.innerHTML = '<span class="mm-nav-index">AD</span><span>Admin</span>';
     this.adminBtn.hidden = true;
     this.adminBtn.addEventListener('click', () => this.show('admin'));
     nav.append(this.adminBtn);
     this.navButtons.set('admin', this.adminBtn);
-    const quit = el('button', 'danger', 'Quit');
-    quit.addEventListener('click', () => this.callbacks.quit());
+    const quit = el('button', 'mm-nav-btn is-quit', 'Quit');
+    quit.addEventListener('click', () => {
+      if (window.confirm('Leave RAGELAB?')) this.callbacks.quit();
+    });
     nav.append(quit);
-    brand.append(nav);
 
-    this.status = el('div', 'rl-status');
-    brand.append(this.status);
+    this.stage = el('div', 'mm-stage');
+    body.append(nav, this.stage);
 
-    this.panel = el('div', 'rl-panel');
-    menu.append(brand, this.panel);
-    this.root.append(menu);
+    const foot = el('div', 'mm-foot');
+    this.status = el('div', 'mm-status');
+    foot.append(this.status, el('div', 'mm-ver', 'v0.1.0'));
+
+    shell.append(top, body, foot);
+    this.root.append(shell);
     host.append(this.root);
+    this.refreshChip();
+    this.show('play');
+    window.setTimeout(() => {
+      this.root.classList.remove('is-intro');
+      this.root.classList.add('is-ready');
+    }, INTRO_MS);
   }
 
   setVisible(visible: boolean): void {
     this.root.style.display = visible ? '' : 'none';
+    if (!visible) this.disposePreview();
+    else if (this.screen === 'loadout') this.ensurePreview();
   }
 
   setAuth(signedIn: boolean, username: string, supabaseReady: boolean): void {
     this.signedIn = signedIn;
     this.username = username;
     this.supabaseReady = supabaseReady;
-    const authBtn = this.navButtons.get('auth');
-    if (authBtn) authBtn.textContent = signedIn ? 'Account' : 'Sign in';
+    this.refreshChip();
     this.status.innerHTML = signedIn
       ? `signed in as <b>${escapeHtml(username)}</b>`
       : supabaseReady
         ? 'guest session · sign in to keep stats'
         : 'guest session · supabase not configured';
     if (!signedIn) this.setAdmin(false);
-    if (this.screen === 'auth' || this.screen === 'profile' || this.screen === 'play' || this.screen === 'admin') {
+    if (
+      this.screen === 'auth' ||
+      this.screen === 'profile' ||
+      this.screen === 'play' ||
+      this.screen === 'inventory' ||
+      this.screen === 'admin'
+    ) {
       this.render();
     }
   }
@@ -140,16 +221,38 @@ export class MainMenu {
     this.isAdmin = isAdmin;
     this.adminBtn.hidden = !isAdmin;
     if (!isAdmin && this.screen === 'admin') this.show('play');
+    else if (this.screen === 'play' || this.screen === 'servers') this.render();
+  }
+
+  setCreateBusy(busy: boolean): void {
+    this.createBusy = busy;
+    if (this.screen === 'play' || this.screen === 'servers') this.render();
   }
 
   show(screen: MenuScreen): void {
+    if (screen === 'controls') {
+      this.settingsTab = 'controls';
+      screen = 'settings';
+    }
     this.screen = screen;
-    for (const [id, btn] of this.navButtons) btn.classList.toggle('active', id === screen);
+    for (const [id, btn] of this.navButtons) btn.classList.toggle('is-active', id === screen);
+    if (screen !== 'loadout') this.disposePreview();
+    this.stage.className = `mm-stage is-${screen}`;
     this.render();
   }
 
+  private refreshChip(): void {
+    const level = this.profile?.stats.level ?? 1;
+    const name = this.signedIn ? this.username : this.guestName;
+    const initial = (name[0] ?? 'R').toUpperCase();
+    const avatar = this.profile?.profile.avatarUrl;
+    this.profileChip.innerHTML = `
+      <span class="mm-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(initial)}</span>
+      <span class="mm-chip-meta"><b>${escapeHtml(name)}</b><i>LVL ${level}</i></span>`;
+  }
+
   private render(): void {
-    clear(this.panel);
+    clear(this.stage);
     switch (this.screen) {
       case 'play':
         this.renderPlay();
@@ -157,14 +260,17 @@ export class MainMenu {
       case 'servers':
         void this.renderServers();
         break;
+      case 'loadout':
+        this.renderLoadout();
+        break;
+      case 'inventory':
+        this.renderInventory();
+        break;
       case 'profile':
         this.renderProfile();
         break;
       case 'settings':
         this.renderSettings();
-        break;
-      case 'controls':
-        this.renderControls();
         break;
       case 'auth':
         this.renderAuth();
@@ -172,118 +278,160 @@ export class MainMenu {
       case 'admin':
         void this.renderAdmin();
         break;
+      case 'controls':
+        this.settingsTab = 'controls';
+        this.renderSettings();
+        break;
     }
   }
 
+  private operatorName(): string {
+    if (this.signedIn) return this.username;
+    return this.guestName;
+  }
+
   private renderPlay(): void {
-    this.panel.append(el('h2', '', 'Play'));
-    this.panel.append(
+    const card = el('div', 'mm-glass mm-play-card');
+    card.append(el('p', 'mm-kicker', 'Deploy'));
+    card.append(el('h2', '', 'Offline match'));
+    card.append(
       el(
         'p',
         'lead',
-        'Create a lobby, share the 6-letter code or invite link. Friends open this website, enter the code, and play — no install. When the host leaves, the session ends.',
+        'Jump straight into a local sandbox. Multiplayer lobbies live under Servers — create as admin, or join with a code.',
       ),
     );
-    const form = el('div', 'rl-form');
-    const name = inputField('Callsign', this.signedIn ? this.username : this.guestName, !this.signedIn);
-    const map = selectField('Map', MAP_IDS, DEFAULT_MAP_ID);
-    const err = el('div', 'rl-error');
 
-    const create = el('button', 'rl-btn primary', 'Create lobby');
-    create.addEventListener('click', () => {
-      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
-      if (!this.signedIn) this.guestName = username || this.guestName;
-      this.username = username || this.guestName;
-      this.callbacks.createRoom({
-        name: `${this.username}'s lobby`.slice(0, 48),
+    const form = el('div', 'rl-form mm-form');
+    const name = inputField('Callsign', this.signedIn ? this.username : this.guestName, !this.signedIn);
+    const map = selectField(
+      'Map',
+      MAP_IDS.map((id) => ({ value: id, label: getMap(id).name })),
+      DEFAULT_MAP_ID,
+    );
+    const side = selectField(
+      'Side',
+      [
+        { value: '1', label: 'Alpha' },
+        { value: '2', label: 'Bravo' },
+      ],
+      String(this.pendingTeam),
+    );
+    const syncSide = (): void => {
+      const mapId = (map.input as HTMLSelectElement).value;
+      side.wrap.hidden = !mapHasSides(getMap(mapId));
+    };
+    map.input.addEventListener('change', syncSide);
+    syncSide();
+    side.input.addEventListener('change', () => {
+      this.pendingTeam = (side.input as HTMLSelectElement).value === '2' ? 2 : 1;
+    });
+
+    const play = el('button', 'mm-play-cta', '');
+    play.innerHTML = '<span class="mm-play-ico" aria-hidden="true"></span><span>Play</span>';
+    play.addEventListener('click', () => {
+      play.classList.add('is-pressed');
+      const username = this.commitName(name);
+      // Keep this in the click gesture so AudioContext / pointer lock can start.
+      this.callbacks.play({
+        username,
         mapId: (map.input as HTMLSelectElement).value,
-        maxPlayers: 16,
-        password: '',
+        team: this.teamFor(map),
       });
     });
 
-    const code = inputField('Join with code', this.pendingJoinCode);
+    form.append(name.wrap, map.wrap, side.wrap);
+    card.append(form, play);
+    this.stage.append(card);
+  }
+
+  private renderServers(): void {
+    const card = el('div', 'mm-glass mm-wide');
+    card.append(el('p', 'mm-kicker', 'Online'));
+    card.append(el('h2', '', 'Multiplayer'));
+    card.append(el('p', 'lead', 'Host a lobby on this machine, or join a friend with a 6-character code.'));
+
+    const grid = el('div', 'mm-mp-grid');
+    const createPane = el('div', 'mm-mp-pane');
+    createPane.append(el('h3', '', 'Create lobby'));
+    const map = selectField(
+      'Map',
+      MAP_IDS.map((id) => ({ value: id, label: getMap(id).name })),
+      DEFAULT_MAP_ID,
+    );
+    const create = el('button', 'rl-btn primary rl-create-lobby', '');
+    create.innerHTML = '<span class="rl-create-label">Create lobby</span>';
+    create.disabled = !this.isAdmin || this.createBusy;
+    if (!this.isAdmin) create.classList.add('is-locked');
+    if (this.createBusy) {
+      create.classList.add('is-loading');
+      create.innerHTML = '<span class="rl-create-spinner" aria-hidden="true"></span><span class="rl-create-label">Creating…</span>';
+    }
+    create.addEventListener('click', () => {
+      if (!this.isAdmin || this.createBusy) return;
+      const mapId = (map.input as HTMLSelectElement).value;
+      this.callbacks.createRoom({
+        name: `${this.operatorName()}'s lobby`.slice(0, 48),
+        mapId,
+        maxPlayers: mapHasSides(getMap(mapId)) ? 2 : 16,
+        password: '',
+        team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
+      });
+    });
+    createPane.append(map.wrap, create);
+    if (!this.isAdmin) {
+      createPane.append(el('p', 'mm-lock-note', 'Only administrators can create a lobby'));
+    }
+
+    const joinPane = el('div', 'mm-mp-pane');
+    joinPane.append(el('h3', '', 'Join with code'));
+    const err = el('div', 'rl-error');
+    const code = inputField('Code', this.pendingJoinCode);
     const codeInput = code.input as HTMLInputElement;
     codeInput.maxLength = 6;
     codeInput.autocomplete = 'off';
-    codeInput.placeholder = 'ABC123';
+    codeInput.placeholder = 'X7K9P2';
+    codeInput.spellcheck = false;
     codeInput.style.textTransform = 'uppercase';
     codeInput.addEventListener('input', () => {
       const next = normalizeLobbyCode(codeInput.value);
       this.pendingJoinCode = next;
       if (codeInput.value !== next) codeInput.value = next;
     });
-
-    const join = el('button', 'rl-btn', 'Join lobby');
-    join.addEventListener('click', () => {
-      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
-      if (!this.signedIn) this.guestName = username || this.guestName;
+    const join = el('button', 'rl-btn primary', 'Join');
+    const go = (): void => {
       const value = normalizeLobbyCode(codeInput.value || this.pendingJoinCode);
       if (!isLobbyCode(value)) {
-        err.textContent = 'Enter the 6-character code from the host.';
+        err.textContent = 'Enter a 6-character lobby code.';
         return;
       }
       err.textContent = '';
-      this.callbacks.joinByCode({
-        username: username || this.guestName,
-        code: value,
-        mapId: (map.input as HTMLSelectElement).value,
-      });
+      this.callbacks.joinByCode({ username: this.operatorName(), code: value });
+    };
+    codeInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') go();
     });
+    join.addEventListener('click', go);
+    const joinRow = el('div', 'mm-join-row');
+    joinRow.append(code.wrap, join);
+    joinPane.append(joinRow, err);
 
-    const play = el('button', 'rl-btn', 'Quick play');
-    play.addEventListener('click', () => {
-      const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
-      if (!this.signedIn) this.guestName = username || this.guestName;
-      this.callbacks.play({
-        username: username || this.guestName,
-        mapId: (map.input as HTMLSelectElement).value,
-      });
-    });
+    grid.append(createPane, joinPane);
+    card.append(grid);
 
-    form.append(name.wrap, map.wrap, err, create, code.wrap, join, play);
-    this.panel.append(form);
+    const listHost = el('div', 'mm-room-list');
+    listHost.textContent = 'Loading rooms…';
+    card.append(listHost);
+    this.stage.append(card);
+    void this.fillRooms(listHost);
   }
 
-  private async renderServers(): Promise<void> {
-    this.panel.append(el('h2', '', 'Servers'));
-    this.panel.append(
-      el(
-        'p',
-        'lead',
-        'Create a lobby on a running game server, then share the code. Friends join from this website. If you leave, everyone is kicked.',
-      ),
-    );
-    const listHost = el('div');
-    listHost.textContent = 'Loading rooms…';
-    this.panel.append(listHost);
-
-    const create = el('div', 'rl-card');
-    create.append(el('h3', '', 'Create room'));
-    const form = el('div', 'rl-form');
-    const name = inputField('Name', 'Rage Yard');
-    const map = selectField('Map', MAP_IDS, DEFAULT_MAP_ID);
-    const max = inputField('Max players', '16');
-    (max.input as HTMLInputElement).type = 'number';
-    const password = inputField('Password (optional)', '');
-    (password.input as HTMLInputElement).type = 'password';
-    const go = el('button', 'rl-btn primary', 'Create lobby');
-    go.addEventListener('click', () => {
-      this.callbacks.createRoom({
-        name: (name.input as HTMLInputElement).value.trim() || 'RAGELAB',
-        mapId: (map.input as HTMLSelectElement).value,
-        maxPlayers: Number((max.input as HTMLInputElement).value) || 16,
-        password: (password.input as HTMLInputElement).value,
-      });
-    });
-    form.append(name.wrap, map.wrap, max.wrap, password.wrap, go);
-    create.append(form);
-    this.panel.append(create);
-
+  private async fillRooms(listHost: HTMLElement): Promise<void> {
     try {
       const rooms = await this.callbacks.refreshServers();
+      if (this.screen !== 'servers') return;
       if (rooms.length === 0) {
-        listHost.textContent = 'No rooms listed. Host one below, or hit Play.';
+        listHost.textContent = 'No live lobbies. An administrator can create one above.';
         return;
       }
       const table = document.createElement('table');
@@ -299,7 +447,7 @@ export class MainMenu {
         btn.addEventListener('click', () => {
           const password = room.hasPassword ? window.prompt('Room password') ?? '' : undefined;
           this.callbacks.play({
-            username: this.signedIn ? this.username : this.guestName,
+            username: this.operatorName(),
             roomId: room.id,
             roomCode: room.joinCode,
             password: password || undefined,
@@ -318,13 +466,123 @@ export class MainMenu {
     }
   }
 
+  private renderLoadout(): void {
+    const card = el('div', 'mm-glass mm-wide mm-loadout');
+    const def = getWeapon(this.loadoutFocus);
+    card.append(el('p', 'mm-kicker', 'Armory'));
+    card.append(el('h2', '', 'Loadout'));
+    card.append(
+      el(
+        'p',
+        'lead',
+        'Spawn kit preview. The live match still uses the default five-slot loadout; sandbox guns (Glock 17, DX-50 Hammer) are picked up in-world.',
+      ),
+    );
+
+    const layout = el('div', 'mm-loadout-layout');
+    const list = el('div', 'mm-loadout-list');
+    for (const group of LOADOUT_GROUPS) {
+      list.append(el('h3', '', group.title));
+      for (const id of group.ids) {
+        const weapon = WEAPON_DEFINITIONS[id];
+        if (!weapon) continue;
+        const row = el('button', `mm-gun${id === this.loadoutFocus ? ' is-on' : ''}`, '');
+        const kit = DEFAULT_LOADOUT.includes(id) ? 'Kit' : 'Sandbox';
+        row.innerHTML = `<b>${escapeHtml(weapon.name)}</b><i>${kit} · ${weapon.magazineSize} rd</i>`;
+        row.addEventListener('click', () => {
+          this.loadoutFocus = id;
+          this.render();
+        });
+        list.append(row);
+      }
+    }
+    list.append(el('h3', '', 'Melee'));
+    const melee = el('div', 'mm-gun is-static');
+    melee.innerHTML = '<b>Katana</b><i>Sandbox pickup · not a loadout slot</i>';
+    list.append(melee);
+    list.append(el('h3', '', 'Equipment'));
+    const tool = el('div', 'mm-gun is-static');
+    tool.innerHTML = '<b>Tool Gun</b><i>In-match slot 6 · spawn / physics</i>';
+    list.append(tool);
+
+    const show = el('div', 'mm-loadout-show');
+    show.append(el('div', 'mm-preview-title', def.name));
+    const frame = el('div', 'mm-preview-frame');
+    show.append(frame);
+    show.append(
+      el(
+        'p',
+        'mm-preview-meta',
+        `${def.damage} dmg · ${def.rpm} rpm · ${def.magazineSize}/${def.reserveAmmo} ammo`,
+      ),
+    );
+
+    layout.append(list, show);
+    card.append(layout);
+    this.stage.append(card);
+    this.ensurePreview();
+    this.preview?.show(this.loadoutFocus);
+    const host = this.stage.querySelector('.mm-preview-frame');
+    if (host instanceof HTMLElement && this.preview) this.preview.mount(host);
+  }
+
+  private renderInventory(): void {
+    const card = el('div', 'mm-glass mm-wide');
+    card.append(el('p', 'mm-kicker', 'Locker'));
+    card.append(el('h2', '', 'Inventory'));
+
+    if (!this.signedIn || !this.profile) {
+      card.append(el('p', 'lead', 'Sign in to load cosmetics and persistent inventory from your profile.'));
+      const go = el('button', 'rl-btn primary', 'Sign in');
+      go.addEventListener('click', () => this.show('auth'));
+      card.append(go);
+      this.stage.append(card);
+      return;
+    }
+
+    const owned = new Set(this.profile.inventory.map((i) => i.itemId));
+    const equipped = new Set(this.profile.inventory.filter((i) => i.equipped).map((i) => i.itemId));
+    const counts = new Map<string, number>();
+    for (const entry of this.profile.inventory) {
+      counts.set(entry.itemId, (counts.get(entry.itemId) ?? 0) + 1);
+    }
+
+    if (this.profile.cosmetics.length === 0) {
+      card.append(el('p', 'lead', 'No cosmetic catalog is configured on this server yet.'));
+      this.stage.append(card);
+      return;
+    }
+
+    const grid = el('div', 'mm-inv-grid');
+    for (const item of this.profile.cosmetics) {
+      const have = owned.has(item.id);
+      const tile = el('article', `mm-inv-card rarity-${item.rarity}${have ? '' : ' is-locked'}`);
+      tile.innerHTML = `
+        <span class="mm-inv-ico">${item.itemType[0]?.toUpperCase() ?? '?'}</span>
+        <b>${escapeHtml(item.name)}</b>
+        <i>${escapeHtml(item.itemType)} · ${escapeHtml(item.rarity)}</i>
+        <em>${have ? `×${counts.get(item.id) ?? 1}` : 'Locked'}</em>`;
+      if (have) {
+        const btn = el('button', 'rl-btn', equipped.has(item.id) ? 'Equipped' : 'Equip');
+        btn.disabled = equipped.has(item.id);
+        btn.addEventListener('click', () => this.callbacks.equipCosmetic(item.id));
+        tile.append(btn);
+      }
+      grid.append(tile);
+    }
+    card.append(grid);
+    this.stage.append(card);
+  }
+
   private async renderAdmin(): Promise<void> {
-    this.panel.append(el('h2', '', 'Admin'));
-    this.panel.append(
+    const card = el('div', 'mm-glass mm-wide');
+    card.append(el('h2', '', 'Admin'));
+    card.append(
       el('p', 'lead', 'Registered accounts. Ban writes a reason the player sees on the website. Unban restores access immediately.'),
     );
+    this.stage.append(card);
     if (!this.isAdmin) {
-      this.panel.append(el('p', 'rl-error', 'Admin access required.'));
+      card.append(el('p', 'rl-error', 'Admin access required.'));
       return;
     }
 
@@ -339,14 +597,11 @@ export class MainMenu {
     const refresh = el('button', 'rl-btn', 'Refresh');
     refresh.addEventListener('click', () => void this.reloadAdminUsers());
     tools.append(search.wrap, refresh);
-    this.panel.append(tools);
-
-    if (this.adminNotice) this.panel.append(el('div', 'rl-error', this.adminNotice));
-
+    card.append(tools);
+    if (this.adminNotice) card.append(el('div', 'rl-error', this.adminNotice));
     const tableHost = el('div', 'rl-admin-table');
     tableHost.textContent = 'Loading players…';
-    this.panel.append(tableHost);
-
+    card.append(tableHost);
     if (this.adminUsers.length === 0) {
       await this.reloadAdminUsers(false);
       if (this.screen !== 'admin') return;
@@ -371,10 +626,7 @@ export class MainMenu {
     const needle = this.adminQuery.trim().toLowerCase();
     const rows = this.adminUsers.filter((user) => {
       if (!needle) return true;
-      return (
-        user.username.toLowerCase().includes(needle) ||
-        (user.email ?? '').toLowerCase().includes(needle)
-      );
+      return user.username.toLowerCase().includes(needle) || (user.email ?? '').toLowerCase().includes(needle);
     });
     if (rows.length === 0) {
       host.textContent = this.adminUsers.length === 0 ? 'No registered players yet.' : 'No players match that search.';
@@ -444,19 +696,20 @@ export class MainMenu {
   }
 
   private renderProfile(): void {
-    this.panel.append(el('h2', '', 'Profile'));
+    const card = el('div', 'mm-glass mm-wide');
+    card.append(el('p', 'mm-kicker', 'Operator'));
+    card.append(el('h2', '', 'Profile'));
     if (!this.signedIn || !this.profile) {
-      this.panel.append(
-        el('p', 'lead', 'Sign in to load your persistent profile, cosmetics and statistics from Supabase.'),
-      );
+      card.append(el('p', 'lead', 'Sign in to load your persistent profile, cosmetics and statistics.'));
       const go = el('button', 'rl-btn primary', 'Sign in');
       go.addEventListener('click', () => this.show('auth'));
-      this.panel.append(go);
+      card.append(go);
+      this.stage.append(card);
       return;
     }
 
     const p = this.profile;
-    const form = el('div', 'rl-form');
+    const form = el('div', 'rl-form mm-form');
     const name = inputField('Username', p.profile.username);
     const avatar = inputField('Avatar URL', p.profile.avatarUrl ?? '');
     const err = el('div', 'rl-error');
@@ -468,9 +721,12 @@ export class MainMenu {
         (avatar.input as HTMLInputElement).value.trim(),
       );
       err.textContent = message ?? 'Saved.';
+      this.refreshChip();
     });
-    form.append(name.wrap, avatar.wrap, err, save);
-    this.panel.append(form);
+    const account = el('button', 'rl-btn', 'Account');
+    account.addEventListener('click', () => this.show('auth'));
+    form.append(name.wrap, avatar.wrap, err, save, account);
+    card.append(form);
 
     const s = p.stats;
     const kd = s.deaths > 0 ? (s.kills / s.deaths).toFixed(2) : String(s.kills);
@@ -478,6 +734,7 @@ export class MainMenu {
     for (const [label, value] of [
       ['Level', String(s.level)],
       ['XP', String(s.xp)],
+      ['Wins', String(s.wins)],
       ['Kills', String(s.kills)],
       ['Deaths', String(s.deaths)],
       ['K/D', kd],
@@ -489,7 +746,7 @@ export class MainMenu {
       node.append(el('b', '', value), el('span', '', label));
       stats.append(node);
     }
-    this.panel.append(el('p', 'lead', ''), stats);
+    card.append(stats);
 
     if (this.weaponStats.length > 0) {
       const table = document.createElement('table');
@@ -500,32 +757,11 @@ export class MainMenu {
             `<tr><td>${escapeHtml(w.weaponId)}</td><td>${w.kills}</td><td>${w.shotsFired}</td><td>${w.shotsHit}</td><td>${w.headshots}</td></tr>`,
         )
         .join('')}</tbody>`;
-      this.panel.append(table);
-    }
-
-    if (p.cosmetics.length > 0) {
-      this.panel.append(el('p', 'lead', 'Cosmetics'));
-      const owned = new Set(p.inventory.map((i) => i.itemId));
-      const equipped = new Set(p.inventory.filter((i) => i.equipped).map((i) => i.itemId));
-      for (const item of p.cosmetics) {
-        const row = el('div', 'cosmetic');
-        const left = el('div');
-        left.innerHTML = `<b class="rarity-${item.rarity}">${escapeHtml(item.name)}</b><div style="color:var(--muted);font-size:12px">${item.itemType} · ${item.rarity}</div>`;
-        row.append(left);
-        if (owned.has(item.id)) {
-          const btn = el('button', 'rl-btn', equipped.has(item.id) ? 'Equipped' : 'Equip');
-          btn.disabled = equipped.has(item.id);
-          btn.addEventListener('click', () => this.callbacks.equipCosmetic(item.id));
-          row.append(btn);
-        } else {
-          row.append(el('span', '', 'Locked'));
-        }
-        this.panel.append(row);
-      }
+      card.append(table);
     }
 
     if (this.leaderboard.length > 0) {
-      this.panel.append(el('p', 'lead', 'Leaderboard'));
+      card.append(el('p', 'lead', 'Leaderboard'));
       const table = document.createElement('table');
       table.className = 'rl-table';
       table.innerHTML = `<thead><tr><th>#</th><th>Player</th><th>K</th><th>D</th><th>Lv</th></tr></thead><tbody>${this.leaderboard
@@ -534,71 +770,101 @@ export class MainMenu {
             `<tr><td>${i + 1}</td><td>${escapeHtml(row.username)}</td><td>${row.kills}</td><td>${row.deaths}</td><td>${row.level}</td></tr>`,
         )
         .join('')}</tbody>`;
-      this.panel.append(table);
+      card.append(table);
     }
+    this.stage.append(card);
   }
 
   private renderSettings(): void {
-    this.panel.append(el('h2', '', 'Settings'));
+    const card = el('div', 'mm-glass mm-wide');
+    card.append(el('p', 'mm-kicker', 'System'));
+    card.append(el('h2', '', 'Settings'));
+    const tabs = el('div', 'mm-tabs');
+    for (const [id, label] of [
+      ['video', 'Video'],
+      ['audio', 'Audio'],
+      ['controls', 'Controls'],
+      ['gameplay', 'Gameplay'],
+    ] as const) {
+      const btn = el('button', this.settingsTab === id ? 'is-on' : '', label);
+      btn.addEventListener('click', () => {
+        this.settingsTab = id;
+        this.render();
+      });
+      tabs.append(btn);
+    }
+    card.append(tabs);
+    const body = el('div', 'mm-settings-body');
     const g = this.settings.graphics;
     const a = this.settings.audio;
-
-    this.panel.append(el('p', 'lead', 'Graphics'));
-    const quality = selectField('Quality', ['low', 'medium', 'high', 'ultra'], g.quality);
-    quality.input.addEventListener('change', () => {
-      this.callbacks.applyQuality((quality.input as HTMLSelectElement).value as QualityLevelId);
-    });
-    this.panel.append(quality.wrap);
-    this.panel.append(
-      slider('Field of view', g.fov, 70, 110, 1, (v) => this.callbacks.patchGraphics({ fov: v })),
-      slider('Render distance', g.renderDistance, 80, 400, 10, (v) =>
-        this.callbacks.patchGraphics({ renderDistance: v }),
-      ),
-      slider('Resolution scale', g.resolutionScale, 0.5, 1.5, 0.05, (v) =>
-        this.callbacks.patchGraphics({ resolutionScale: v }),
-      ),
-      checkbox('Shadows', g.shadows, (v) => this.callbacks.patchGraphics({ shadows: v })),
-      checkbox('Antialias', g.antialias, (v) => this.callbacks.patchGraphics({ antialias: v })),
-      checkbox('Show FPS', g.showFps, (v) => this.callbacks.patchGraphics({ showFps: v })),
-      checkbox('Show ping', g.showPing, (v) => this.callbacks.patchGraphics({ showPing: v })),
-      checkbox('Debug overlay', g.debugOverlay, (v) => this.callbacks.patchGraphics({ debugOverlay: v })),
-    );
-
-    this.panel.append(el('p', 'lead', 'Audio'));
-    this.panel.append(
-      slider('Master', a.master, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ master: v })),
-      slider('Effects', a.effects, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ effects: v })),
-      slider('Music', a.music, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ music: v })),
-      slider('Voice', a.voice, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ voice: v })),
-      slider('UI', a.ui, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ui: v })),
-      slider('Ambience', a.ambience, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ambience: v })),
-    );
-  }
-
-  private renderControls(): void {
-    this.panel.append(el('h2', '', 'Controls'));
     const c = this.settings.controls;
-    this.panel.append(
-      slider('Sensitivity', c.sensitivity, 0.4, 6, 0.05, (v) => this.callbacks.patchControls({ sensitivity: v })),
-      slider('ADS sensitivity', c.aimSensitivityMultiplier, 0.2, 1.5, 0.05, (v) =>
-        this.callbacks.patchControls({ aimSensitivityMultiplier: v }),
-      ),
-      checkbox('Invert Y', c.invertY, (v) => this.callbacks.patchControls({ invertY: v })),
-      checkbox('Toggle sprint', c.toggleSprint, (v) => this.callbacks.patchControls({ toggleSprint: v })),
-      checkbox('Toggle crouch', c.toggleCrouch, (v) => this.callbacks.patchControls({ toggleCrouch: v })),
-      checkbox('Toggle aim', c.toggleAim, (v) => this.callbacks.patchControls({ toggleAim: v })),
-    );
 
-    this.panel.append(el('p', 'lead', 'Bindings — click a key, then press a new one'));
-    for (const [action, label] of Object.entries(ACTION_LABELS)) {
-      const row = el('div', 'bind-row');
-      row.append(el('span', '', label));
-      const btn = el('button', 'rl-btn bind-key', formatCode(c.bindings[action] ?? ''));
-      if (this.rebinding === action) btn.textContent = 'Press a key…';
-      btn.addEventListener('click', () => this.beginRebind(action, btn));
-      row.append(btn);
-      this.panel.append(row);
+    if (this.settingsTab === 'video') {
+      const quality = selectField('Graphics', ['low', 'medium', 'high', 'ultra'], g.quality);
+      quality.input.addEventListener('change', () => {
+        this.callbacks.applyQuality((quality.input as HTMLSelectElement).value as QualityLevelId);
+      });
+      body.append(
+        quality.wrap,
+        slider('Field of view', g.fov, 70, 110, 1, (v) => this.callbacks.patchGraphics({ fov: v })),
+        slider('Resolution scale', g.resolutionScale, 0.5, 1.5, 0.05, (v) =>
+          this.callbacks.patchGraphics({ resolutionScale: v }),
+        ),
+        slider('Render distance', g.renderDistance, 80, 400, 10, (v) =>
+          this.callbacks.patchGraphics({ renderDistance: v }),
+        ),
+        checkbox('Shadows', g.shadows, (v) => this.callbacks.patchGraphics({ shadows: v })),
+        checkbox('Antialias', g.antialias, (v) => this.callbacks.patchGraphics({ antialias: v })),
+      );
+      const full = el('button', 'rl-btn', document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen');
+      full.addEventListener('click', () => {
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else void document.documentElement.requestFullscreen();
+        window.setTimeout(() => this.render(), 200);
+      });
+      body.append(full);
+    } else if (this.settingsTab === 'audio') {
+      body.append(
+        slider('Master volume', a.master, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ master: v })),
+        slider('Music volume', a.music, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ music: v })),
+        slider('SFX volume', a.effects, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ effects: v })),
+        slider('Voice', a.voice, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ voice: v })),
+        slider('UI', a.ui, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ui: v })),
+        slider('Ambience', a.ambience, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ambience: v })),
+      );
+    } else if (this.settingsTab === 'controls') {
+      body.append(
+        slider('Mouse sensitivity', c.sensitivity, 0.4, 6, 0.05, (v) =>
+          this.callbacks.patchControls({ sensitivity: v }),
+        ),
+        slider('ADS sensitivity', c.aimSensitivityMultiplier, 0.2, 1.5, 0.05, (v) =>
+          this.callbacks.patchControls({ aimSensitivityMultiplier: v }),
+        ),
+        checkbox('Invert Y', c.invertY, (v) => this.callbacks.patchControls({ invertY: v })),
+        checkbox('Toggle sprint', c.toggleSprint, (v) => this.callbacks.patchControls({ toggleSprint: v })),
+        checkbox('Toggle crouch', c.toggleCrouch, (v) => this.callbacks.patchControls({ toggleCrouch: v })),
+        checkbox('Toggle aim', c.toggleAim, (v) => this.callbacks.patchControls({ toggleAim: v })),
+        el('p', 'lead', 'Bindings — click a key, then press a new one'),
+      );
+      for (const [action, label] of Object.entries(ACTION_LABELS)) {
+        const row = el('div', 'bind-row');
+        row.append(el('span', '', label));
+        const btn = el('button', 'rl-btn bind-key', formatCode(c.bindings[action] ?? ''));
+        if (this.rebinding === action) btn.textContent = 'Press a key…';
+        btn.addEventListener('click', () => this.beginRebind(action, btn));
+        row.append(btn);
+        body.append(row);
+      }
+    } else {
+      body.append(
+        checkbox('Show FPS', g.showFps, (v) => this.callbacks.patchGraphics({ showFps: v })),
+        checkbox('Show ping', g.showPing, (v) => this.callbacks.patchGraphics({ showPing: v })),
+        checkbox('Debug overlay', g.debugOverlay, (v) => this.callbacks.patchGraphics({ debugOverlay: v })),
+        el('p', 'lead', 'Crosshair, camera shake and weapon sway are driven in-match from weapon recoil. They are not separate saved toggles.'),
+      );
     }
+    card.append(body);
+    this.stage.append(card);
   }
 
   private beginRebind(action: string, btn: HTMLButtonElement): void {
@@ -625,23 +891,26 @@ export class MainMenu {
   }
 
   private renderAuth(): void {
-    this.panel.append(el('h2', '', this.signedIn ? 'Account' : 'Sign in'));
+    const card = el('div', 'mm-glass');
+    card.append(el('h2', '', this.signedIn ? 'Account' : 'Sign in'));
     if (!this.supabaseReady) {
-      this.panel.append(
+      card.append(
         el('p', 'lead', 'Supabase public keys are missing from .env, so accounts are unavailable. Guest play still works.'),
       );
+      this.stage.append(card);
       return;
     }
     if (this.signedIn) {
-      this.panel.append(el('p', 'lead', `Signed in as ${this.username}.`));
+      card.append(el('p', 'lead', `Signed in as ${this.username}.`));
       const out = el('button', 'rl-btn', 'Sign out');
       out.addEventListener('click', () => this.callbacks.signOut());
-      this.panel.append(out);
+      card.append(out);
+      this.stage.append(card);
       return;
     }
 
     const err = el('div', 'rl-error');
-    const login = el('div', 'rl-form');
+    const login = el('div', 'rl-form mm-form');
     const email = inputField('Email', '');
     (email.input as HTMLInputElement).type = 'email';
     const password = inputField('Password', '');
@@ -656,9 +925,9 @@ export class MainMenu {
       if (message) err.textContent = message;
     });
     login.append(email.wrap, password.wrap, signIn);
-    this.panel.append(login, el('p', 'lead', 'New here?'), err);
+    card.append(login, el('p', 'lead', 'New here?'), err);
 
-    const signup = el('div', 'rl-form');
+    const signup = el('div', 'rl-form mm-form');
     const user = inputField('Username', '');
     const email2 = inputField('Email', '');
     (email2.input as HTMLInputElement).type = 'email';
@@ -675,7 +944,30 @@ export class MainMenu {
       if (message) err.textContent = message;
     });
     signup.append(user.wrap, email2.wrap, pass2.wrap, create);
-    this.panel.append(signup);
+    card.append(signup);
+    this.stage.append(card);
+  }
+
+  private commitName(name: { input: HTMLElement }): string {
+    const username = this.signedIn ? this.username : (name.input as HTMLInputElement).value.trim();
+    if (!this.signedIn) this.guestName = username || this.guestName;
+    this.username = username || this.guestName;
+    this.refreshChip();
+    return this.username;
+  }
+
+  private ensurePreview(): void {
+    if (!this.preview) this.preview = new WeaponPreview();
+  }
+
+  private disposePreview(): void {
+    this.preview?.stop();
+    this.preview = null;
+  }
+
+  private teamFor(map: { input: HTMLElement }): number | undefined {
+    const mapId = (map.input as HTMLSelectElement).value;
+    return mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined;
   }
 }
 
@@ -688,13 +980,19 @@ function inputField(label: string, value: string, enabled = true): { wrap: HTMLE
   return { wrap, input };
 }
 
-function selectField(label: string, values: readonly string[], current: string): { wrap: HTMLElement; input: HTMLElement } {
+function selectField(
+  label: string,
+  values: readonly string[] | readonly { value: string; label: string }[],
+  current: string,
+): { wrap: HTMLElement; input: HTMLElement } {
   const wrap = el('label', 'rl-field', label);
   const input = el('select', 'rl-input') as HTMLSelectElement;
-  for (const value of values) {
+  for (const entry of values) {
+    const value = typeof entry === 'string' ? entry : entry.value;
+    const text = typeof entry === 'string' ? entry : entry.label;
     const opt = document.createElement('option');
     opt.value = value;
-    opt.textContent = value;
+    opt.textContent = text;
     if (value === current) opt.selected = true;
     input.append(opt);
   }

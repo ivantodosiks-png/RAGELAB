@@ -3,9 +3,10 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import { SANDBOX_PHYSICAL_GROUPS } from '@ragelab/shared';
 import {
   WEAPON_PHYSICS,
-  instantiateWeaponVisual,
   loadWeaponModel,
+  createWeaponVisual,
   prepareWeaponVisual,
+  weaponPhysics,
   type SandboxWeaponKind,
 } from '../weapons/weaponAssets';
 
@@ -73,7 +74,7 @@ export class SandboxWeapon {
   }
 
   get mass(): number {
-    return WEAPON_PHYSICS[this.kind].mass;
+    return weaponPhysics(this.kind).mass;
   }
 
   get speed(): number {
@@ -106,7 +107,7 @@ export class SandboxWeapon {
       this.visual = null;
     }
 
-    const phys = WEAPON_PHYSICS[kind];
+    const phys = weaponPhysics(kind);
     this.collider.setHalfExtents({ x: phys.hx, y: phys.hy, z: phys.hz });
     this.collider.setMass(phys.mass);
     this.body.setEnabled(true);
@@ -209,8 +210,8 @@ export class SandboxWeapon {
 
   private attachVisual(): void {
     const kind = this.kind;
-    const phys = WEAPON_PHYSICS[kind];
-    const ready = instantiateWeaponVisual(kind, phys.length, { lod: true, ground: false, shadows: true });
+    const phys = weaponPhysics(kind);
+    const ready = createWeaponVisual(kind, phys.length, { lod: kind !== 'glock', ground: false, shadows: true });
     if (ready) {
       this.setVisual(ready);
       return;

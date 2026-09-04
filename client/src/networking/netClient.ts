@@ -10,17 +10,17 @@ import {
   encodeJson,
   encodePing,
   type ChatPayload,
-  type CreateRoomPayload,
   type ErrorPayload,
   type EventsPayload,
   type HelloPayload,
   type InputPacket,
   type KickedPayload,
+  type LobbyStatePayload,
   type OpCode,
   type RoomConfig,
   type RoomListPayload,
   type RosterPayload,
-  type SwitchWeaponPayload,
+  type StartMatchPayload,
   type WelcomePayload,
   type WorldSnapshot,
 } from '@ragelab/shared';
@@ -40,6 +40,7 @@ export interface NetClientHandlers {
   onEvents?: (payload: EventsPayload) => void;
   onRoster?: (payload: RosterPayload) => void;
   onRoomList?: (payload: RoomListPayload) => void;
+  onLobbyState?: (payload: LobbyStatePayload) => void;
   onError?: (payload: ErrorPayload) => void;
   onKicked?: (payload: KickedPayload) => void;
   onRtt?: (rttMs: number, clockOffsetMs: number) => void;
@@ -55,6 +56,7 @@ export interface ConnectOptions {
   mapId?: string;
   mode?: HelloPayload['mode'];
   create?: Partial<RoomConfig>;
+  team?: number;
 }
 
 const PING_INTERVAL_MS = 1000;
@@ -146,6 +148,7 @@ export class NetClient {
         password: options.password,
         mapId: options.mapId,
         mode: options.mode,
+        team: options.team,
         create: options.create,
       };
       this.sendJson(Op.Hello, hello);
@@ -206,6 +209,11 @@ export class NetClient {
         this.lastSnapshotTick = 0;
         this.reconnectAttempt = 0;
         this.clockOffsetMs = payload.serverTimeMs - this.nowMs();
+        if (this.options) {
+          this.options.create = undefined;
+          this.options.roomId = payload.room.id;
+          this.options.roomCode = payload.room.joinCode;
+        }
         this.setState('connected');
         this.startPing();
         this.handlers.onWelcome?.(payload);
@@ -219,6 +227,9 @@ export class NetClient {
         return;
       case Op.RoomList:
         this.handlers.onRoomList?.(decodeJsonBody<RoomListPayload>(bytes));
+        return;
+      case Op.LobbyState:
+        this.handlers.onLobbyState?.(decodeJsonBody<LobbyStatePayload>(bytes));
         return;
       case Op.Error: {
         const payload = decodeJsonBody<ErrorPayload>(bytes);
@@ -243,10 +254,6 @@ export class NetClient {
     this.sendBytes(encodeInputPacket(packet, this.inputWriter));
   }
 
-  sendSwitchWeapon(slot: number): void {
-    this.sendJson(Op.SwitchWeapon, { slot } satisfies SwitchWeaponPayload);
-  }
-
   sendChat(text: string): void {
     this.sendJson(Op.Chat, { text } satisfies ChatPayload);
   }
@@ -255,16 +262,8 @@ export class NetClient {
     this.sendJson(Op.RespawnRequest, {});
   }
 
-  requestRoomList(): void {
-    this.sendJson(Op.ListRooms, {});
-  }
-
-  createRoom(payload: CreateRoomPayload): void {
-    this.sendJson(Op.CreateRoom, payload);
-  }
-
-  leaveRoom(): void {
-    this.sendJson(Op.LeaveRoom, {});
+  startMatch(): void {
+    this.sendJson(Op.StartMatch, {} satisfies StartMatchPayload);
   }
 
   private sendJson(op: OpCode, payload: unknown): void {

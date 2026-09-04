@@ -52,7 +52,7 @@ export class SpawnPreview {
     if (!entry || this.currentId === entry.id) return;
     this.currentId = entry.id;
     this.holder.clear();
-    const blocked = entry.category === 'weapons';
+    const blocked = false;
     const material = blocked ? blockedMat : ghostMat;
 
     if (entry.category === 'npc') {

@@ -294,6 +294,14 @@ export function playerSpawns(map: MapDefinition): SpawnPointDef[] {
   return tagged.length > 0 ? tagged : map.spawnPoints;
 }
 
+export function teamSpawns(map: MapDefinition, team: number): SpawnPointDef[] {
+  return playerSpawns(map).filter((spawn) => (spawn.team ?? 0) === team);
+}
+
+export function mapHasSides(map: MapDefinition): boolean {
+  return playerSpawns(map).some((spawn) => (spawn.team ?? 0) > 0);
+}
+
 export function npcSpawns(map: MapDefinition): SpawnPointDef[] {
   return spawnsOf(map, 'npc');
 }

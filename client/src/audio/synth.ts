@@ -19,6 +19,7 @@ export type SoundKey =
   | 'shotgun'
   | 'shotgun_distant'
   | 'sniper'
+  | 'magnum'
   | 'reload_light'
   | 'reload_heavy'
   | 'reload_shell'
@@ -29,6 +30,8 @@ export type SoundKey =
   | 'footstep_wood'
   | 'footstep_dirt'
   | 'footstep_grass'
+  | 'footstep_1'
+  | 'footstep_2'
   | 'jump'
   | 'land'
   | 'impact_concrete'
@@ -493,6 +496,16 @@ const GUN_PRESETS: Record<string, GunParams> = {
     drive: 3.8,
     seed: 0x3e45,
   },
+  magnum: {
+    duration: 1.15,
+    bodyFreq: 88,
+    bodyDecay: 10,
+    noiseAmount: 1.22,
+    crackAmount: 1.3,
+    tailAmount: 0.58,
+    drive: 3.7,
+    seed: 0x50ae,
+  },
 };
 
 /** Build the full sound bank. Runs once, off the render path. */
@@ -555,12 +568,14 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
     'equip',
     renderMechanical(
       sampleRate,
-      0.4,
+      0.32,
       [
-        { at: 0.0, freq: 260, decay: 40, gain: 0.7 },
-        { at: 0.14, freq: 520, decay: 60, gain: 0.5 },
+        { at: 0.0, freq: 140, decay: 28, gain: 0.55 },
+        { at: 0.035, freq: 980, decay: 90, gain: 0.85 },
+        { at: 0.09, freq: 420, decay: 48, gain: 0.7 },
+        { at: 0.16, freq: 1550, decay: 120, gain: 0.4 },
       ],
-      0x4321,
+      0x7a3c,
     ),
   );
 
@@ -569,6 +584,8 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
   bank.set('footstep_wood', renderFootstep(sampleRate, 'wood', 0x1103));
   bank.set('footstep_dirt', renderFootstep(sampleRate, 'dirt', 0x1104));
   bank.set('footstep_grass', renderFootstep(sampleRate, 'grass', 0x1105));
+  bank.set('footstep_1', renderFootstep(sampleRate, 'concrete', 0x1106));
+  bank.set('footstep_2', renderFootstep(sampleRate, 'concrete', 0x1107));
 
   bank.set('jump', renderFootstep(sampleRate, 'dirt', 0x1201));
   bank.set('land', renderLand(sampleRate, 0x1202));
