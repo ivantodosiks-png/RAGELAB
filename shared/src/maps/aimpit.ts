@@ -1,24 +1,39 @@
-import type { Brush, MapDefinition, MaterialDef, SpawnPointDef } from '../types/map';
+import type {
+  Brush,
+  LightDef,
+  MapDecorDef,
+  MapDefinition,
+  MaterialDef,
+  SpawnPointDef,
+} from '../types/map';
 
 const DEG = Math.PI / 180;
 const BOUNDS = 40;
 
 const materials: Record<string, MaterialDef> = {
   floor: {
-    color: 0x7a8086,
-    roughness: 0.94,
-    metalness: 0.03,
+    color: 0x6e747c,
+    roughness: 0.95,
+    metalness: 0.04,
     surface: 'concrete',
     texture: 'asphalt',
-    textureScale: 14,
+    textureScale: 12,
+  },
+  slab: {
+    color: 0x9aa0a6,
+    roughness: 0.88,
+    metalness: 0.04,
+    surface: 'concrete',
+    texture: 'concrete',
+    textureScale: 3.6,
   },
   wall: {
     color: 0x9aa0a6,
-    roughness: 0.88,
-    metalness: 0.05,
+    roughness: 0.9,
+    metalness: 0.04,
     surface: 'concrete',
-    texture: 'brick',
-    textureScale: 4.2,
+    texture: 'concrete',
+    textureScale: 3.2,
   },
   crate: {
     color: 0xc49a5a,
@@ -30,27 +45,27 @@ const materials: Record<string, MaterialDef> = {
   },
   wood: {
     color: 0xb8894a,
-    roughness: 0.8,
+    roughness: 0.82,
     metalness: 0.03,
     surface: 'wood',
     texture: 'wood',
-    textureScale: 2,
+    textureScale: 1.8,
   },
   metal: {
-    color: 0x8a9298,
-    roughness: 0.38,
-    metalness: 0.62,
+    color: 0x7a848e,
+    roughness: 0.34,
+    metalness: 0.72,
     surface: 'metal',
     texture: 'metal',
-    textureScale: 2.2,
+    textureScale: 2.0,
   },
   drum: {
     color: 0xc45a22,
-    roughness: 0.4,
-    metalness: 0.45,
+    roughness: 0.42,
+    metalness: 0.48,
     surface: 'metal',
     texture: 'hazard',
-    textureScale: 1.4,
+    textureScale: 1.35,
   },
   brick: {
     color: 0xa24a32,
@@ -58,31 +73,50 @@ const materials: Record<string, MaterialDef> = {
     metalness: 0.02,
     surface: 'concrete',
     texture: 'brick',
-    textureScale: 2.4,
+    textureScale: 3.6,
+  },
+  grit: {
+    color: 0x7a6a52,
+    roughness: 0.96,
+    metalness: 0,
+    surface: 'sand',
+    texture: 'sand',
+    textureScale: 9,
+  },
+  paint: {
+    color: 0xe8e2d4,
+    roughness: 0.55,
+    metalness: 0.05,
+    surface: 'concrete',
+    texture: 'pavement',
+    textureScale: 2,
+    decal: true,
   },
   alpha: {
-    color: 0xc45a28,
-    roughness: 0.45,
-    metalness: 0.18,
+    color: 0xd25a28,
+    roughness: 0.42,
+    metalness: 0.22,
     emissive: 0xff6a20,
-    emissiveIntensity: 0.18,
+    emissiveIntensity: 0.28,
     surface: 'metal',
     texture: 'hazard',
-    textureScale: 2,
+    textureScale: 1.8,
   },
   bravo: {
-    color: 0x3a7a96,
-    roughness: 0.45,
-    metalness: 0.18,
-    emissive: 0x3aa0d8,
-    emissiveIntensity: 0.18,
+    color: 0x3a86a8,
+    roughness: 0.42,
+    metalness: 0.22,
+    emissive: 0x3ab0e0,
+    emissiveIntensity: 0.28,
     surface: 'metal',
     texture: 'metal',
-    textureScale: 2,
+    textureScale: 1.8,
   },
 };
 
 const brushes: Brush[] = [];
+const decor: MapDecorDef[] = [];
+const lights: LightDef[] = [];
 
 function box(
   x: number,
@@ -103,8 +137,16 @@ function box(
   });
 }
 
+function place(model: string, x: number, z: number, yaw = 0, y = 0, scale?: number): void {
+  decor.push({ model, position: [x, y, z], yaw, ...(scale !== undefined ? { scale } : {}) });
+}
+
 function crate(x: number, z: number, h = 0.95, s = 0.95, yaw = 0): void {
-  box(x, h / 2, z, s, h, s, 'crate', yaw ? { rotation: [0, yaw, 0] } : {});
+  box(x, h / 2, z, s, h, s, 'crate', {
+    invisible: true,
+    ...(yaw ? { rotation: [0, yaw, 0] } : {}),
+  });
+  place('crate-medium', x, z, yaw, 0, s);
 }
 
 function stack(x: number, z: number, n = 2, yaw = 0): void {
@@ -118,8 +160,12 @@ function stack(x: number, z: number, n = 2, yaw = 0): void {
       h,
       0.95,
       'crate',
-      yaw ? { rotation: [0, yaw, 0] } : {},
+      {
+        invisible: true,
+        ...(yaw ? { rotation: [0, yaw, 0] } : {}),
+      },
     );
+    place('crate-medium', x + i * 0.03, z + i * 0.04, yaw, i * h, 0.95);
   }
 }
 
@@ -136,15 +182,26 @@ function container(x: number, z: number, sx: number, sz: number, yaw = 0): void 
 }
 
 function plank(x: number, z: number, sx: number, sz: number, yaw = 0): void {
-  box(x, 0.12, z, sx, 0.22, sz, 'wood', yaw ? { rotation: [0, yaw, 0] } : {});
+  box(x, 0.12, z, sx, 0.22, sz, 'wood', {
+    invisible: true,
+    ...(yaw ? { rotation: [0, yaw, 0] } : {}),
+  });
+  place('crate-wide', x, z, yaw, 0.02, Math.min(sx, sz) * 0.55);
 }
 
 // ── Shell: ~56 × 72 yard ────────────────────────────────────────────────────
 box(0, -0.5, 0, 56, 1, 72, 'floor');
-box(0, 3.4, -35.6, 56, 6.8, 0.8, 'wall');
-box(0, 3.4, 35.6, 56, 6.8, 0.8, 'wall');
-box(-27.6, 3.4, 0, 0.8, 6.8, 72, 'wall');
-box(27.6, 3.4, 0, 0.8, 6.8, 72, 'wall');
+// Soft grit verge inside the walls for depth (no collision).
+box(0, 0.02, 0, 54, 0.04, 70, 'grit', { noCollide: true });
+box(0, 3.5, -35.6, 56, 7.0, 0.9, 'brick');
+box(0, 3.5, 35.6, 56, 7.0, 0.9, 'brick');
+box(-27.6, 3.5, 0, 0.9, 7.0, 72, 'brick');
+box(27.6, 3.5, 0, 0.9, 7.0, 72, 'brick');
+// Cap trim so walls read as a proper arena.
+box(0, 7.05, -35.6, 56.4, 0.22, 1.1, 'metal', { noCollide: true });
+box(0, 7.05, 35.6, 56.4, 0.22, 1.1, 'metal', { noCollide: true });
+box(-27.6, 7.05, 0, 1.1, 0.22, 72.4, 'metal', { noCollide: true });
+box(27.6, 7.05, 0, 1.1, 0.22, 72.4, 'metal', { noCollide: true });
 
 // ── Alpha bay (south) ───────────────────────────────────────────────────────
 box(0, 1.7, -32.4, 14, 3.4, 0.5, 'alpha');
@@ -152,7 +209,13 @@ box(-6.9, 1.7, -28.8, 0.5, 3.4, 6.8, 'wall');
 box(6.9, 1.7, -28.8, 0.5, 3.4, 6.8, 'wall');
 box(-4.4, 1.7, -25.5, 4.8, 3.4, 0.45, 'wall');
 box(4.4, 1.7, -25.5, 4.8, 3.4, 0.45, 'wall');
-box(0, 0.06, -29.2, 13, 0.12, 6, 'alpha', { noCollide: true });
+box(0, 0.05, -29.2, 13.2, 0.1, 6.2, 'slab');
+box(0, 0.11, -29.2, 12.4, 0.02, 5.4, 'alpha', { noCollide: true });
+place('target-large', -3.2, -33.8, 0, 0.1);
+place('target-large', 3.2, -33.8, 0, 0.1);
+place('target-detail', 0, -33.9, 0, 0.1);
+place('cone', -7.4, -26.2, 10 * DEG);
+place('cone', 7.4, -26.2, -10 * DEG);
 
 // ── Bravo bay (north) ───────────────────────────────────────────────────────
 box(0, 1.7, 32.4, 14, 3.4, 0.5, 'bravo');
@@ -160,7 +223,17 @@ box(-6.9, 1.7, 28.8, 0.5, 3.4, 6.8, 'wall');
 box(6.9, 1.7, 28.8, 0.5, 3.4, 6.8, 'wall');
 box(-4.4, 1.7, 25.5, 4.8, 3.4, 0.45, 'wall');
 box(4.4, 1.7, 25.5, 4.8, 3.4, 0.45, 'wall');
-box(0, 0.06, 29.2, 13, 0.12, 6, 'bravo', { noCollide: true });
+box(0, 0.05, 29.2, 13.2, 0.1, 6.2, 'slab');
+box(0, 0.11, 29.2, 12.4, 0.02, 5.4, 'bravo', { noCollide: true });
+place('target-large', -3.2, 33.8, 180 * DEG, 0.1);
+place('target-large', 3.2, 33.8, 180 * DEG, 0.1);
+place('target-detail', 0, 33.9, 180 * DEG, 0.1);
+place('cone', -7.4, 26.2, 170 * DEG);
+place('cone', 7.4, 26.2, -170 * DEG);
+
+// Mid lane paint (raised slightly — no z-fight with grit).
+box(0, 0.08, 0, 2.4, 0.02, 48, 'paint', { noCollide: true });
+box(0, 0.08, 0, 18, 0.02, 0.35, 'paint', { noCollide: true });
 
 // ── Long lane walls (CS-style mid + sides) ──────────────────────────────────
 wall(-10.5, -12, 0.55, 14, 1.5, 'brick');
@@ -301,6 +374,87 @@ for (const [x, z] of [
   drum(x, z);
 }
 
+// Extra range targets + construction dressing (visual only).
+place('target-small', -10.8, -0.2, 90 * DEG, 0.05);
+place('target-small', 10.8, 0.2, -90 * DEG, 0.05);
+place('target-small', -18.2, -12.4, 40 * DEG, 0.05);
+place('target-small', 18.2, 12.4, -140 * DEG, 0.05);
+place('target-small', -22.0, -22.4, 25 * DEG, 0.05);
+place('target-small', 22.0, 22.4, -155 * DEG, 0.05);
+place('target-detail', -8.4, -28.6, 15 * DEG, 0.1);
+place('target-detail', 8.4, 28.6, -165 * DEG, 0.1);
+place('barrier', -9.2, -16.2, 12 * DEG);
+place('barrier', 9.2, 16.2, -12 * DEG);
+place('barrier', -16.8, 8.4, 90 * DEG);
+place('barrier', 16.8, -8.4, -90 * DEG);
+place('barrier', -4.2, -22.6, 8 * DEG);
+place('barrier', 4.2, 22.6, -8 * DEG);
+place('barrier', -20.4, -2.4, 90 * DEG);
+place('barrier', 20.4, 2.4, -90 * DEG);
+place('construction-light', -24.6, -28.4, 20 * DEG);
+place('construction-light', 24.6, 28.4, -160 * DEG);
+place('construction-light', -24.6, 28.4, 160 * DEG);
+place('construction-light', 24.6, -28.4, -20 * DEG);
+place('light-square', 0, 0, 0);
+place('light-square', -14.2, -0.2, 90 * DEG);
+place('light-square', 14.2, 0.2, -90 * DEG);
+place('lamp', -25.2, -20, 90 * DEG);
+place('lamp', 25.2, 20, -90 * DEG);
+place('lamp', -25.2, 20, 90 * DEG);
+place('lamp', 25.2, -20, -90 * DEG);
+place('lamp', -12.4, -32.8, 0);
+place('lamp', 12.4, 32.8, 180 * DEG);
+place('sign', -8.8, -32.0, 0);
+place('sign', 8.8, 32.0, 180 * DEG);
+place('cone', -11.2, -18.4, 8 * DEG);
+place('cone', 11.2, 18.4, -8 * DEG);
+place('cone', -3.2, -12.6, -6 * DEG);
+place('cone', 3.2, 12.6, 6 * DEG);
+place('cone', -17.6, -4.2, 90 * DEG);
+place('cone', 17.6, 4.2, -90 * DEG);
+place('crate-small', -3.8, -7.6, 15 * DEG, 0);
+place('crate-small', 3.6, 7.4, -20 * DEG, 0);
+place('crate-small', -15.2, -10.8, 30 * DEG, 0);
+place('crate-small', 15.0, 10.6, -25 * DEG, 0);
+place('crate-wide', -6.2, -1.8, 70 * DEG, 0, 1.1);
+place('crate-wide', 6.4, 1.6, -65 * DEG, 0, 1.1);
+place('grenade-prop', -1.8, -3.2, 0, 0.95, 2.4);
+place('grenade-prop', 2.0, 3.4, 40 * DEG, 0.95, 2.4);
+place('grenade-prop', -13.2, 6.8, 20 * DEG, 1.9, 2.2);
+place('grenade-prop', 13.0, -7.0, -15 * DEG, 1.9, 2.2);
+
+// Perimeter fencing (visual).
+for (const z of [-34.2, 34.2]) {
+  for (let x = -22; x <= 22; x += 5.5) {
+    place('fence-low', x, z, z > 0 ? 180 * DEG : 0);
+  }
+}
+for (const x of [-26.4, 26.4]) {
+  for (let z = -28; z <= 28; z += 5.5) {
+    place('fence-low', x, z, x > 0 ? -90 * DEG : 90 * DEG);
+  }
+}
+
+for (const [x, z] of [
+  [-25.2, -20],
+  [25.2, 20],
+  [-25.2, 20],
+  [25.2, -20],
+  [-24.6, -28.4],
+  [24.6, 28.4],
+  [-24.6, 28.4],
+  [24.6, -28.4],
+] as const) {
+  lights.push({
+    kind: 'point',
+    position: [x, 5.4, z],
+    color: 0xffd8a8,
+    intensity: 10,
+    distance: 18,
+    quality: 'medium',
+  });
+}
+
 const spawnPoints: SpawnPointDef[] = [
   { position: [-1.6, 1.15, -29.4], yaw: 0, team: 1, role: 'player', id: 'alpha-l' },
   { position: [0, 1.15, -29.8], yaw: 0, team: 1, role: 'player', id: 'alpha-c' },
@@ -310,24 +464,35 @@ const spawnPoints: SpawnPointDef[] = [
   { position: [1.6, 1.15, 29.4], yaw: 180 * DEG, team: 2, role: 'player', id: 'bravo-r' },
 ];
 
+lights.push(
+  { kind: 'point', position: [0, 9.2, 0], color: 0xfff2de, intensity: 42, distance: 46, quality: 'high' },
+  { kind: 'point', position: [-12, 7.4, -14], color: 0xffe0b8, intensity: 18, distance: 24, quality: 'medium' },
+  { kind: 'point', position: [12, 7.4, 14], color: 0xffe0b8, intensity: 18, distance: 24, quality: 'medium' },
+  { kind: 'point', position: [-12, 7.4, 14], color: 0xffe0b8, intensity: 16, distance: 22, quality: 'medium' },
+  { kind: 'point', position: [12, 7.4, -14], color: 0xffe0b8, intensity: 16, distance: 22, quality: 'medium' },
+  { kind: 'point', position: [0, 5.8, -29], color: 0xff8a40, intensity: 16, distance: 18, quality: 'high' },
+  { kind: 'point', position: [0, 5.8, 29], color: 0x4aa8d8, intensity: 16, distance: 18, quality: 'high' },
+);
+
 export const AIMPIT: MapDefinition = {
   id: 'aimpit',
   name: 'Aim Pit 1v1',
-  description: 'Wide duel yard. Alpha and Bravo spawn on opposite sides with mid and lane cover.',
+  description:
+    'Wide duel yard with Alpha / Bravo bays, mid crate city, lane cover, range targets and shipping containers.',
   author: 'RAGELAB',
   players: [2, 2],
   bounds: BOUNDS,
   killPlaneY: -10,
   environment: {
-    skyTop: 0x6d8498,
-    skyBottom: 0xc5cdd4,
-    sunColor: 0xffe6c8,
-    sunIntensity: 1.9,
-    sunDirection: [0.32, 0.84, 0.3],
-    ambientColor: 0x9aa8b4,
+    skyTop: 0x4a6a88,
+    skyBottom: 0xd8c8b0,
+    sunColor: 0xffe8c8,
+    sunIntensity: 2.55,
+    sunDirection: [0.38, 0.86, 0.24],
+    ambientColor: 0xb0c0d0,
     ambientIntensity: 0.72,
-    fogColor: 0xb8c2cc,
-    fogDensity: 0.0024,
+    fogColor: 0xc8ccd2,
+    fogDensity: 0.0015,
     ambience: 'indoor',
   },
   materials,
@@ -336,14 +501,7 @@ export const AIMPIT: MapDefinition = {
   doors: [],
   switches: [],
   pickups: [],
-  lights: [
-    { kind: 'point', position: [0, 8.5, 0], color: 0xfff4e0, intensity: 36, distance: 42 },
-    { kind: 'point', position: [-12, 7, -14], color: 0xffe0b8, intensity: 16, distance: 22 },
-    { kind: 'point', position: [12, 7, 14], color: 0xffe0b8, intensity: 16, distance: 22 },
-    { kind: 'point', position: [-12, 7, 14], color: 0xffe0b8, intensity: 14, distance: 20 },
-    { kind: 'point', position: [12, 7, -14], color: 0xffe0b8, intensity: 14, distance: 20 },
-    { kind: 'point', position: [0, 5.6, -29], color: 0xff8a40, intensity: 12, distance: 16 },
-    { kind: 'point', position: [0, 5.6, 29], color: 0x4aa8d8, intensity: 12, distance: 16 },
-  ],
+  lights,
   spawnPoints,
+  decor,
 };

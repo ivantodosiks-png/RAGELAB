@@ -13,6 +13,11 @@ import { LobbyWait, type LobbyWaitState } from './lobbyWait';
 import { isLobbyCode, normalizeLobbyCode, type QualityLevelId, type RoomSummary } from '@ragelab/shared';
 import { el } from './dom';
 
+function isListedAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return __ADMIN_EMAILS__.includes(email.trim().toLowerCase());
+}
+
 export interface JoinRequest {
   username: string;
   roomId?: string;
@@ -181,7 +186,7 @@ export class UiApp {
         this.menu.profile = full;
         this.menu.username = full.profile.username;
         this.menu.setAuth(true, full.profile.username, true);
-        this.menu.setAdmin(full.isAdmin && !full.ban);
+        this.menu.setAdmin((full.isAdmin || isListedAdminEmail(state.user.email)) && !full.ban);
         settingsStore.hydrateFromRemote(full.settings);
         settingsStore.attachRemote((settings) => {
           void profileService.saveSettings(state.user!.id, settings);

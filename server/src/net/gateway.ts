@@ -202,7 +202,9 @@ export class Gateway {
       connection.username = profile.username;
       connection.avatarUrl = profile.avatarUrl;
       connection.isGuest = false;
-      connection.isAdmin = profile.isAdmin;
+      const listedAdmin =
+        Boolean(user.email) && config.adminEmails.includes(user.email!.trim().toLowerCase());
+      connection.isAdmin = profile.isAdmin || listedAdmin;
     } else {
       if (!config.allowGuests) {
         connection.rejectUnauthorized('this server requires a signed-in account');
@@ -308,7 +310,7 @@ export class Gateway {
       connection.sendError(ErrorCode.NotInRoom, describeJoinError('not_in_room'));
       return;
     }
-    if (!connection.isAdmin || !room.isHost(connection.playerId)) {
+    if (!room.isHost(connection.playerId)) {
       connection.sendError(ErrorCode.NotAdmin, describeJoinError('not_admin'));
       return;
     }

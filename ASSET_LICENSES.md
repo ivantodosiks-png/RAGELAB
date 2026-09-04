@@ -17,6 +17,19 @@ Compact downtown scenery for the Harbor Lane sandbox map. Kenney tiles are scale
 - **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) — commercial use allowed, attribution not required.
 - **Use:** Client-only decoration. Collision is cheap box/cylinder brushes cooked on both client and server; GLBs are never loaded by physics.
 
+## Aim Pit props — `client/public/models/aimpit/*.glb`
+
+Range / cover dressing for the Aim Pit 1v1 map (crates, cardboard targets, prop grenade). Colormap is embedded in each GLB.
+
+| Files | Pack |
+| --- | --- |
+| `crate-*.glb`, `target-*.glb`, `grenade-a.glb` | Kenney Blaster Kit |
+
+- **Author:** Kenney
+- **URL:** https://kenney.nl/assets/blaster-kit
+- **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
+- **Use:** Client-only decoration. Barriers, cones, lamps and fences reuse City Kit Roads / Suburban models under `models/city/`.
+
 ## Player / NPC characters — `client/public/models/characters/*.glb`
 
 Civilian humans (not fantasy classes). Each file is self-contained (embedded textures + Idle / Walk / Run).
@@ -65,7 +78,6 @@ KayKit Adventurers (knight / mage / rogue / barbarian) are no longer shipped. Th
 - **Kenney Animated Characters 3** — [CC0](https://creativecommons.org/publicdomain/zero/1.0/), https://kenney.nl. FBX-only; not converted for the browser client.
 - **Kenney Blocky / Mini Characters** — CC0. Too stylized / tiny for this FPS; not shipped.
 - **three.js Xbot.glb** — Mixamo Xbot (~2.9 MB, untextured). Heavier than Soldier with a worse look; not shipped.
-- **Kenney Blaster Kit** — CC0 sci-fi blasters. Lower poly than the gun pack, but a worse fit for this FPS; kept as a fallback candidate only.
 - **FantasySword.glb** — evaluated as a melee option; replaced by Pichuliru’s matching katana (no large texture).
 
 ## Original RAGELAB content

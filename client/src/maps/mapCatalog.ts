@@ -1,12 +1,13 @@
 const BASE = import.meta.env.BASE_URL;
 
 /**
- * Kenney City Kit. Each GLB has its pack colormap embedded (no external
- * Textures/colormap.png), so Vite/Vercel production serves one file per model.
+ * Kenney City Kit + Aim Pit props. Each GLB has its pack colormap embedded
+ * (no external Textures/colormap.png), so Vite/Vercel production serves one
+ * self-contained file per model.
  */
 export const CITY_SCALE = 10;
 
-export const CITY_MODELS: Record<string, { file: string; scale?: number }> = {
+export const CITY_MODELS: Record<string, { file: string; scale?: number; dir?: string }> = {
   'building-a': { file: 'building-a.glb' },
   'building-b': { file: 'building-b.glb' },
   'building-d': { file: 'building-d.glb' },
@@ -49,12 +50,21 @@ export const CITY_MODELS: Record<string, { file: string; scale?: number }> = {
   'sign-highway-wide': { file: 'sign-highway-wide.glb' },
   cone: { file: 'cone.glb' },
   barrier: { file: 'barrier.glb' },
+  // Kenney Blaster Kit (CC0) — Aim Pit dressing
+  'crate-medium': { file: 'crate-medium.glb', dir: 'aimpit', scale: 1 },
+  'crate-wide': { file: 'crate-wide.glb', dir: 'aimpit', scale: 1 },
+  'crate-small': { file: 'crate-small.glb', dir: 'aimpit', scale: 1 },
+  'target-large': { file: 'target-large.glb', dir: 'aimpit', scale: 1.35 },
+  'target-small': { file: 'target-small.glb', dir: 'aimpit', scale: 1.1 },
+  'target-detail': { file: 'target-detail.glb', dir: 'aimpit', scale: 1.2 },
+  'grenade-prop': { file: 'grenade-a.glb', dir: 'aimpit', scale: 1 },
 };
 
 export function cityModelUrl(id: string): string {
   const def = CITY_MODELS[id];
   if (!def) throw new Error(`Unknown city model: ${id}`);
-  return `${BASE}models/city/${def.file}`;
+  const folder = def.dir ?? 'city';
+  return `${BASE}models/${folder}/${def.file}`;
 }
 
 export function cityModelScale(id: string): number {

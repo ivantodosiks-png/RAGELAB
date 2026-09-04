@@ -72,14 +72,14 @@ export class LobbyWait {
     this.card.append(list);
 
     const actions = el('div', 'lobby-actions');
-    if (state.isHost && state.isAdmin) {
+    if (state.isHost) {
       const start = el('button', 'rl-btn primary lobby-start', state.starting ? 'Запуск…' : 'Начать игру');
       start.disabled = state.starting;
       if (state.starting) start.classList.add('is-loading');
       start.addEventListener('click', () => this.onStart?.());
       actions.append(start);
     } else {
-      actions.append(el('p', 'lobby-wait-note', 'Ожидание начала игры администратором…'));
+      actions.append(el('p', 'lobby-wait-note', 'Ожидание начала игры хостом…'));
     }
     const leave = el('button', 'rl-btn', 'Покинуть лобби');
     leave.addEventListener('click', () => this.onLeave?.());

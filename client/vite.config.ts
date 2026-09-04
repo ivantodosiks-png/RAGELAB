@@ -22,6 +22,10 @@ export default defineConfig(({ mode, command }) => {
   const gameServerUrl = env.VITE_GAME_SERVER_URL || 'ws://localhost:8080';
   const gameServerHttpUrl =
     env.VITE_GAME_SERVER_HTTP_URL || gameServerUrl.replace(/^ws/, 'http');
+  const adminEmails = (env.RAGELAB_ADMIN_EMAILS || env.VITE_ADMIN_EMAILS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
   const gameServerProxyTarget = gameServerHttpUrl.replace(/^ws/, 'http');
   const devProxy = command === 'serve';
   const gameProxy = {
@@ -46,6 +50,7 @@ export default defineConfig(({ mode, command }) => {
       __GAME_SERVER_URL__: JSON.stringify(gameServerUrl),
       __GAME_SERVER_HTTP_URL__: JSON.stringify(gameServerHttpUrl),
       __GAME_SERVER_DEV_PROXY__: JSON.stringify(devProxy),
+      __ADMIN_EMAILS__: JSON.stringify(adminEmails),
     },
     server: {
       port: 5173,
