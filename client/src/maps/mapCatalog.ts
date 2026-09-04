@@ -60,6 +60,8 @@ export const CITY_MODELS: Record<string, { file: string; scale?: number; dir?: s
   'grenade-prop': { file: 'grenade-a.glb', dir: 'aimpit', scale: 1 },
   // Full-map GLB (FPS playground arena) — replaces Test Box
   arena: { file: 'arena.glb', dir: 'maps', scale: 1 },
+  // Desert Arena low-poly environment
+  desert: { file: 'desert.glb', dir: 'maps', scale: 1 },
 };
 
 export function cityModelUrl(id: string): string {

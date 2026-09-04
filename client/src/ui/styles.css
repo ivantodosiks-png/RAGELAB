@@ -135,6 +135,7 @@ body {
   color: var(--text);
   font-family: var(--font);
   font-weight: 600;
+  flex-direction: column;
 }
 
 .mm-fx {
@@ -247,6 +248,7 @@ body {
   grid-template-rows: auto 1fr auto;
   padding: clamp(22px, 3.4vw, 48px) clamp(24px, 4.5vw, 72px);
   min-height: 0;
+  width: 100%;
   opacity: 0;
   transform: translateY(14px) scale(0.992);
   filter: blur(10px);
@@ -393,13 +395,15 @@ body {
   grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
   gap: clamp(24px, 5vw, 72px);
   min-height: 0;
-  align-items: center;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 .mm-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-self: center;
 }
 
 .mm-nav-btn {
@@ -526,7 +530,14 @@ body {
 
 .mm-stage {
   min-height: 0;
-  overflow: auto;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
   animation: mm-stage-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 

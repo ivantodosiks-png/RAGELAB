@@ -24,6 +24,13 @@ Full-map mesh for the **CS Arena** playlist entry (replaces the old Test Box).
 - **File:** `fps_shooter_game_arena_map_v4.glb` (source under `assets/map cs/`)
 - **Use:** Client-only scenery. Invisible brush hulls in `shared/src/maps/arena.ts` provide collision.
 
+## Desert Arena — `client/public/models/maps/desert.glb`
+
+Full-map mesh for the **Desert Arena** playlist entry.
+
+- **File:** `desert_arena_environment__low_poly_game_asset.glb` (source under `assets/map cs/`)
+- **Use:** Client-only scenery. Invisible brush hulls in `shared/src/maps/desert.ts` provide collision.
+
 ## Aim Pit props — `client/public/models/aimpit/*.glb`
 
 Range / cover dressing for the Aim Pit 1v1 map (crates, cardboard targets, prop grenade). Colormap is embedded in each GLB.
