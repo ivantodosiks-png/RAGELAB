@@ -48,30 +48,53 @@ KayKit Adventurers (knight / mage / rogue / barbarian) are no longer shipped. Th
 
 ## Weapons — `client/public/models/weapons/*.glb`
 
-| File | Source model | Tris (baked) | Size |
-| --- | --- | --- | --- |
-| `pistol.glb` | Pichuliru — Pistol Full West (Desert Eagle frame) | ~1.4k | ~55 KB |
-| `smg.glb` | Pichuliru — SMG Full West | ~2.0k | ~77 KB |
-| `rifle.glb` | Pichuliru — Rifle Battle West | ~3.1k | ~117 KB |
-| `shotgun.glb` | Pichuliru — Shotgun Pump West | ~1.1k | ~43 KB |
-| `sniper.glb` | Pichuliru — Sniper Rifle West | ~3.1k | ~114 KB |
-| `melee.glb` | Pichuliru — Katana (Flat Shaded Melee) | ~1.0k | ~12 KB |
+| File | Source model | Notes |
+| --- | --- | --- |
+| `pistol.glb` | Flat Guns West — Pistol Full | Desert Eagle frame |
+| `glock.glb` | Flat Guns West — Pistol Compact | Glock 17 |
+| `usp.glb` | Flat Guns East — Pistol Compact | USP Compact |
+| `makarov.glb` | Flat Guns East — Pistol Full | Makarov PM |
+| `smg.glb` | Flat Guns West — SMG Full | VX-4 Ripper |
+| `pdw.glb` | Flat Guns West — SMG Compact | Vector PDW |
+| `bizon.glb` | Flat Guns East — SMG Full | PP-19 Bizon |
+| `rifle.glb` | Flat Guns West — Rifle Battle | M4A1 Carbine |
+| `assault.glb` | Flat Guns West — Rifle Assault | AR-C Assault |
+| `ak.glb` | Flat Guns East — Rifle Assault | AK-74 |
+| `shotgun.glb` | Flat Guns West — Shotgun Pump | BR-12 Breaker |
+| `autosg.glb` | Flat Guns West — Shotgun Auto | AA-12 Storm |
+| `saiga.glb` | Flat Guns East — Shotgun Auto | Saiga-12 |
+| `sniper.glb` | Flat Guns West — Sniper Rifle | LR-88 Verdict |
+| `dmr.glb` | Flat Guns West — Sniper Material | M1A Scout |
+| `melee.glb` | Pichuliru — Katana | Flat Shaded Melee |
 
-### Firearms
+### Firearms — Flat Guns West / East
 
-- **Pack:** CC0 Flat Guns West
 - **Author:** Pichuliru
-- **URL:** https://opengameart.org/content/cc0-flat-guns-west
+- **URL:** https://opengameart.org/content/cc0-flat-guns-west · https://opengameart.org/content/cc0-flat-guns-east
 - **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) — commercial use allowed, attribution not required.
 - **Processing:** skins/weights stripped, meshes joined, welded, quantized (`KHR_mesh_quantization`). No image textures (vertex/material colors only). Runtime LOD uses the full mesh up close, a cheaper material copy at mid range, and a box proxy far away.
+
+### Magnum (special)
+
+- `assets/hammer/desert-eagle.glb` — AdamKokrito / Poly Pizza, CC BY 3.0 — used only for the DX-50 Hammer world/view model.
 
 ### Melee
 
 - **Pack:** CC0 Flat Shaded Melee Weapons
 - **Author:** Pichuliru
 - **URL:** https://opengameart.org/content/cc0-flat-shaded-melee-weapons
-- **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) — commercial use allowed, attribution not required.
+- **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
 - **Processing:** Katana converted from OBJ to GLB, palette texture omitted (PBR steel material), quantized.
+
+## Weapon sounds — `client/public/sounds/` (+ `assets/`)
+
+| Sample | Source |
+| --- | --- |
+| `glock_17_*.wav`, `m4a1_*.wav`, `remington_870_*.wav` | Recorded field packs under `assets/` |
+| `usp_shot.wav`, `assault_shot.wav`, `autosg_shot.wav`, `smg_shot.wav` | Michel Baradari — [Chaingun, pistol, rifle, shotgun shots](https://opengameart.org/content/chaingun-pistol-rifle-shotgun-shots) (CC-BY 3.0) |
+| AWM / Deagle MP3s | `assets/awm/`, `assets/hammer/` |
+
+Synth fallbacks cover any key without a recording.
 
 ## Evaluated, not shipped
 

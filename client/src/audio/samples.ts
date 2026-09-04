@@ -9,15 +9,22 @@ const MAGNUM_SHOT_URL = new URL('../../../assets/hammer/deagle_50ae_shot.mp3', i
 /**
  * Recorded one-shots. Most live in `client/public/sounds`; AWM / Hammer shots
  * load from repo `assets/` so we do not duplicate the files.
+ *
+ * Extra pistol / assault / auto-shotgun / SMG samples are Michel Baradari
+ * (CC-BY 3.0) from OpenGameArt “Chaingun, pistol, rifle, shotgun shots”.
  */
 export const RECORDED_SAMPLES: Partial<Record<SoundKey, string>> = {
   pistol: `${BASE}sounds/glock_17_shot.wav`,
   pistol_distant: `${BASE}sounds/glock_17_shot_distant.wav`,
   pistol_reload: `${BASE}sounds/glock_17_reload.wav`,
+  usp: `${BASE}sounds/usp_shot.wav`,
+  smg: `${BASE}sounds/smg_shot.wav`,
   rifle: `${BASE}sounds/m4a1_shot.wav`,
   rifle_distant: `${BASE}sounds/m4a1_shot_distant.wav`,
+  assault: `${BASE}sounds/assault_shot.wav`,
   shotgun: `${BASE}sounds/remington_870_shot.wav`,
   shotgun_distant: `${BASE}sounds/remington_870_shot_distant.wav`,
+  autosg: `${BASE}sounds/autosg_shot.wav`,
   sniper: AWM_SHOT_URL,
   magnum: MAGNUM_SHOT_URL,
   footstep_1: `${BASE}sounds/foot1.mp3`,
@@ -34,5 +41,15 @@ export const DISTANT_FOR: Partial<Record<SoundKey, SoundKey>> = {
 export const DISTANT_FIRE_RANGE = 28;
 
 export function isRecordedGunshot(key: string): boolean {
-  return key === 'pistol' || key === 'rifle' || key === 'shotgun' || key === 'sniper' || key === 'magnum';
+  return (
+    key === 'pistol' ||
+    key === 'usp' ||
+    key === 'smg' ||
+    key === 'rifle' ||
+    key === 'assault' ||
+    key === 'shotgun' ||
+    key === 'autosg' ||
+    key === 'sniper' ||
+    key === 'magnum'
+  );
 }

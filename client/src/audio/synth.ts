@@ -13,11 +13,14 @@ export type SoundKey =
   | 'pistol'
   | 'pistol_distant'
   | 'pistol_reload'
+  | 'usp'
   | 'smg'
   | 'rifle'
   | 'rifle_distant'
+  | 'assault'
   | 'shotgun'
   | 'shotgun_distant'
+  | 'autosg'
   | 'sniper'
   | 'magnum'
   | 'reload_light'
@@ -456,6 +459,16 @@ const GUN_PRESETS: Record<string, GunParams> = {
     drive: 2.8,
     seed: 0x51a7,
   },
+  usp: {
+    duration: 0.42,
+    bodyFreq: 230,
+    bodyDecay: 34,
+    noiseAmount: 0.88,
+    crackAmount: 1.1,
+    tailAmount: 0.16,
+    drive: 2.6,
+    seed: 0x55b1,
+  },
   smg: {
     duration: 0.28,
     bodyFreq: 280,
@@ -476,6 +489,16 @@ const GUN_PRESETS: Record<string, GunParams> = {
     drive: 3.15,
     seed: 0x1f0d,
   },
+  assault: {
+    duration: 0.55,
+    bodyFreq: 175,
+    bodyDecay: 24,
+    noiseAmount: 1.0,
+    crackAmount: 1.15,
+    tailAmount: 0.32,
+    drive: 3.0,
+    seed: 0x2a4e,
+  },
   shotgun: {
     duration: 0.95,
     bodyFreq: 96,
@@ -485,6 +508,16 @@ const GUN_PRESETS: Record<string, GunParams> = {
     tailAmount: 0.62,
     drive: 3.6,
     seed: 0x9b21,
+  },
+  autosg: {
+    duration: 0.72,
+    bodyFreq: 110,
+    bodyDecay: 14,
+    noiseAmount: 1.25,
+    crackAmount: 1.05,
+    tailAmount: 0.45,
+    drive: 3.4,
+    seed: 0xaa12,
   },
   sniper: {
     duration: 1.35,

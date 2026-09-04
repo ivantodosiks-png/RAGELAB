@@ -9,26 +9,62 @@ const BASE = import.meta.env.BASE_URL;
 /** Desert Eagle by AdamKokrito — CC BY 3.0 https://poly.pizza/m/5HnKjrbxUx */
 export const MAGNUM_URL = new URL('../../../assets/hammer/desert-eagle.glb', import.meta.url).href;
 
-export type WeaponModelId = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee' | 'glock' | 'magnum';
+export type WeaponModelId =
+  | 'pistol'
+  | 'smg'
+  | 'rifle'
+  | 'shotgun'
+  | 'sniper'
+  | 'melee'
+  | 'glock'
+  | 'magnum'
+  | 'usp'
+  | 'makarov'
+  | 'pdw'
+  | 'bizon'
+  | 'assault'
+  | 'ak'
+  | 'autosg'
+  | 'saiga'
+  | 'dmr';
 export type SandboxWeaponKind = WeaponModelId;
 
 export const SANDBOX_WEAPON_KINDS: SandboxWeaponKind[] = [
   'pistol',
   'glock',
+  'usp',
+  'makarov',
   'magnum',
+  'pdw',
   'smg',
+  'bizon',
+  'assault',
   'rifle',
+  'ak',
   'shotgun',
+  'autosg',
+  'saiga',
+  'dmr',
   'sniper',
   'melee',
 ];
 
 export const WEAPON_MODEL_FILES: Partial<Record<WeaponModelId, string>> = {
   pistol: 'pistol.glb',
+  glock: 'glock.glb',
+  usp: 'usp.glb',
+  makarov: 'makarov.glb',
   smg: 'smg.glb',
+  pdw: 'pdw.glb',
+  bizon: 'bizon.glb',
   rifle: 'rifle.glb',
+  assault: 'assault.glb',
+  ak: 'ak.glb',
   shotgun: 'shotgun.glb',
+  autosg: 'autosg.glb',
+  saiga: 'saiga.glb',
   sniper: 'sniper.glb',
+  dmr: 'dmr.glb',
   melee: 'melee.glb',
 };
 
@@ -50,10 +86,19 @@ export interface WeaponPhysDef {
 export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   pistol: { mass: 1.35, hx: 0.038, hy: 0.075, hz: 0.13, length: 0.26 },
   glock: { mass: 0.95, hx: 0.032, hy: 0.065, hz: 0.1, length: 0.2 },
+  usp: { mass: 1.05, hx: 0.033, hy: 0.068, hz: 0.105, length: 0.21 },
+  makarov: { mass: 0.85, hx: 0.03, hy: 0.06, hz: 0.095, length: 0.23 },
   magnum: { mass: 1.85, hx: 0.04, hy: 0.08, hz: 0.14, length: 0.28 },
-  rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.41, length: 0.82 },
-  shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
+  pdw: { mass: 2.15, hx: 0.034, hy: 0.08, hz: 0.22, length: 0.44 },
   smg: { mass: 2.45, hx: 0.035, hy: 0.085, hz: 0.26, length: 0.52 },
+  bizon: { mass: 2.7, hx: 0.038, hy: 0.09, hz: 0.28, length: 0.56 },
+  assault: { mass: 3.2, hx: 0.04, hy: 0.09, hz: 0.39, length: 0.78 },
+  rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.41, length: 0.82 },
+  ak: { mass: 3.55, hx: 0.042, hy: 0.092, hz: 0.4, length: 0.8 },
+  shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
+  autosg: { mass: 3.9, hx: 0.048, hy: 0.085, hz: 0.37, length: 0.74 },
+  saiga: { mass: 3.7, hx: 0.046, hy: 0.082, hz: 0.36, length: 0.72 },
+  dmr: { mass: 3.9, hx: 0.04, hy: 0.09, hz: 0.45, length: 0.95 },
   sniper: { mass: 4.1, hx: 0.04, hy: 0.09, hz: 0.48, length: 1.05 },
   melee: { mass: 1.15, hx: 0.03, hy: 0.035, hz: 0.46, length: 0.92 },
 };

@@ -686,17 +686,35 @@ function shortWeaponName(name: string): string {
 function weaponBlurb(id: string): string {
   switch (id) {
     case 'pistol':
-      return 'Compact sidearm. Fast draw, close range.';
+      return 'Desert Eagle. Heavy .50 sidearm.';
     case 'glock':
-      return 'Glock 17. 17-round 9mm — spawn it with Tool Gun.';
+      return 'Glock 17. 17-round 9mm.';
+    case 'usp':
+      return 'USP Compact. Clean 9mm sidearm.';
+    case 'makarov':
+      return 'Makarov PM. Compact Soviet pistol.';
     case 'magnum':
-      return 'DX-50 Hammer. Fat .50 hand cannon. Tool Gun only.';
+      return 'DX-50 Hammer. Fat .50 hand cannon.';
+    case 'pdw':
+      return 'Vector PDW. Blistering close-range SMG.';
     case 'smg':
       return 'High cyclic rate. Close-range pressure.';
+    case 'bizon':
+      return 'PP-19 Bizon. Huge helical mag.';
+    case 'assault':
+      return 'AR-C Assault. Modern automatic.';
     case 'rifle':
-      return 'Balanced automatic carbine.';
+      return 'M4A1 Carbine. Balanced automatic.';
+    case 'ak':
+      return 'AK-74. Hard-hitting 5.45 rifle.';
     case 'shotgun':
-      return 'Devastating inside a few metres.';
+      return 'Pump shotgun. Devastating up close.';
+    case 'autosg':
+      return 'AA-12 Storm. Full-auto shotgun.';
+    case 'saiga':
+      return 'Saiga-12. Mag-fed combat shotgun.';
+    case 'dmr':
+      return 'M1A Scout. Semi-auto marksman.';
     case 'sniper':
       return 'Bolt-action. Long-range precision.';
     case 'toolgun':

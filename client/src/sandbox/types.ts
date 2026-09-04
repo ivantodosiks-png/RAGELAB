@@ -1,3 +1,7 @@
+import type { SandboxWeaponKind } from '../weapons/weaponAssets';
+
+export type { SandboxWeaponKind };
+
 export type NpcState = 'Idle' | 'Walking' | 'Falling' | 'Ragdoll' | 'Recovering' | 'Dead';
 
 export type SandboxTool = 'none' | 'spawn' | 'delete' | 'select' | 'ragdoll' | 'spawnWeapon' | 'grab' | 'toolGun';
@@ -31,7 +35,7 @@ export interface SandboxSettings {
   maxEffects: number;
   maxWeapons: number;
   maxProps: number;
-  weaponKind: 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'sniper' | 'melee' | 'glock' | 'magnum';
+  weaponKind: SandboxWeaponKind;
   quality: SandboxQuality;
 }
 

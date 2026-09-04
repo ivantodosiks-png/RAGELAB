@@ -72,8 +72,8 @@ const NAV: Array<{ id: MenuScreen; label: string; hero?: boolean }> = [
 const INTRO_MS = 1850;
 
 const LOADOUT_GROUPS: Array<{ title: string; ids: WeaponId[] }> = [
-  { title: 'Primary', ids: ['rifle', 'smg', 'shotgun', 'sniper'] },
-  { title: 'Secondary', ids: ['pistol', 'glock', 'magnum'] },
+  { title: 'Primary', ids: ['rifle', 'assault', 'ak', 'smg', 'pdw', 'bizon', 'shotgun', 'autosg', 'saiga', 'dmr', 'sniper'] },
+  { title: 'Secondary', ids: ['pistol', 'glock', 'usp', 'makarov', 'magnum'] },
 ];
 
 export class MainMenu {

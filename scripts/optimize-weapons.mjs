@@ -62,6 +62,57 @@ const jobs = [
     dest: 'client/public/models/weapons/melee.glb',
     length: 0.92,
   },
+  // ── New sandbox / loadout guns (West leftovers + Flat Guns East) ──────────
+  {
+    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Pistol_Compact_West.glb',
+    dest: 'client/public/models/weapons/glock.glb',
+    length: 0.2,
+  },
+  {
+    src: 'tmp-assets/flat_guns_east/Flat Guns East/GLB/Pistol_Compact_East.glb',
+    dest: 'client/public/models/weapons/usp.glb',
+    length: 0.21,
+  },
+  {
+    src: 'tmp-assets/flat_guns_east/Flat Guns East/GLB/Pistol_Full_East.glb',
+    dest: 'client/public/models/weapons/makarov.glb',
+    length: 0.23,
+  },
+  {
+    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Rifle_Assault_West.glb',
+    dest: 'client/public/models/weapons/assault.glb',
+    length: 0.78,
+  },
+  {
+    src: 'tmp-assets/flat_guns_east/Flat Guns East/GLB/Rifle_Assault_East.glb',
+    dest: 'client/public/models/weapons/ak.glb',
+    length: 0.8,
+  },
+  {
+    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Shotgun_Auto_West.glb',
+    dest: 'client/public/models/weapons/autosg.glb',
+    length: 0.74,
+  },
+  {
+    src: 'tmp-assets/flat_guns_east/Flat Guns East/GLB/Shotgun_Auto_East.glb',
+    dest: 'client/public/models/weapons/saiga.glb',
+    length: 0.72,
+  },
+  {
+    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/SMG_Compact_West.glb',
+    dest: 'client/public/models/weapons/pdw.glb',
+    length: 0.44,
+  },
+  {
+    src: 'tmp-assets/flat_guns_east/Flat Guns East/GLB/SMG_Full_East.glb',
+    dest: 'client/public/models/weapons/bizon.glb',
+    length: 0.56,
+  },
+  {
+    src: 'tmp-assets/flat_guns_west/Flat Guns West/GLB/Sniper_Material_West.glb',
+    dest: 'client/public/models/weapons/dmr.glb',
+    length: 0.95,
+  },
 ];
 
 function stripSkins(document) {

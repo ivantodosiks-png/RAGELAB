@@ -175,13 +175,22 @@ export const TOOL_ENTRIES: SpawnEntry[] = [
 
 const WEAPON_FALLBACK: Record<SandboxWeaponKind, { name: string; swatch: number }> = {
   pistol: { name: 'Desert Eagle', swatch: 0xb8a060 },
+  glock: { name: 'Glock 17', swatch: 0x8a9099 },
+  usp: { name: 'USP Compact', swatch: 0x6a90b8 },
+  makarov: { name: 'Makarov PM', swatch: 0xa8b0b8 },
+  magnum: { name: 'DX-50 Hammer', swatch: 0xd4a44a },
+  pdw: { name: 'Vector PDW', swatch: 0x4ec4ff },
   smg: { name: 'VX-4 Ripper', swatch: 0xff7a3d },
-  rifle: { name: 'AR-7 Vesper', swatch: 0x3a3f46 },
+  bizon: { name: 'PP-19 Bizon', swatch: 0x8a9a6a },
+  assault: { name: 'AR-C Assault', swatch: 0x5a8a4a },
+  rifle: { name: 'M4A1 Carbine', swatch: 0x3a3f46 },
+  ak: { name: 'AK-74', swatch: 0xb8863a },
   shotgun: { name: 'BR-12 Breaker', swatch: 0x9a6b3f },
+  autosg: { name: 'AA-12 Storm', swatch: 0xe05040 },
+  saiga: { name: 'Saiga-12', swatch: 0xc07030 },
+  dmr: { name: 'M1A Scout', swatch: 0x4a8a6a },
   sniper: { name: 'LR-88 Verdict', swatch: 0x6a7380 },
   melee: { name: 'Katana', swatch: 0xc9d4dc },
-  glock: { name: 'Glock 17', swatch: 0x8a9099 },
-  magnum: { name: 'DX-50 Hammer', swatch: 0xd4a44a },
 };
 
 export const WEAPON_ENTRIES: SpawnEntry[] = SANDBOX_WEAPON_KINDS.map((id) => {
