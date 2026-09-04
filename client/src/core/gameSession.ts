@@ -57,7 +57,7 @@ import { NPC_MENU_ENABLED } from '../sandbox/spawnCatalog';
 import { ToolGunView } from '../sandbox/toolGunView';
 import { resolveJoinWsUrl } from '../supabase/client';
 import { assetManager } from '../assets/assetManager';
-import { preloadWeaponModels } from '../weapons/weaponAssets';
+import { preloadWeaponModels, createWeaponVisual } from '../weapons/weaponAssets';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
 
@@ -164,7 +164,8 @@ export class GameSession {
     const rapier = await loadRapier();
     this.audio = new AudioEngine(settingsStore.audio);
     await this.audio.resume();
-    preloadWeaponModels();
+    this.audio.warmCombatBuffers();
+    await preloadWeaponModels();
 
     this.renderer = new GameRenderer(this.canvas, settingsStore.graphics);
     this.effects = new EffectsManager(settingsStore.graphics);
@@ -198,6 +199,8 @@ export class GameSession {
         });
 
     this.buildWorld(rapier, welcome);
+    await this.mapDecor?.load();
+    this.warmCombatPipeline();
     this.bindUi();
     this.bindSettings();
     this.onResize();
@@ -278,6 +281,49 @@ export class GameSession {
         },
       });
       net.connect(options);
+    });
+  }
+
+  /**
+   * Pre-upload weapon meshes / FX / audio so the first pistol shot and the first
+   * rifle (slot 3) burst do not hitch on GLB parse, shader compile or buffer build.
+   */
+  private warmCombatPipeline(): void {
+    const origin = { x: 0, y: -200, z: 0 };
+    const forward = { x: 0, y: 0, z: -1 };
+    const cam = this.renderer.camera.position;
+
+    const staging = new THREE.Group();
+    staging.visible = false;
+    this.renderer.viewModelScene.add(staging);
+    for (const id of this.loadout) {
+      if (!id || !isWeaponId(id)) continue;
+      const length = Math.max(getWeapon(id).visual.size[2], 0.2);
+      const visual = createWeaponVisual(id, length, { lod: false, shadows: false });
+      if (visual) staging.add(visual);
+    }
+
+    this.renderer.viewModelScene.updateMatrixWorld(true);
+    this.renderer.scene.updateMatrixWorld(true);
+    this.renderer.renderer.compile(this.renderer.scene, this.renderer.camera);
+    this.renderer.renderer.compile(this.renderer.viewModelScene, this.renderer.viewModelCamera);
+
+    for (const id of this.loadout) {
+      if (!id || !isWeaponId(id)) continue;
+      const def = getWeapon(id);
+      this.effects.muzzleFlash(origin, forward, def);
+      this.effects.tracer(origin, forward, 12, def, cam);
+      this.effects.shellEject(origin, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+      this.audio.play(def.audio.fire as SoundKey, { volume: 0 });
+    }
+    this.effects.clear();
+
+    staging.removeFromParent();
+    staging.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) mat.dispose();
     });
   }
 

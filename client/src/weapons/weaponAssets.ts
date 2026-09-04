@@ -326,8 +326,20 @@ export function loadWeaponModel(id: string): Promise<THREE.Group | null> {
   );
 }
 
-export function preloadWeaponModels(): void {
-  void assetManager.loadGltf(MAGNUM_URL);
+export function preloadWeaponModels(): Promise<void> {
+  const urls = new Set<string>();
+  for (const file of Object.values(WEAPON_MODEL_FILES)) {
+    if (file) urls.add(`${BASE}models/weapons/${file}`);
+  }
+  urls.add(MAGNUM_URL);
+  return Promise.all(
+    [...urls].map((url) =>
+      assetManager.loadGltf(url).catch((err) => {
+        console.warn(`[weapons] preload failed ${url}`, err);
+        return null;
+      }),
+    ),
+  ).then(() => undefined);
 }
 
 function cloneWeaponScene(url: string, id: string): THREE.Group | null {

@@ -76,18 +76,47 @@ export class AudioEngine {
   private async loadRecordedSamples(): Promise<void> {
     const ctx = this.context;
     if (!ctx) return;
-    for (const [key, url] of Object.entries(RECORDED_SAMPLES)) {
-      if (!url) continue;
-      try {
-        const response = await fetch(url);
-        if (!response.ok) continue;
-        const bytes = await response.arrayBuffer();
-        const decoded = await ctx.decodeAudioData(bytes.slice(0));
-        this.buffers.set(key as SoundKey, trimLeadingSilence(ctx, decoded));
-      } catch (err) {
-        console.warn(`[audio] recorded sample "${key}" failed, using synth`, err);
-      }
-    }
+    await Promise.all(
+      Object.entries(RECORDED_SAMPLES).map(async ([key, url]) => {
+        if (!url) return;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) return;
+          const bytes = await response.arrayBuffer();
+          const decoded = await ctx.decodeAudioData(bytes.slice(0));
+          this.buffers.set(key as SoundKey, trimLeadingSilence(ctx, decoded));
+        } catch (err) {
+          console.warn(`[audio] recorded sample "${key}" failed, using synth`, err);
+        }
+      }),
+    );
+  }
+
+  /** Upload synth + recorded gun buffers so the first shot never builds them mid-frame. */
+  warmCombatBuffers(): void {
+    const keys: SoundKey[] = [
+      'pistol',
+      'usp',
+      'smg',
+      'rifle',
+      'assault',
+      'shotgun',
+      'autosg',
+      'sniper',
+      'magnum',
+      'pistol_reload',
+      'reload_light',
+      'reload_heavy',
+      'reload_shell',
+      'dryfire',
+      'equip',
+      'impact_concrete',
+      'impact_metal',
+      'impact_flesh',
+      'hitmarker',
+      'headshot',
+    ];
+    for (const key of keys) this.buffer(key);
   }
 
   private buildGraph(): void {
