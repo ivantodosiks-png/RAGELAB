@@ -68,20 +68,17 @@ const tmpCenter = new THREE.Vector3();
 const tmpVertex = new THREE.Vector3();
 
 /**
- * Optional per-weapon fine-tuning after AABB fit + automatic barrel polarity.
+ * Optional per-weapon fine-tuning after AABB fit + barrel polarity.
  * Prefer fixing orientation in fitWeaponModel; use this only for author quirks.
  */
 const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: number; roll?: number }>> = {
-  // Full-frame West pistol: muzzle already -Z after polarity; tiny pitch seats
-  // the grip under the slide in camera space.
-  pistol: { pitch: -0.04 },
   // FBX2glTF −90° X leaves the barrel on +Z after longest-axis fit.
   magnum: { yaw: Math.PI },
 };
 
 /**
  * Align the longest axis to Z (view-model barrel direction), force muzzle toward
- * -Z (camera forward), keep the grip below the bore, then fit length.
+ * -Z (camera forward), then fit length.
  */
 export function fitWeaponModel(root: THREE.Object3D, targetLength: number, ground = false, id?: string): THREE.Vector3 {
   root.updateMatrixWorld(true);
@@ -94,7 +91,6 @@ export function fitWeaponModel(root: THREE.Object3D, targetLength: number, groun
   }
 
   ensureBarrelTowardNegZ(root);
-  ensureGripDown(root);
 
   const extra = id ? WEAPON_ORIENT[id as WeaponModelId] : undefined;
   if (extra?.pitch) root.rotateX(extra.pitch);
@@ -125,30 +121,9 @@ export function fitWeaponModel(root: THREE.Object3D, targetLength: number, groun
 function ensureBarrelTowardNegZ(root: THREE.Object3D): void {
   const stats = sampleZHalves(root);
   if (!stats) return;
-  // Rear should be lower (grip) and usually denser for pistols/rifles.
   if (stats.frontMeanY < stats.backMeanY - 0.002) {
     root.rotateY(Math.PI);
   }
-}
-
-/** After barrel polarity, flip 180° around Z if the grip hangs above the bore. */
-function ensureGripDown(root: THREE.Object3D): void {
-  root.updateMatrixWorld(true);
-  tmpBox.setFromObject(root);
-  let below = 0;
-  let above = 0;
-  const midY = (tmpBox.min.y + tmpBox.max.y) * 0.5;
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh || !mesh.geometry?.attributes.position) return;
-    const pos = mesh.geometry.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      tmpVertex.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
-      if (tmpVertex.y < midY) below += 1;
-      else above += 1;
-    }
-  });
-  if (above > below * 1.15) root.rotateZ(Math.PI);
 }
 
 function sampleZHalves(root: THREE.Object3D): { frontMeanY: number; backMeanY: number } | null {
