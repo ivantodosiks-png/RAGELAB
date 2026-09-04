@@ -1,6 +1,6 @@
 import type { MapDefinition } from '../types/map';
 import { RAGEYARD } from './rageyard';
-import { TESTBOX } from './testbox';
+import { ARENA } from './arena';
 import { HARBORLANE } from './harborlane';
 import { AIMPIT } from './aimpit';
 
@@ -9,7 +9,7 @@ export const MAPS: Record<string, MapDefinition> = {
   [HARBORLANE.id]: HARBORLANE,
   [RAGEYARD.id]: RAGEYARD,
   [AIMPIT.id]: AIMPIT,
-  [TESTBOX.id]: TESTBOX,
+  [ARENA.id]: ARENA,
 };
 
 export const MAP_IDS = Object.keys(MAPS);
@@ -25,5 +25,5 @@ export function isMapId(id: unknown): id is string {
   return typeof id === 'string' && Object.prototype.hasOwnProperty.call(MAPS, id);
 }
 
-export { HARBORLANE, RAGEYARD, TESTBOX, AIMPIT };
+export { HARBORLANE, RAGEYARD, ARENA, AIMPIT };
 export * from './archetypes';

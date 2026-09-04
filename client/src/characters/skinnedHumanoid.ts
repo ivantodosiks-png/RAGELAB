@@ -117,12 +117,19 @@ export class SkinnedCharacter {
 
     const cloned = cloneSkinned(gltf.scene) as THREE.Group;
     hideGear(cloned);
+    // Mixamo (Michelle/woman) ships with hips ≈ −90° X — spine along −Z.
+    // Upright first, then fit height, or the bbox treats body length as height
+    // and parks the mesh under the floor.
+    cloned.updateMatrixWorld(true);
+    ensureUpright(cloned);
     fitHeight(cloned, 1.78 * (look.heightScale ?? 1));
     this.facing.add(cloned);
 
     cloned.updateMatrixWorld(true);
     this.facing.rotation.y = detectModelYawOffset(cloned);
     cloned.updateMatrixWorld(true);
+    // Re-ground after yaw so feet stay on y=0.
+    groundToOrigin(cloned);
 
     cloned.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
@@ -169,6 +176,9 @@ export class SkinnedCharacter {
         this.actions.set(clip.name.toLowerCase(), action);
       }
       this.play('idle', 0);
+      // Sample bind→idle once so feet aren't measured on a T-pose that floats.
+      this.mixer.update(1 / 60);
+      groundToOrigin(cloned);
     }
   }
 
@@ -268,8 +278,8 @@ export function instantiateCharacter(kind: CharacterKind, look: NpcLook): Skinne
 function detectModelYawOffset(rig: THREE.Object3D): number {
   const hips = findBone(rig, ['hips', 'pelvis']);
   const head = findBone(rig, ['head']);
-  const armL = findBone(rig, ['upperarm.l', 'leftarm']);
-  const armR = findBone(rig, ['upperarm.r', 'rightarm']);
+  const armL = findBone(rig, ['upperarm.l', 'leftarm', 'leftuparm']);
+  const armR = findBone(rig, ['upperarm.r', 'rightarm', 'rightuparm']);
   if (!hips || !head || !armL || !armR) return 0;
   hips.getWorldPosition(tmpA);
   head.getWorldPosition(tmpB);
@@ -282,6 +292,30 @@ function detectModelYawOffset(rig: THREE.Object3D): number {
   if (tmpFwd.lengthSq() < 1e-6) return 0;
   tmpFwd.normalize();
   return Math.PI - Math.atan2(tmpFwd.x, tmpFwd.z);
+}
+
+/** Rotate the rig so hips→head points roughly +Y (fixes Mixamo −90° X bind). */
+function ensureUpright(rig: THREE.Object3D): void {
+  const hips = findBone(rig, ['hips', 'pelvis']);
+  const head = findBone(rig, ['head']);
+  if (!hips || !head) return;
+  hips.getWorldPosition(tmpA);
+  head.getWorldPosition(tmpB);
+  tmpUp.subVectors(tmpB, tmpA);
+  if (tmpUp.lengthSq() < 1e-8) return;
+  tmpUp.normalize();
+  if (tmpUp.y >= 0.75) return;
+  tmpFwd.set(0, 1, 0);
+  const q = new THREE.Quaternion().setFromUnitVectors(tmpUp, tmpFwd);
+  rig.quaternion.premultiply(q);
+  rig.updateMatrixWorld(true);
+}
+
+function groundToOrigin(rig: THREE.Object3D): void {
+  rig.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(rig);
+  if (!Number.isFinite(box.min.y)) return;
+  rig.position.y -= box.min.y;
 }
 
 function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {

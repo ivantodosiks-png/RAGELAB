@@ -17,6 +17,13 @@ Compact downtown scenery for the Harbor Lane sandbox map. Kenney tiles are scale
 - **License:** [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) — commercial use allowed, attribution not required.
 - **Use:** Client-only decoration. Collision is cheap box/cylinder brushes cooked on both client and server; GLBs are never loaded by physics.
 
+## CS Arena — `client/public/models/maps/arena.glb`
+
+Full-map mesh for the **CS Arena** playlist entry (replaces the old Test Box).
+
+- **File:** `fps_shooter_game_arena_map_v4.glb` (source under `assets/map cs/`)
+- **Use:** Client-only scenery. Invisible brush hulls in `shared/src/maps/arena.ts` provide collision.
+
 ## Aim Pit props — `client/public/models/aimpit/*.glb`
 
 Range / cover dressing for the Aim Pit 1v1 map (crates, cardboard targets, prop grenade). Colormap is embedded in each GLB.

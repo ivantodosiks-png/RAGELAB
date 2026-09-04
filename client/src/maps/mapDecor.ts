@@ -101,9 +101,13 @@ export class MapDecor {
         }
         // Kenney colormaps are already fully lit albedo. Strong env/metal
         // reads as blown-out white once the texture is actually loaded.
-        mat.envMapIntensity = 0.18;
-        mat.metalness = 0;
-        mat.roughness = Math.max(0.58, mat.roughness);
+        // Full-map GLBs (arena) keep a bit more env response.
+        const kenneyLike = !id.startsWith('arena');
+        mat.envMapIntensity = kenneyLike ? 0.18 : 0.55;
+        if (kenneyLike) {
+          mat.metalness = 0;
+          mat.roughness = Math.max(0.58, mat.roughness);
+        }
         if (mat.map) {
           mat.map.colorSpace = THREE.SRGBColorSpace;
           mat.map.anisotropy = 8;

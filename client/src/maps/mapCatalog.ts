@@ -58,6 +58,8 @@ export const CITY_MODELS: Record<string, { file: string; scale?: number; dir?: s
   'target-small': { file: 'target-small.glb', dir: 'aimpit', scale: 1.1 },
   'target-detail': { file: 'target-detail.glb', dir: 'aimpit', scale: 1.2 },
   'grenade-prop': { file: 'grenade-a.glb', dir: 'aimpit', scale: 1 },
+  // Full-map GLB (FPS playground arena) — replaces Test Box
+  arena: { file: 'arena.glb', dir: 'maps', scale: 1 },
 };
 
 export function cityModelUrl(id: string): string {
