@@ -133,6 +133,17 @@ input[type='range'] {
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
+.hud.hud-inventory-open > :not(.inv-panel) {
+  opacity: 0.12 !important;
+  filter: saturate(0.4);
+  transition: opacity 0.16s ease, filter 0.16s ease;
+}
+
+.hud.hud-inventory-open .inv-panel {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .hud.hud-ready {
   opacity: 1;
   transform: none;

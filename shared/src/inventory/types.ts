@@ -16,7 +16,7 @@ export interface ContainerLayout {
 export const INVENTORY_CONTAINERS: ContainerLayout[] = [
   { id: 'rig', label: 'RIG', cols: 4, rows: 4 },
   { id: 'pockets', label: 'POCKETS', cols: 4, rows: 1 },
-  { id: 'backpack', label: 'BACKPACK', cols: 5, rows: 5 },
+  { id: 'backpack', label: 'BACKPACK', cols: 8, rows: 6 },
 ];
 
 export interface MagazineDefinition {

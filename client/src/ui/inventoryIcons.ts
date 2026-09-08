@@ -1,4 +1,4 @@
-/** Inventory item icons — PNG assets in /inventory/, SVG fallback. */
+/** Inventory item icons — PNG assets in /inventory/ with transparent backgrounds. */
 
 const ICON_FILES: Record<string, string> = {
   mag_pistol: '/inventory/mag_pistol.png',
@@ -11,22 +11,22 @@ const ICON_FILES: Record<string, string> = {
   ammo_box: '/inventory/ammo_box.png',
 };
 
-let uid = 0;
-
-export function magazineIconHtml(iconKey: string, fillLevel = 1): string {
-  const src = ICON_FILES[iconKey] ?? ICON_FILES.mag_stanag!;
-  const clamped = Math.max(0, Math.min(1, fillLevel));
-  const fillClass =
-    clamped <= 0 ? 'empty' : clamped < 0.35 ? 'low' : clamped < 0.65 ? 'medium' : 'high';
-  return `<span class="inv-ico-wrap"><img class="inv-ico-img" src="${src}" alt="" draggable="false"/><i class="inv-ico-fill ${fillClass}" style="--fill:${clamped}"></i></span>`;
+export function itemIconSrc(iconKey: string): string {
+  return ICON_FILES[iconKey] ?? ICON_FILES.mag_stanag!;
 }
 
-/** @deprecated use magazineIconHtml */
+/** Pure icon image — no text. Fill bar is separate DOM. */
+export function itemIconHtml(iconKey: string): string {
+  const src = itemIconSrc(iconKey);
+  return `<img class="inv-ico-img" src="${src}" alt="" draggable="false" />`;
+}
+
+/** @deprecated */
+export function magazineIconHtml(iconKey: string, _fillLevel = 1): string {
+  return itemIconHtml(iconKey);
+}
+
+/** @deprecated */
 export function magazineIconSvg(iconKey: string, fillLevel = 1): string {
   return magazineIconHtml(iconKey, fillLevel);
-}
-
-export function uniqueSvgId(prefix: string): string {
-  uid += 1;
-  return `${prefix}_${uid}`;
 }

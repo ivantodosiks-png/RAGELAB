@@ -741,6 +741,7 @@ export class GameSession {
       const open = this.inventoryPanel.toggle();
       this.input.inventoryOpen = open;
       this.input.freezeSlots = open || Boolean(this.spawnMenu?.isOpen);
+      this.ui.hud.root.classList.toggle('hud-inventory-open', open);
       if (open) {
         this.input.closeWeaponWheel();
         this.ui.hud.cancelWeaponWheel();
@@ -753,6 +754,7 @@ export class GameSession {
       this.inventoryPanel.setOpen(false);
       this.input.inventoryOpen = false;
       this.input.freezeSlots = Boolean(this.spawnMenu?.isOpen);
+      this.ui.hud.root.classList.remove('hud-inventory-open');
       this.input.requestLock();
     }
     if (this.input.consumeInspectMag() && !this.paused && this.local.alive) {
