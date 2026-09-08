@@ -15,6 +15,8 @@ import {
   HitZone,
   cloneBodyParts,
   damageBodyPart,
+  healthFromParts,
+  isBodyDestroyed,
   type BodyPartId,
   type HitZoneId,
   type GameEvent,
@@ -220,17 +222,14 @@ export function applyDamage(
     if (attacker.identity.team === victim.identity.team) return;
   }
 
-  // Head hits on the operator mesh are lethal (matches HUD head zone).
-  let applied = amount;
-  if (part === 'head') {
-    applied = Math.max(amount, victim.health);
-  }
+  // Per-part shot budgets: 1 landed hit = 1 damage to that zone only.
+  // Mixing chest + arm hits cannot kill until one zone is emptied.
+  const partHits = isWeaponCause(cause) ? 1 : Math.min(4, Math.max(1, Math.ceil(amount / 40)));
+  damageBodyPart(victim.bodyParts, part, partHits);
+  const destroyed = isBodyDestroyed(victim.bodyParts);
+  victim.health = destroyed ? 0 : healthFromParts(victim.bodyParts);
 
-  const dealt = Math.min(applied, victim.health);
-  victim.health -= applied;
-  damageBodyPart(victim.bodyParts, part, dealt);
-  if (victim.bodyParts.head <= 0) victim.health = 0;
-
+  const dealt = Math.max(1, Math.round(amount));
   if (attacker) {
     attacker.stats.damageDealt += dealt;
     if (isWeaponCause(cause)) weaponSession(attacker.stats, cause).damage += dealt;
@@ -238,8 +237,8 @@ export function applyDamage(
       t: 'hit',
       target: victim.id,
       dmg: Math.round(dealt),
-      head: headshot,
-      lethal: victim.health <= 0,
+      head: headshot || part === 'head',
+      lethal: destroyed,
     });
   }
 
@@ -253,8 +252,8 @@ export function applyDamage(
     parts: cloneBodyParts(victim.bodyParts),
   });
 
-  if (victim.health <= 0) {
-    killPlayer(ctx, victim, attacker ? attacker.id : null, cause, headshot);
+  if (destroyed) {
+    killPlayer(ctx, victim, attacker ? attacker.id : null, cause, headshot || part === 'head');
   }
 }
 

@@ -1,4 +1,4 @@
-/** Per-limb HP + operator hit-volume layout (madtrollstudio Soldier proportions). */
+/** Per-limb HP: independent shot budgets. Destroying any part kills the player. */
 
 export const BodyPart = {
   Head: 'head',
@@ -22,26 +22,32 @@ export const BODY_PART_IDS: readonly BodyPartId[] = [
   BodyPart.LegR,
 ] as const;
 
-/** Max HP per zone (display + lethal when head hits 0). */
+/**
+ * Hits-to-destroy per zone (1 hit = 1 bullet/pellet that lands on that part).
+ * Cross-part damage does not stack toward death — only emptying one part kills.
+ */
 export const BODY_PART_MAX: Record<BodyPartId, number> = {
-  head: 35,
-  chest: 85,
-  stomach: 70,
-  armL: 60,
-  armR: 60,
-  legL: 65,
-  legR: 65,
+  head: 1,
+  chest: 4,
+  stomach: 4,
+  armL: 6,
+  armR: 6,
+  legL: 6,
+  legR: 6,
 };
 
-export const BODY_PART_LABEL_RU: Record<BodyPartId, string> = {
-  head: 'Голова',
-  chest: 'Грудь',
-  stomach: 'Живот',
-  armL: 'Левая рука',
-  armR: 'Правая рука',
-  legL: 'Левая нога',
-  legR: 'Правая нога',
+export const BODY_PART_LABEL: Record<BodyPartId, string> = {
+  head: 'Head',
+  chest: 'Chest',
+  stomach: 'Stomach',
+  armL: 'Left Arm',
+  armR: 'Right Arm',
+  legL: 'Left Leg',
+  legR: 'Right Leg',
 };
+
+/** @deprecated Use BODY_PART_LABEL */
+export const BODY_PART_LABEL_RU = BODY_PART_LABEL;
 
 export type BodyPartState = Record<BodyPartId, number>;
 
@@ -112,7 +118,30 @@ export function damageBodyPart(parts: BodyPartState, part: BodyPartId, amount: n
   return next;
 }
 
-/** Heal damaged parts preferentially (health packs). */
+/** True when any zone is fully destroyed — that kills the player. */
+export function isBodyDestroyed(parts: BodyPartState): boolean {
+  for (const id of BODY_PART_IDS) {
+    if (parts[id] <= 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Snapshot health 0..max for bars / protocol. Independent of cross-part stacking:
+ * only reflects how intact the weakest zone is while alive.
+ */
+export function healthFromParts(parts: BodyPartState, maxHealth = 100): number {
+  if (isBodyDestroyed(parts)) return 0;
+  let worst = 1;
+  for (const id of BODY_PART_IDS) {
+    const max = BODY_PART_MAX[id];
+    if (max <= 0) continue;
+    worst = Math.min(worst, parts[id] / max);
+  }
+  return Math.max(1, Math.round(worst * maxHealth));
+}
+
+/** Heal damaged parts preferentially (health packs / future meds). */
 export function healBodyParts(parts: BodyPartState, amount: number): void {
   let left = Math.max(0, amount);
   if (left <= 0) return;

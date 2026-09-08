@@ -1,6 +1,6 @@
 import {
   BODY_PART_IDS,
-  BODY_PART_LABEL_RU,
+  BODY_PART_LABEL,
   BODY_PART_MAX,
   bodyPartRatio,
   cloneBodyParts,
@@ -29,8 +29,7 @@ export function bodyPartFillColor(ratio: number): string {
 
 /**
  * Shared limb-HP silhouette used by in-game HUD and TAB inventory.
- * Zones mirror OPERATOR_PART_CAPSULES on the madtrollstudio Soldier mesh
- * (head / chest / stomach / armL / armR / legL / legR).
+ * Zones mirror OPERATOR_PART_CAPSULES on the madtrollstudio Soldier mesh.
  */
 export class BodyStatusView {
   readonly root: HTMLElement;
@@ -63,7 +62,7 @@ export class BodyStatusView {
         row.dataset.part = id;
         row.append(
           el('span', 'body-status-swatch'),
-          el('span', 'body-status-line', `${BODY_PART_LABEL_RU[id]} ${BODY_PART_MAX[id]}/${BODY_PART_MAX[id]} HP`),
+          el('span', 'body-status-line', `${BODY_PART_LABEL[id]} ${BODY_PART_MAX[id]}/${BODY_PART_MAX[id]} HP`),
         );
         this.list.append(row);
         this.rowEls.set(id, row);
@@ -105,9 +104,10 @@ export class BodyStatusView {
     }
   }
 
-  private paint(flash: BodyPartId | null, force: boolean): void {
-    const key = BODY_PART_IDS.map((id) => `${id}:${Math.round(this.parts[id])}`).join('|') + `|${this.hitPart ?? ''}`;
-    if (!force && key === this.lastKey && !flash) return;
+  private paint(_flash: BodyPartId | null, force: boolean): void {
+    const key =
+      BODY_PART_IDS.map((id) => `${id}:${Math.round(this.parts[id])}`).join('|') + `|${this.hitPart ?? ''}`;
+    if (!force && key === this.lastKey) return;
     this.lastKey = key;
 
     for (const id of BODY_PART_IDS) {
@@ -117,7 +117,7 @@ export class BodyStatusView {
       zone.style.background = color;
       zone.style.opacity = ratio <= 0.02 ? '0.35' : '0.92';
       zone.classList.toggle('is-hit', this.hitPart === id);
-      zone.classList.toggle('is-critical', ratio > 0 && ratio <= 0.28);
+      zone.classList.toggle('is-critical', ratio > 0 && ratio <= 0.34);
       zone.classList.toggle('is-destroyed', ratio <= 0.02);
 
       const row = this.rowEls.get(id);
@@ -126,9 +126,9 @@ export class BodyStatusView {
         const line = row.querySelector('.body-status-line') as HTMLElement;
         swatch.style.background = color;
         const cur = Math.round(this.parts[id]);
-        line.textContent = `${BODY_PART_LABEL_RU[id]} ${cur}/${BODY_PART_MAX[id]} HP`;
+        line.textContent = `${BODY_PART_LABEL[id]} ${cur}/${BODY_PART_MAX[id]} HP`;
         row.classList.toggle('is-hit', this.hitPart === id);
-        row.classList.toggle('is-critical', ratio > 0 && ratio <= 0.28);
+        row.classList.toggle('is-critical', ratio > 0 && ratio <= 0.34);
         row.classList.toggle('is-destroyed', ratio <= 0.02);
       }
     }

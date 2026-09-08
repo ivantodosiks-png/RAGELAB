@@ -175,7 +175,7 @@ export class InventoryPanel {
 
   private buildCharacterColumn(): HTMLElement {
     const col = el('div', 'inv-col inv-col--char');
-    col.append(el('div', 'inv-col-label', 'CHARACTER'));
+    col.append(el('div', 'inv-col-label', 'BODY STATUS'));
 
     const stage = el('div', 'inv-char-stage');
 

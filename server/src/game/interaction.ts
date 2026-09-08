@@ -10,6 +10,9 @@ import {
   isWeaponId,
   healBodyParts,
   cloneBodyParts,
+  healthFromParts,
+  BODY_PART_IDS,
+  BODY_PART_MAX,
   type GameEvent,
   type Vec3,
 } from '@ragelab/shared';
@@ -269,10 +272,12 @@ function applyPickup(
 ): boolean {
   switch (kind) {
     case 'health': {
-      if (player.health >= MAX_HEALTH) return false;
-      const heal = amount || 25;
-      player.health = Math.min(MAX_HEALTH, player.health + heal);
-      healBodyParts(player.bodyParts, heal);
+      const damaged = BODY_PART_IDS.some((id) => player.bodyParts[id] < BODY_PART_MAX[id]);
+      if (!damaged && player.health >= MAX_HEALTH) return false;
+      // Packs restore a few part-hits (future meds can target specific limbs).
+      const hits = Math.max(1, Math.min(3, Math.round((amount || 25) / 12)));
+      healBodyParts(player.bodyParts, hits);
+      player.health = healthFromParts(player.bodyParts, MAX_HEALTH);
       return true;
     }
     case 'ammo': {

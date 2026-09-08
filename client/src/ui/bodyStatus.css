@@ -1,7 +1,7 @@
-/* Shared limb HP silhouette — HUD + TAB inventory */
+/* Shared limb HP silhouette — organic Tarkov-style figure */
 
 .body-status {
-  --bs-outline: rgba(190, 196, 178, 0.4);
+  --bs-outline: rgba(190, 196, 178, 0.35);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -19,22 +19,14 @@
   gap: 0;
   padding: 0;
   border: 0;
-  border-radius: 0;
   background: transparent;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.body-status-tag {
-  display: none;
 }
 
 .body-status-sil {
   position: relative;
-  width: 52px;
-  height: 86px;
-  filter: none;
+  width: 48px;
+  height: 90px;
 }
 
 .bs-part {
@@ -46,137 +38,151 @@
 }
 
 .bs-part.is-hit {
-  box-shadow: none;
-  border-color: rgba(230, 210, 150, 0.85);
-  filter: brightness(1.25);
+  border-color: rgba(230, 210, 150, 0.9);
+  filter: brightness(1.22);
 }
 
 .bs-part.is-destroyed {
   border-color: rgba(100, 60, 60, 0.4);
 }
 
+/* Rounded humanoid — no hard rectangles */
 .bs-head {
   left: 50%;
-  top: 0;
-  width: 13px;
-  height: 13px;
-  margin-left: -6.5px;
-  border-radius: 45% 45% 38% 38%;
+  top: 1px;
+  width: 14px;
+  height: 15px;
+  margin-left: -7px;
+  border-radius: 50% 50% 46% 46%;
 }
 
 .bs-chest {
   left: 50%;
-  top: 14px;
-  width: 24px;
-  height: 19px;
-  margin-left: -12px;
-  border-radius: 2px;
+  top: 15px;
+  width: 22px;
+  height: 20px;
+  margin-left: -11px;
+  border-radius: 9px 9px 6px 6px / 10px 10px 7px 7px;
 }
 
 .bs-stomach {
   left: 50%;
   top: 33px;
-  width: 21px;
-  height: 13px;
-  margin-left: -10.5px;
-  border-radius: 2px;
+  width: 18px;
+  height: 14px;
+  margin-left: -9px;
+  border-radius: 5px 5px 9px 9px / 6px 6px 10px 10px;
+}
+
+.bs-armL,
+.bs-armR {
+  top: 16px;
+  width: 8px;
+  height: 30px;
+  border-radius: 5px;
 }
 
 .bs-armL {
-  left: 3px;
-  top: 15px;
-  width: 9px;
-  height: 29px;
-  border-radius: 2px;
+  left: 2px;
+  transform: rotate(8deg);
+  transform-origin: top center;
+  border-radius: 5px 4px 5px 6px;
 }
 
 .bs-armR {
-  right: 3px;
-  top: 15px;
+  right: 2px;
+  transform: rotate(-8deg);
+  transform-origin: top center;
+  border-radius: 4px 5px 6px 5px;
+}
+
+.bs-legL,
+.bs-legR {
+  top: 46px;
   width: 9px;
-  height: 29px;
-  border-radius: 2px;
+  height: 42px;
+  border-radius: 5px 5px 4px 4px;
 }
 
 .bs-legL {
   left: 50%;
-  top: 47px;
-  width: 10px;
-  height: 37px;
-  margin-left: -12px;
-  border-radius: 2px;
+  margin-left: -11px;
+  transform: rotate(3deg);
+  transform-origin: top center;
 }
 
 .bs-legR {
   left: 50%;
-  top: 47px;
-  width: 10px;
-  height: 37px;
   margin-left: 2px;
-  border-radius: 2px;
+  transform: rotate(-3deg);
+  transform-origin: top center;
 }
 
-/* Detail (TAB) — larger silhouette + HP list */
+/* Detail (TAB) — left-aligned figure + English HP list */
 .body-status--detail {
   width: 100%;
   height: 100%;
   min-height: 280px;
-  padding: 18px 20px;
+  padding: 20px 16px 20px 20px;
   box-sizing: border-box;
-  justify-content: center;
-  gap: 28px;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 22px;
 }
 
 .body-status--detail .body-status-sil {
-  width: 110px;
-  height: 180px;
+  width: 100px;
+  height: 188px;
   flex-shrink: 0;
 }
 
 .body-status--detail .bs-head {
-  width: 26px;
+  width: 24px;
   height: 26px;
-  margin-left: -13px;
+  margin-left: -12px;
+  top: 2px;
 }
 
 .body-status--detail .bs-chest {
-  top: 30px;
-  width: 52px;
-  height: 40px;
-  margin-left: -26px;
+  top: 28px;
+  width: 42px;
+  height: 38px;
+  margin-left: -21px;
+  border-radius: 16px 16px 12px 12px / 18px 18px 14px 14px;
 }
 
 .body-status--detail .bs-stomach {
-  top: 70px;
-  width: 46px;
+  top: 64px;
+  width: 34px;
   height: 28px;
-  margin-left: -23px;
+  margin-left: -17px;
+  border-radius: 10px 10px 16px 16px / 12px 12px 18px 18px;
 }
 
 .body-status--detail .bs-armL,
 .body-status--detail .bs-armR {
-  top: 34px;
-  width: 16px;
-  height: 62px;
+  top: 30px;
+  width: 14px;
+  height: 58px;
 }
 
 .body-status--detail .bs-armL {
-  left: 6px;
+  left: 4px;
 }
 
 .body-status--detail .bs-armR {
-  right: 6px;
+  right: 4px;
 }
 
 .body-status--detail .bs-legL,
 .body-status--detail .bs-legR {
-  top: 100px;
-  width: 20px;
-  height: 76px;
+  top: 92px;
+  width: 16px;
+  height: 90px;
 }
 
 .body-status--detail .bs-legL {
-  margin-left: -24px;
+  margin-left: -20px;
 }
 
 .body-status--detail .bs-legR {
@@ -188,8 +194,9 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 7px;
+  gap: 6px;
   min-width: 168px;
+  align-self: center;
 }
 
 .body-status-row {
@@ -222,7 +229,7 @@
 .body-status-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 1px;
+  border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 

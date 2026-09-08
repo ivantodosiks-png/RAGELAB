@@ -125,7 +125,17 @@
 }
 
 .inv-figure--body {
-  inset: 8% 6% 8%;
+  inset: 10% auto 10% 8%;
+  right: auto;
+  width: min(340px, 92%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  place-items: unset;
+}
+
+.inv-figure--body .body-status--detail {
+  justify-content: flex-start;
 }
 
 .inv-op {
