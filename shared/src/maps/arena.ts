@@ -120,7 +120,7 @@ const lights: LightDef[] = [
 
 export const ARENA: MapDefinition = {
   id: 'arena',
-  name: 'CS Arena',
+  name: 'The Yard',
   description: 'Compact 50 m orange-playground arena with mid cover, pillars and hard walls.',
   author: 'RAGELAB',
   players: [2, 16],

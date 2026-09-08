@@ -52,7 +52,7 @@ async function boot(): Promise<void> {
   const invite = parseLobbyInvite();
   if (invite) {
     ui.menu.pendingJoinCode = invite.code;
-    ui.menu.show('play');
+    ui.menu.show('home');
     void ui.joinInvite(invite);
   }
   console.info(

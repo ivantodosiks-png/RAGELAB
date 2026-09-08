@@ -145,8 +145,9 @@ export class Hud {
     this.ammoPanel = el('div', 'hud-weapon');
     const ammoKicker = el('div', 'vital-kicker', 'Weapon');
     this.ammoName = el('div', 'name', '—');
-    magRow.append(el('span', '', 'Spares'), (this.ammoText = el('span', '', '0 MAG')));
     this.ammoBig = el('div', 'ammo', 'FULL<small> · ████████</small>');
+    const magRow = el('div', 'vital-meta');
+    magRow.append(el('span', '', 'Spares'), (this.ammoText = el('span', '', '0 MAG')));
     const magBar = el('div', 'bar ammo');
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);

@@ -120,7 +120,7 @@ const lights: LightDef[] = [
 
 export const DESERT: MapDefinition = {
   id: 'desert',
-  name: 'Desert Arena',
+  name: 'Dust Bowl',
   description: 'Low-poly desert yard with a mid ruin, sand floor and tight cover lanes.',
   author: 'RAGELAB',
   players: [2, 16],

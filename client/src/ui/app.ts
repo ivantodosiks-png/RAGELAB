@@ -269,7 +269,7 @@ export class UiApp {
     if (!result.ok) return result.message ?? 'Sign in failed';
     await this.refreshAuth();
     if (this.banned) return null;
-    this.menu.show('play');
+    this.menu.show('home');
     return null;
   }
 
@@ -279,7 +279,7 @@ export class UiApp {
     if (result.needsConfirmation) return 'Check your email to confirm the account, then sign in.';
     await this.refreshAuth();
     if (this.banned) return null;
-    this.menu.show('play');
+    this.menu.show('home');
     return null;
   }
 
