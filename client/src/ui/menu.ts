@@ -397,7 +397,20 @@ export class MainMenu {
 
     const hostCol = el('div', 'tk-deploy-col');
     hostCol.append(el('h3', 'tk-deploy-col-title', 'HOST'));
-    hostCol.append(el('p', 'tk-deploy-hint', 'Create a lobby and share the code.'));
+    hostCol.append(el('p', 'tk-deploy-hint', 'Solo offline, or create a lobby and share the code.'));
+
+    const hostRow = el('div', 'tk-host-row');
+    const offline = el('button', 'tk-secondary tk-offline-btn', 'PLAY OFFLINE');
+    offline.type = 'button';
+    offline.addEventListener('click', () => {
+      const mapId = this.selectedMapId;
+      this.callbacks.play({
+        username: this.operatorName(),
+        mapId,
+        team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
+      });
+    });
+
     const create = el(
       'button',
       'tk-deploy',
@@ -416,7 +429,8 @@ export class MainMenu {
         team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
       });
     });
-    hostCol.append(create);
+    hostRow.append(offline, create);
+    hostCol.append(hostRow);
 
     const connectCol = el('div', 'tk-deploy-col tk-connect-block');
     connectCol.append(el('h3', 'tk-deploy-col-title', 'CONNECT'));
