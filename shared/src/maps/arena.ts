@@ -100,14 +100,15 @@ const decor: MapDecorDef[] = [
 ];
 
 const spawnPoints: SpawnPointDef[] = [
-  { position: [-18, 1.15, -18], yaw: 45 * DEG, id: 'sw' },
-  { position: [18, 1.15, 18], yaw: -135 * DEG, id: 'ne' },
-  { position: [-18, 1.15, 18], yaw: 135 * DEG, id: 'nw' },
-  { position: [18, 1.15, -18], yaw: -45 * DEG, id: 'se' },
-  { position: [0, 1.15, -16], yaw: 0, id: 'south' },
-  { position: [0, 1.15, 16], yaw: 180 * DEG, id: 'north' },
-  { position: [-16, 1.15, 0], yaw: 90 * DEG, id: 'west' },
-  { position: [16, 1.15, 0], yaw: -90 * DEG, id: 'east' },
+  // Clear floor pads — inset from walls and outside cover AABBs (player r≈0.35).
+  { position: [-20, 1.25, -20], yaw: 45 * DEG, id: 'sw' },
+  { position: [20, 1.25, -20], yaw: -45 * DEG, id: 'se' },
+  { position: [-20, 1.25, 20], yaw: 135 * DEG, id: 'nw' },
+  { position: [14, 1.25, 20], yaw: -135 * DEG, id: 'ne' },
+  { position: [0, 1.25, -20], yaw: 0, id: 'south' },
+  { position: [-8, 1.25, 20], yaw: 180 * DEG, id: 'north' },
+  { position: [-20, 1.25, 8], yaw: 90 * DEG, id: 'west' },
+  { position: [20, 1.25, -8], yaw: -90 * DEG, id: 'east' },
 ];
 
 const lights: LightDef[] = [
@@ -120,8 +121,8 @@ const lights: LightDef[] = [
 
 export const ARENA: MapDefinition = {
   id: 'arena',
-  name: 'The Yard',
-  description: 'Compact 50 m orange-playground arena with mid cover, pillars and hard walls.',
+  name: 'Test Box',
+  description: 'Compact 50 m test arena with mid cover, pillars and hard walls.',
   author: 'RAGELAB',
   players: [2, 16],
   bounds: 28,
