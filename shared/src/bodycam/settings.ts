@@ -25,7 +25,7 @@ export interface BodycamSettings {
   shakeIntensity: number;
 
   // ── Lens (post-process) ──────────────────────────────────────────────────
-  /** Mild wide-angle barrel (optical stretch at edges — not fisheye). */
+  /** Mild wide-angle optic curve 0–1 (inward remap — never edge stretch). */
   barrelDistortion: number;
   /** Soft corner optical vignette 0–1 (never a hard circular mask). */
   vignette: number;
@@ -76,21 +76,21 @@ export const DEFAULT_BODYCAM: BodycamSettings = {
   chestHeight: 0.73,
   forwardOffset: 0.13,
   pitchBias: -0.035,
-  fovBoost: 10,
-  walkBob: 0.48,
-  runBob: 0.68,
+  fovBoost: 9,
+  walkBob: 0.58,
+  runBob: 0.78,
   cameraLag: 0,
-  shakeIntensity: 0.62,
-  barrelDistortion: 0.28,
-  vignette: 0.42,
+  shakeIntensity: 0.7,
+  barrelDistortion: 0.2,
+  vignette: 0.4,
   lensAperture: 0,
   lensRadius: 1,
   lensRim: 0,
-  chromaticAberration: 0.22,
-  edgeBlur: 0.22,
-  noise: 0.18,
-  sharpening: 0.2,
-  motionBlur: 0.26,
+  chromaticAberration: 0.14,
+  edgeBlur: 0.12,
+  noise: 0.16,
+  sharpening: 0.22,
+  motionBlur: 0.22,
   autoExposure: true,
   exposureSpeed: 0.95,
   minExposure: 0.5,

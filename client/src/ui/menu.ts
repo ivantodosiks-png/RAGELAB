@@ -700,7 +700,7 @@ export class MainMenu {
         slider('Vignette', bc.vignette, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { vignette: v } }),
         ),
-        slider('Barrel (wide-angle)', bc.barrelDistortion, 0, 1, 0.01, (v) =>
+        slider('Lens curve', bc.barrelDistortion, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { barrelDistortion: v } }),
         ),
         slider('Chromatic aberration', bc.chromaticAberration, 0, 1, 0.01, (v) =>

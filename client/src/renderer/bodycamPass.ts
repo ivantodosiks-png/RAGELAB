@@ -14,8 +14,8 @@ void main() {
 `;
 
 /**
- * Full-frame bodycam optics: mild wide-angle barrel + soft vignette + edge CA.
- * No circular black mask / aperture crop — the whole framebuffer stays playable.
+ * Full-frame bodycam optics: safe wide-angle curve (no edge stretch) + soft vignette.
+ * Barrel pulls samples inward so UVs stay inside the RT — FOV boost covers the field.
  */
 const FRAG = /* glsl */ `
 precision highp float;
@@ -43,15 +43,22 @@ float luma(vec3 c) {
   return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-/** Mild barrel: stretch near edges without strong fisheye. */
-vec2 barrel(vec2 uv, float amount) {
+/**
+ * Mild bodycam optic. Uses radial *compression* (divide), never outward stretch.
+ * Outward multiply was sampling past the framebuffer → stretched edges.
+ */
+vec2 opticUv(vec2 uv, float amount) {
   vec2 c = vec2(0.5);
   vec2 d = uv - c;
   float aspect = uResolution.x / max(uResolution.y, 1.0);
   d.x *= aspect;
   float r2 = dot(d, d);
-  // Keep amount modest — optical wide-angle, not a novelty lens.
-  d *= 1.0 + amount * r2 * 0.55;
+  float maxR2 = 0.25 * aspect * aspect + 0.25;
+  float n = clamp(r2 / max(maxR2, 1e-4), 0.0, 1.0);
+  float k = clamp(amount, 0.0, 1.0) * 0.14;
+  // Brown–Conrady-ish: gentle mid-field curve, corners stay in-bounds.
+  float f = 1.0 + k * n + (k * k) * n * n * 0.4;
+  d /= f;
   d.x /= aspect;
   return c + d;
 }
@@ -60,70 +67,74 @@ void main() {
   vec2 uv = vUv;
   float aspect = uResolution.x / max(uResolution.y, 1.0);
   vec2 d = uv - vec2(0.5);
-  vec2 dn = vec2(d.x * aspect, d.y);
+  // Slightly elliptical falloff — looks more like a real lens/sensor than a circle.
+  vec2 dn = vec2(d.x * aspect * 1.02, d.y * 1.12);
   float dist = length(dn);
-  // Soft radial weight for edge-only effects (no hard circle).
-  float edge = smoothstep(0.18, 0.78, dist);
-  float edge2 = edge * edge;
+  float corner = smoothstep(0.42, 0.92, dist);
+  float corner2 = corner * corner;
 
-  vec2 distorted = barrel(uv, clamp(uBarrel, 0.0, 1.0));
+  vec2 lensUv = opticUv(uv, uBarrel);
 
   vec2 mDir = uMotionDir;
-  float mAmt = uMotion * edge * 0.01;
-  vec2 radial = normalize(distorted - vec2(0.5) + 1e-5);
-  float ca = uChroma * 0.0035 * edge2;
+  float mAmt = uMotion * corner * 0.007;
+  vec2 radial = normalize(vec2((lensUv.x - 0.5) * aspect, lensUv.y - 0.5) + 1e-5);
+  radial.x /= aspect;
+  float ca = uChroma * 0.0018 * corner2;
 
-  vec2 uvR = distorted + radial * ca + mDir * mAmt * 0.35;
-  vec2 uvG = distorted;
-  vec2 uvB = distorted - radial * ca - mDir * mAmt * 0.35;
+  vec2 uvR = lensUv + radial * ca + mDir * mAmt * 0.25;
+  vec2 uvG = lensUv;
+  vec2 uvB = lensUv - radial * ca - mDir * mAmt * 0.25;
 
   vec3 col;
   col.r = texture2D(tDiffuse, uvR).r;
   col.g = texture2D(tDiffuse, uvG).g;
   col.b = texture2D(tDiffuse, uvB).b;
 
-  if (uMotion > 0.035) {
-    vec3 a = texture2D(tDiffuse, distorted + mDir * mAmt * 0.55).rgb;
-    vec3 b = texture2D(tDiffuse, distorted - mDir * mAmt * 0.55).rgb;
-    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * edge * 0.4, 0.0, 0.4));
+  if (uMotion > 0.04) {
+    vec3 a = texture2D(tDiffuse, lensUv + mDir * mAmt * 0.4).rgb;
+    vec3 b = texture2D(tDiffuse, lensUv - mDir * mAmt * 0.4).rgb;
+    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * corner * 0.28, 0.0, 0.28));
   }
 
+  // Very soft peripheral softness — lens, not a blur filter.
   if (uEdgeBlur > 0.01) {
-    vec2 px = (uEdgeBlur * edge * 1.6) / uResolution;
+    vec2 px = (uEdgeBlur * corner * 0.9) / uResolution;
     vec3 blur =
-      texture2D(tDiffuse, distorted + vec2( px.x, 0.0)).rgb +
-      texture2D(tDiffuse, distorted + vec2(-px.x, 0.0)).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0,  px.y)).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0, -px.y)).rgb;
+      texture2D(tDiffuse, lensUv + vec2( px.x, 0.0)).rgb +
+      texture2D(tDiffuse, lensUv + vec2(-px.x, 0.0)).rgb +
+      texture2D(tDiffuse, lensUv + vec2(0.0,  px.y)).rgb +
+      texture2D(tDiffuse, lensUv + vec2(0.0, -px.y)).rgb;
     blur *= 0.25;
-    col = mix(col, blur, clamp(edge2 * uEdgeBlur * 0.45, 0.0, 0.45));
+    col = mix(col, blur, clamp(corner2 * uEdgeBlur * 0.28, 0.0, 0.28));
   }
 
   if (uSharpen > 0.01) {
     vec3 blur =
-      texture2D(tDiffuse, distorted + vec2(1.0, 0.0) / uResolution).rgb +
-      texture2D(tDiffuse, distorted + vec2(-1.0, 0.0) / uResolution).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0, 1.0) / uResolution).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0, -1.0) / uResolution).rgb;
+      texture2D(tDiffuse, lensUv + vec2(1.0, 0.0) / uResolution).rgb +
+      texture2D(tDiffuse, lensUv + vec2(-1.0, 0.0) / uResolution).rgb +
+      texture2D(tDiffuse, lensUv + vec2(0.0, 1.0) / uResolution).rgb +
+      texture2D(tDiffuse, lensUv + vec2(0.0, -1.0) / uResolution).rgb;
     blur *= 0.25;
-    col += (col - blur) * uSharpen * (1.0 - edge * 0.75);
+    col += (col - blur) * uSharpen * (1.0 - corner * 0.55);
   }
 
   col *= uExposure;
   col *= uWB;
 
-  // Natural optical vignette — darkens corners gradually, never cuts a circle.
-  float vig = 1.0 - uVignette * pow(clamp(dist * 1.22, 0.0, 1.15), 1.65);
-  col *= clamp(vig, 0.2, 1.0);
+  // Optical vignette — corners only, no hard aperture.
+  float vig = 1.0 - uVignette * pow(clamp(dist * 1.05, 0.0, 1.2), 1.85);
+  // Tiny center lift so the frame still reads as a lens, not a dark filter.
+  float lift = 1.0 + (1.0 - corner) * 0.015 * uVignette;
+  col *= clamp(vig * lift, 0.28, 1.02);
 
   float nAmt = uNoise * uQualityNoise;
   if (nAmt > 0.001) {
     float n = hash(gl_FragCoord.xy + vec2(uTime * 70.0, uTime * 19.0)) - 0.5;
     float dark = 1.0 - smoothstep(0.05, 0.42, luma(col));
-    col += n * nAmt * (0.024 + dark * 0.05);
+    col += n * nAmt * (0.018 + dark * 0.04);
   }
 
-  col = col / (1.0 + col * 0.06);
+  col = col / (1.0 + col * 0.05);
   gl_FragColor = vec4(clamp(col, 0.0, 4.0), 1.0);
 }
 `;
@@ -174,12 +185,12 @@ export class BodycamPass {
       uniforms: {
         tDiffuse: { value: null as THREE.Texture | null },
         uResolution: { value: new THREE.Vector2(1, 1) },
-        uBarrel: { value: 0.28 },
-        uVignette: { value: 0.42 },
-        uChroma: { value: 0.22 },
-        uEdgeBlur: { value: 0.22 },
-        uNoise: { value: 0.18 },
-        uSharpen: { value: 0.2 },
+        uBarrel: { value: 0.2 },
+        uVignette: { value: 0.4 },
+        uChroma: { value: 0.14 },
+        uEdgeBlur: { value: 0.12 },
+        uNoise: { value: 0.16 },
+        uSharpen: { value: 0.22 },
         uMotion: { value: 0 },
         uMotionDir: { value: new THREE.Vector2(0, 0) },
         uExposure: { value: 1 },
