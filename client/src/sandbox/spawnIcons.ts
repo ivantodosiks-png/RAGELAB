@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { SANDBOX_WEAPON_KINDS, createWeaponVisual, type SandboxWeaponKind } from '../weapons/weaponAssets';
 import type { ToolGunToolId } from './spawnCatalog';
 
@@ -52,10 +52,10 @@ function labelFallback(label: string, fill: string): string {
 
 function renderWeapon(kind: SandboxWeaponKind): string {
   const gl = getRenderer();
-  if (!gl) return labelFallback(kind, '#d6ff3d');
+  if (!gl) return labelFallback(kind, '#4ec4ff');
 
   const visual = createWeaponVisual(kind, weaponPhysicsLength(kind), { lod: false, shadows: false });
-  if (!visual) return labelFallback(kind, '#d6ff3d');
+  if (!visual) return labelFallback(kind, '#4ec4ff');
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x141a16);
@@ -107,7 +107,7 @@ function weaponPhysicsLength(kind: SandboxWeaponKind): number {
 
 const TOOL_SVG: Record<ToolGunToolId, string> = {
   delete: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#1a100e"/><path d="M20 20l24 24M44 20L20 44" stroke="#ff5a45" stroke-width="5" stroke-linecap="round"/><path d="M18 50h28" stroke="#ff5a45" stroke-width="3" stroke-linecap="round" opacity=".45"/></svg>`,
-  select: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#141a10"/><path d="M18 14l8 34 8-12 14-6z" fill="#d6ff3d" stroke="#0c100d" stroke-width="2" stroke-linejoin="round"/><circle cx="46" cy="46" r="7" fill="none" stroke="#d6ff3d" stroke-width="3"/></svg>`,
+  select: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#101820"/><path d="M18 14l8 34 8-12 14-6z" fill="#4ec4ff" stroke="#0a1018" stroke-width="2" stroke-linejoin="round"/><circle cx="46" cy="46" r="7" fill="none" stroke="#4ec4ff" stroke-width="3"/></svg>`,
   ragdoll: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#12180e"/><circle cx="32" cy="16" r="6" fill="#b8e04a"/><path d="M22 28h20M32 28v14M22 54l10-12 10 12M18 36l10-6M46 36l-10-6" stroke="#b8e04a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   grab: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#101812"/><path d="M24 34V20a4 4 0 018 0v10M32 30V18a4 4 0 018 0v14M40 32V22a4 4 0 018 0v16c0 8-6 14-14 14h-4c-8 0-14-5-14-12v-8a4 4 0 018 0v4" fill="none" stroke="#6fe88a" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };

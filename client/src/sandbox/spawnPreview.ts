@@ -1,11 +1,11 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { getArchetype, type PropKind } from '@ragelab/shared';
 import type { SpawnEntry } from './spawnCatalog';
 import { isPropCategory, propKindFromEntry } from './spawnCatalog';
 import { createPropVisual } from './propVisuals';
 
 const ghostMat = new THREE.MeshBasicMaterial({
-  color: 0xd6ff3d,
+  color: 0x4ec4ff,
   transparent: true,
   opacity: 0.38,
   depthWrite: false,

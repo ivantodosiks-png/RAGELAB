@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import {
   GRAVITY,
@@ -168,7 +168,7 @@ export class SandboxController {
 
     const markGeo = new THREE.RingGeometry(0.18, 0.28, 28);
     const markMat = new THREE.MeshBasicMaterial({
-      color: 0xd6ff3d,
+      color: 0x4ec4ff,
       transparent: true,
       opacity: 0.85,
       side: THREE.DoubleSide,

@@ -1,17 +1,17 @@
-/* ── RAGELAB main menu — AAA sandbox multiplayer ─────────────────────────── */
+﻿/* в”Ђв”Ђ RAGELAB main menu вЂ” AAA sandbox multiplayer в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ */
 
 :root {
-  --mm-ink: #07090b;
-  --mm-panel: rgba(10, 14, 16, 0.62);
-  --mm-panel-strong: rgba(12, 16, 18, 0.82);
-  --mm-stroke: rgba(232, 240, 220, 0.1);
-  --mm-stroke-hot: rgba(214, 255, 61, 0.42);
-  --mm-text: #eef3e8;
-  --mm-muted: #8d9988;
-  --mm-accent: #d6ff3d;
-  --mm-accent-dim: rgba(214, 255, 61, 0.14);
-  --mm-warm: #ffb454;
-  --mm-danger: #ff4d3a;
+  --mm-ink: #06080e;
+  --mm-panel: rgba(10, 14, 22, 0.64);
+  --mm-panel-strong: rgba(12, 16, 24, 0.86);
+  --mm-stroke: rgba(210, 224, 240, 0.1);
+  --mm-stroke-hot: rgba(78, 196, 255, 0.45);
+  --mm-text: #e8eef8;
+  --mm-muted: #8490a3;
+  --mm-accent: #4ec4ff;
+  --mm-accent-dim: rgba(78, 196, 255, 0.14);
+  --mm-warm: #ff9a4a;
+  --mm-danger: #ff5a6a;
   --mm-blur: 22px;
   --mm-radius: 4px;
   --mm-ease: cubic-bezier(0.22, 0.9, 0.2, 1);
@@ -46,8 +46,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(38% 32% at 18% 62%, rgba(214, 255, 61, 0.07), transparent 70%),
-    radial-gradient(28% 26% at 78% 18%, rgba(255, 180, 84, 0.06), transparent 72%);
+    radial-gradient(38% 32% at 18% 62%, rgba(78, 196, 255, 0.08), transparent 70%),
+    radial-gradient(28% 26% at 78% 18%, rgba(255, 154, 74, 0.07), transparent 72%);
   animation: mm-glow-pulse 8s ease-in-out infinite;
 }
 
@@ -82,8 +82,8 @@
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: rgba(214, 255, 61, 0.55);
-  box-shadow: 0 0 8px rgba(214, 255, 61, 0.35);
+  background: rgba(78, 196, 255, 0.55);
+  box-shadow: 0 0 8px rgba(78, 196, 255, 0.35);
   animation: mm-float-up linear infinite;
   opacity: 0;
 }
@@ -118,14 +118,14 @@
   font-size: clamp(44px, 9vw, 92px);
   letter-spacing: 0.18em;
   font-weight: 800;
-  color: #f4ffe8;
-  text-shadow: 0 0 40px rgba(214, 255, 61, 0.35);
+  color: #eaf4ff;
+  text-shadow: 0 0 40px rgba(78, 196, 255, 0.35);
   animation: mm-logo-in 1s var(--mm-ease) both;
 }
 
 .mm-intro-mark span {
   color: var(--mm-danger);
-  text-shadow: 0 0 28px rgba(255, 77, 58, 0.4);
+  text-shadow: 0 0 28px rgba(255, 90, 106), 0.4);
 }
 
 .mm-intro-sub {
@@ -217,7 +217,7 @@
 
 .mm-stat-pill b.is-live {
   color: var(--mm-accent);
-  text-shadow: 0 0 12px rgba(214, 255, 61, 0.25);
+  text-shadow: 0 0 12px rgba(78, 196, 255, 0.25);
 }
 
 .mm-stat-pill b.is-warn {
@@ -231,7 +231,7 @@
   margin-right: 6px;
   border-radius: 50%;
   background: var(--mm-accent);
-  box-shadow: 0 0 8px rgba(214, 255, 61, 0.7);
+  box-shadow: 0 0 8px rgba(78, 196, 255, 0.7);
   animation: mm-pulse-dot 1.8s ease-in-out infinite;
   vertical-align: 1px;
 }
@@ -271,7 +271,7 @@
   letter-spacing: 0.14em;
   font-weight: 800;
   line-height: 1;
-  color: #f3f7ec;
+  color: #eaf2ff;
   animation: mm-brand-breathe 6s ease-in-out infinite;
 }
 
@@ -341,7 +341,7 @@
 .mm-nav-btn.is-active {
   color: var(--mm-text);
   background: linear-gradient(90deg, var(--mm-accent-dim), transparent 80%);
-  border-color: rgba(214, 255, 61, 0.18);
+  border-color: rgba(78, 196, 255, 0.18);
   box-shadow: inset 3px 0 0 var(--mm-accent);
 }
 
@@ -349,29 +349,29 @@
   margin-bottom: 8px;
   padding: 16px 16px;
   color: #111;
-  background: linear-gradient(135deg, #e4ff6a, #b8d92a);
-  border-color: rgba(214, 255, 61, 0.55);
+  background: linear-gradient(135deg, #7ad4ff, #2f9ed6);
+  border-color: rgba(78, 196, 255, 0.55);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.25),
-    0 10px 28px rgba(214, 255, 61, 0.18);
+    0 10px 28px rgba(78, 196, 255, 0.18);
   letter-spacing: 0.22em;
   font-size: 15px;
 }
 
 .mm-nav-btn.is-play:hover,
 .mm-nav-btn.is-play.is-active {
-  color: #0a0c08;
-  background: linear-gradient(135deg, #f0ff95, #c6e832);
+  color: #061018;
+  background: linear-gradient(135deg, #b0e8ff, #4ec4ff);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.2),
-    0 14px 34px rgba(214, 255, 61, 0.28);
+    0 14px 34px rgba(78, 196, 255, 0.28);
   transform: translateY(-1px);
 }
 
 .mm-nav-btn.is-play.is-active {
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.15),
-    0 10px 28px rgba(214, 255, 61, 0.22);
+    0 10px 28px rgba(78, 196, 255, 0.22);
 }
 
 .mm-nav-btn.is-quit {
@@ -381,8 +381,8 @@
 
 .mm-nav-btn.is-quit:hover {
   color: var(--mm-danger);
-  background: rgba(255, 77, 58, 0.08);
-  border-color: rgba(255, 77, 58, 0.2);
+  background: rgba(255, 90, 106), 0.08);
+  border-color: rgba(255, 90, 106), 0.2);
 }
 
 .mm-nav-ico {
@@ -436,7 +436,7 @@
 }
 
 .mm-player-card:hover {
-  border-color: rgba(214, 255, 61, 0.28);
+  border-color: rgba(78, 196, 255, 0.28);
   background: rgba(14, 18, 16, 0.75);
 }
 
@@ -456,8 +456,8 @@
   height: 44px;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #1a2118, #0d110e);
-  border: 1px solid rgba(214, 255, 61, 0.28);
+  background: linear-gradient(145deg, #152030, #0a1018);
+  border: 1px solid rgba(78, 196, 255, 0.28);
   color: var(--mm-accent);
   font-family: var(--display);
   font-weight: 700;
@@ -555,7 +555,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(115deg, rgba(214, 255, 61, 0.045), transparent 40%);
+  background: linear-gradient(115deg, rgba(78, 196, 255, 0.045), transparent 40%);
 }
 
 .mm-glass.mm-wide {
@@ -610,8 +610,8 @@
   margin-top: 18px;
   min-width: 220px;
   padding: 16px 28px;
-  border: 1px solid rgba(214, 255, 61, 0.55);
-  background: linear-gradient(135deg, #e4ff6a, #b8d92a);
+  border: 1px solid rgba(78, 196, 255, 0.55);
+  background: linear-gradient(135deg, #7ad4ff, #2f9ed6);
   color: #111;
   font: inherit;
   font-size: 16px;
@@ -619,13 +619,13 @@
   letter-spacing: 0.22em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 12px 32px rgba(214, 255, 61, 0.2);
+  box-shadow: 0 12px 32px rgba(78, 196, 255, 0.2);
   transition: transform 0.18s var(--mm-ease), box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 .mm-hero-cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(214, 255, 61, 0.3);
+  box-shadow: 0 16px 40px rgba(78, 196, 255, 0.3);
   filter: brightness(1.05);
 }
 
@@ -668,8 +668,8 @@
 }
 
 .mm-quick-card:hover {
-  border-color: rgba(214, 255, 61, 0.35);
-  background: rgba(214, 255, 61, 0.06);
+  border-color: rgba(78, 196, 255, 0.35);
+  background: rgba(78, 196, 255, 0.06);
   transform: translateY(-2px);
 }
 
@@ -736,8 +736,8 @@
 }
 
 .mm-server-row:hover {
-  border-color: rgba(214, 255, 61, 0.28);
-  background: rgba(214, 255, 61, 0.04);
+  border-color: rgba(78, 196, 255, 0.28);
+  background: rgba(78, 196, 255, 0.04);
 }
 
 .mm-server-row b {
@@ -825,7 +825,7 @@
 .mm-inv-card:hover,
 .mm-shop-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(214, 255, 61, 0.3);
+  border-color: rgba(78, 196, 255, 0.3);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
@@ -841,7 +841,7 @@
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(214, 255, 61, 0.06);
+  background: rgba(78, 196, 255, 0.06);
   font-family: var(--display);
   font-size: 16px;
   color: var(--mm-accent);
@@ -894,7 +894,7 @@
 .mm-cat-tabs button:hover,
 .mm-tabs button:hover {
   color: var(--mm-text);
-  border-color: rgba(214, 255, 61, 0.28);
+  border-color: rgba(78, 196, 255, 0.28);
 }
 
 .mm-cat-tabs button.is-on,
@@ -902,7 +902,7 @@
   color: #111;
   background: var(--mm-accent);
   border-color: var(--mm-accent);
-  box-shadow: 0 0 16px rgba(214, 255, 61, 0.22);
+  box-shadow: 0 0 16px rgba(78, 196, 255, 0.22);
 }
 
 .mm-settings-body {
@@ -942,12 +942,12 @@
 }
 
 .mm-gun:hover {
-  border-color: rgba(214, 255, 61, 0.3);
+  border-color: rgba(78, 196, 255, 0.3);
 }
 
 .mm-gun.is-on {
-  background: rgba(214, 255, 61, 0.1);
-  border-color: rgba(214, 255, 61, 0.4);
+  background: rgba(78, 196, 255, 0.1);
+  border-color: rgba(78, 196, 255, 0.4);
 }
 
 .mm-gun.is-static {
@@ -1000,7 +1000,7 @@
   letter-spacing: 0.08em;
   margin-top: clamp(10px, 1.6vw, 18px);
   padding-top: 12px;
-  border-top: 1px solid rgba(214, 255, 61, 0.08);
+  border-top: 1px solid rgba(78, 196, 255, 0.08);
 }
 
 .mm-status b {
@@ -1070,10 +1070,10 @@
 @keyframes mm-brand-breathe {
   0%,
   100% {
-    filter: drop-shadow(0 0 18px rgba(214, 255, 61, 0.14));
+    filter: drop-shadow(0 0 18px rgba(78, 196, 255, 0.14));
   }
   50% {
-    filter: drop-shadow(0 0 26px rgba(214, 255, 61, 0.26));
+    filter: drop-shadow(0 0 26px rgba(78, 196, 255, 0.26));
   }
 }
 
@@ -1192,9 +1192,9 @@
 }
 
 .pause-card .rl-btn.primary {
-  background: linear-gradient(135deg, #e4ff6a, #b8d92a);
+  background: linear-gradient(135deg, #7ad4ff, #2f9ed6);
   color: #111;
-  border-color: rgba(214, 255, 61, 0.5);
+  border-color: rgba(78, 196, 255, 0.5);
 }
 
 .pause-hint {

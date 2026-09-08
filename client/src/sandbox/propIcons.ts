@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { PROP_KINDS, type PropKind } from '@ragelab/shared';
 import { createPropVisual } from './propVisuals';
 
@@ -41,7 +41,7 @@ function swatchFallback(kind: PropKind): string {
   if (!ctx) return '';
   ctx.fillStyle = '#141a16';
   ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.fillStyle = '#d6ff3d';
+  ctx.fillStyle = '#4ec4ff';
   ctx.font = '700 22px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

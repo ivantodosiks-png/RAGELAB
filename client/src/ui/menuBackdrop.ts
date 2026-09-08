@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { assetManager } from '../assets/assetManager';
 import { cityModelScale, cityModelUrl } from '../maps/mapCatalog';
 
@@ -55,35 +55,35 @@ export class MenuBackdrop {
   private readonly blurPlane: THREE.Mesh;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    this.scene.background = new THREE.Color(0x050708);
-    this.scene.fog = new THREE.FogExp2(0x080b0d, 0.034);
+    this.scene.background = new THREE.Color(0x06080e);
+    this.scene.fog = new THREE.FogExp2(0x081018, 0.034);
 
-    this.scene.add(new THREE.HemisphereLight(0xa8c0d4, 0x1a1612, 0.42));
+    this.scene.add(new THREE.HemisphereLight(0x9eb6d4, 0x12161e, 0.42));
 
-    this.sun = new THREE.DirectionalLight(0xffd8b0, 1.35);
+    this.sun = new THREE.DirectionalLight(0xffe0c0, 1.3);
     this.sun.position.set(12, 18, 9);
     this.scene.add(this.sun);
 
-    this.rim = new THREE.DirectionalLight(0xd6ff3d, 0.18);
+    this.rim = new THREE.DirectionalLight(0x4ec4ff, 0.22);
     this.rim.position.set(-8, 6, -10);
     this.scene.add(this.rim);
 
-    this.lamp = new THREE.PointLight(0xd6ff3d, 0.55, 22, 2);
+    this.lamp = new THREE.PointLight(0x4ec4ff, 0.6, 22, 2);
     this.lamp.position.set(-3, 4.2, 6);
     this.scene.add(this.lamp);
 
-    this.lampB = new THREE.PointLight(0xff8a4a, 0.32, 16, 2);
+    this.lampB = new THREE.PointLight(0xff9a4a, 0.34, 16, 2);
     this.lampB.position.set(8.5, 3.8, -2);
     this.scene.add(this.lampB);
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(56, 64),
-      new THREE.MeshStandardMaterial({ color: 0x101412, roughness: 0.94, metalness: 0.05 }),
+      new THREE.MeshStandardMaterial({ color: 0x0e141c, roughness: 0.94, metalness: 0.06 }),
     );
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
 
-    const grid = new THREE.GridHelper(48, 36, 0x2f3d30, 0x141916);
+    const grid = new THREE.GridHelper(48, 36, 0x2a3d4a, 0x121820);
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.14;
     this.scene.add(grid);
@@ -91,7 +91,7 @@ export class MenuBackdrop {
     this.haze = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 22),
       new THREE.MeshBasicMaterial({
-        color: 0xd6ff3d,
+        color: 0x4ec4ff,
         transparent: true,
         opacity: 0.028,
         depthWrite: false,
@@ -102,7 +102,7 @@ export class MenuBackdrop {
     this.haze.rotation.y = 0.15;
     this.scene.add(this.haze);
 
-    // Soft foreground veil — keeps the 3D set atmospheric without fighting UI contrast.
+    // Soft foreground veil вЂ” keeps the 3D set atmospheric without fighting UI contrast.
     this.blurPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(80, 50),
       new THREE.MeshBasicMaterial({
@@ -115,7 +115,7 @@ export class MenuBackdrop {
     this.blurPlane.position.set(0, 4, 4);
     this.scene.add(this.blurPlane);
 
-    this.particles = makeDust(140, 0xd6ff3d, 0.038, 0.22);
+    this.particles = makeDust(140, 0x4ec4ff, 0.038, 0.22);
     this.embers = makeDust(48, 0xff7a45, 0.05, 0.16);
     this.scene.add(this.particles, this.embers);
   }

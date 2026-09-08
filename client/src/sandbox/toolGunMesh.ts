@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 
 const bodyMat = () =>
   new THREE.MeshStandardMaterial({ color: 0x2a2e33, roughness: 0.38, metalness: 0.72 });
@@ -8,7 +8,7 @@ const darkMat = () =>
   new THREE.MeshStandardMaterial({ color: 0x141618, roughness: 0.55, metalness: 0.4 });
 const screenMat = () =>
   new THREE.MeshStandardMaterial({
-    color: 0xd6ff3d,
+    color: 0x4ec4ff,
     emissive: 0x6a8a12,
     emissiveIntensity: 0.85,
     roughness: 0.22,
@@ -68,7 +68,7 @@ function cyl(
 
 /**
  * Compact first-person Tool Gun. Shared-style materials, low-poly boxes/cylinders
- * only — cheap enough to keep in the view-model pass every frame.
+ * only вЂ” cheap enough to keep in the view-model pass every frame.
  */
 export function buildToolGunMesh(disposables: Array<{ dispose(): void }>): THREE.Group {
   const root = new THREE.Group();

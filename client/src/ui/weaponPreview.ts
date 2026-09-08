@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { getWeapon, isWeaponId, type WeaponId } from '@ragelab/shared';
 import { createWeaponVisual, loadWeaponModel, weaponPhysics } from '../weapons/weaponAssets';
 
@@ -24,7 +24,7 @@ export class WeaponPreview {
     const key = new THREE.DirectionalLight(0xfff4e2, 1.7);
     key.position.set(1.2, 1.8, 1.4);
     this.scene.add(key);
-    const fill = new THREE.PointLight(0xd6ff3d, 0.35, 4, 2);
+    const fill = new THREE.PointLight(0x4ec4ff, 0.35, 4, 2);
     fill.position.set(-0.6, 0.4, 0.8);
     this.scene.add(fill);
     this.scene.add(this.pivot);
