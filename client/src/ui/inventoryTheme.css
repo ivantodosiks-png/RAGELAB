@@ -1,14 +1,16 @@
-/* Field inventory (TAB) */
+/* Compact Tarkov-like field inventory (TAB) */
+
 .inv-panel {
   position: absolute;
   inset: 0;
   z-index: 45;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: auto;
-  background: rgba(4, 8, 12, 0.45);
+  background: rgba(4, 6, 5, 0.42);
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.14s ease;
 }
 
 .inv-panel[hidden] {
@@ -20,19 +22,16 @@
 }
 
 .inv-card {
-  width: min(920px, calc(100vw - 48px));
-  max-height: min(72vh, 720px);
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(62vh, 520px);
   overflow: auto;
-  padding: 22px 24px 26px;
-  border-radius: 16px;
-  border: 1px solid rgba(78, 196, 255, 0.22);
-  background:
-    linear-gradient(180deg, rgba(78, 196, 255, 0.07), transparent 40%),
-    rgba(10, 14, 18, 0.88);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(18px);
-  transform: translateY(8px);
-  transition: transform 0.18s ease;
+  padding: 12px 14px 14px;
+  border: 1px solid rgba(220, 220, 210, 0.14);
+  background: rgba(8, 10, 8, 0.88);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+  transform: translateY(6px);
+  transition: transform 0.14s ease;
 }
 
 .inv-panel.open .inv-card {
@@ -40,120 +39,185 @@
 }
 
 .inv-kicker {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: #4ec4ff;
+  color: #e07a2f;
+  font-family: "Barlow Condensed", sans-serif;
 }
 
 .inv-title {
-  margin: 4px 0 0;
-  font-size: 28px;
-  letter-spacing: 0.08em;
+  margin: 2px 0 10px;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
 }
 
-.inv-sub {
-  margin: 6px 0 18px;
-  color: #8490a3;
-  font-size: 13px;
+.inv-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
-.inv-section {
-  margin-bottom: 16px;
+.inv-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 }
 
 .inv-section-title {
-  margin-bottom: 8px;
-  font-size: 11px;
-  letter-spacing: 0.22em;
+  margin-bottom: 4px;
+  font-size: 9px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #8490a3;
+  color: #8a8c82;
+  font-family: "Barlow Condensed", sans-serif;
 }
 
-.inv-row {
+.inv-grid-slots {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 10px;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.inv-ghost {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.015);
+  pointer-events: none;
 }
 
 .inv-item {
   appearance: none;
+  position: relative;
+  z-index: 1;
   font: inherit;
   text-align: left;
   cursor: default;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: #e8eef8;
-  padding: 12px;
-  transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(28, 32, 26, 0.95);
+  color: #ecece6;
+  padding: 3px 4px;
+  overflow: hidden;
+  min-width: 0;
+  transition: border-color 0.1s ease, background 0.1s ease;
 }
 
 .inv-item:hover {
-  border-color: rgba(78, 196, 255, 0.45);
-  background: rgba(78, 196, 255, 0.08);
-  transform: translateY(-1px);
+  border-color: rgba(224, 122, 47, 0.65);
+  background: rgba(40, 36, 28, 0.98);
 }
 
 .inv-item.chambered {
-  border-color: rgba(78, 196, 255, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(78, 196, 255, 0.15);
+  border-color: rgba(224, 122, 47, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(224, 122, 47, 0.2);
 }
 
 .inv-badge {
-  display: inline-block;
-  margin-bottom: 6px;
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  color: #4ec4ff;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: #e07a2f;
+  margin-bottom: 1px;
 }
 
 .inv-item-kind {
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  color: #8490a3;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  color: #8a8c82;
+  line-height: 1;
 }
 
 .inv-item-name {
-  margin-top: 4px;
-  font-size: 14px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
 }
 
 .inv-item-meta {
-  margin-top: 2px;
-  font-size: 11px;
-  color: #8490a3;
+  font-size: 8px;
+  color: #9aa090;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .inv-item-ammo {
-  margin-top: 10px;
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: 15px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
 }
 
 .inv-item-ammo.full,
-.inv-item-ammo.high { color: #4fd6a0; }
-.inv-item-ammo.medium { color: #e2b14a; }
-.inv-item-ammo.low { color: #ff8a4a; }
-.inv-item-ammo.empty { color: #ff5a6a; }
+.inv-item-ammo.high {
+  color: #9fd48a;
+}
 
-.inv-empty {
-  color: #8490a3;
-  font-size: 12px;
-  padding: 8px 0;
+.inv-item-ammo.medium {
+  color: #e0c060;
+}
+
+.inv-item-ammo.low,
+.inv-item-ammo.empty {
+  color: #e07a2f;
+}
+
+.inv-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: #3a4034;
+}
+
+.inv-fill.full,
+.inv-fill.high {
+  background: linear-gradient(90deg, #6aaa58, #9fd48a);
+}
+
+.inv-fill.medium {
+  background: linear-gradient(90deg, #a88820, #e0c060);
+  width: 55%;
+}
+
+.inv-fill.low {
+  background: #e07a2f;
+  width: 25%;
+}
+
+.inv-fill.empty {
+  width: 0;
 }
 
 .inv-tip {
   position: fixed;
-  z-index: 50;
-  max-width: 240px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(78, 196, 255, 0.28);
-  background: rgba(8, 12, 16, 0.95);
-  color: #dce5f0;
-  font-size: 12px;
-  line-height: 1.45;
+  z-index: 60;
+  max-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(6, 8, 6, 0.94);
+  color: #ecece6;
+  font-size: 11px;
+  line-height: 1.4;
   pointer-events: none;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.inv-tip strong {
+  letter-spacing: 0.12em;
+  font-size: 10px;
+}
+
+@media (max-width: 640px) {
+  .inv-board {
+    grid-template-columns: 1fr;
+  }
 }

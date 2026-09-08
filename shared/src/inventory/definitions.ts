@@ -34,7 +34,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     capacity: 7,
     compatibleWeapons: ['pistol', 'magnum'],
     width: 1,
-    height: 2,
+    height: 1,
     weight: 0.18,
   },
   mag_glock: {
@@ -44,7 +44,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     capacity: 17,
     compatibleWeapons: ['glock', 'usp', 'makarov'],
     width: 1,
-    height: 2,
+    height: 1,
     weight: 0.14,
   },
   mag_smg: {

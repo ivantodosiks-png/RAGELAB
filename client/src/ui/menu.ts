@@ -269,8 +269,17 @@ export class MainMenu {
   private renderHome(): void {
     const view = el('div', 'tk-home');
     view.append(el('p', 'tk-beta', 'BETA TESTING'));
-    const logo = el('div', 'tk-logo');
-    logo.innerHTML = `<span class="tk-logo-mark">RAGE<span>LAB</span></span>`;
+
+    const logo = el('div', 'tk-logo tk-sign');
+    logo.innerHTML = `
+      <div class="tk-sign-wires" aria-hidden="true">
+        <span class="tk-sign-wire tk-sign-wire--l"></span>
+        <span class="tk-sign-wire tk-sign-wire--r"></span>
+      </div>
+      <span class="tk-sign-escape">ESCAPE FROM</span>
+      <span class="tk-sign-russia" aria-label="RUSSIA">
+        <i class="is-fixed">R</i><i class="is-fixed">U</i><i class="is-fixed">S</i><i class="is-hang" style="--tilt:-8deg;--drop:8px;--delay:0s">S</i><i class="is-hang" style="--tilt:6deg;--drop:16px;--delay:0.12s">I</i><i class="is-hang" style="--tilt:-12deg;--drop:11px;--delay:0.28s">A</i>
+      </span>`;
     view.append(logo);
 
     const warn = el('div', 'tk-warn');

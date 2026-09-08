@@ -206,7 +206,7 @@ export class Hud {
     this.scoreboard = el('div', 'scoreboard');
 
     this.pause = el('div', 'pause');
-    this.buildPauseMain();
+    // Content is built only when ESC opens pause — never leave Resume/Main menu on screen.
 
     this.root.append(
       this.hurt,
@@ -587,8 +587,12 @@ export class Hud {
 
   setPaused(open: boolean): void {
     this.pause.classList.toggle('open', open);
-    if (open) this.buildPauseMain();
-    if (open && this.wheelOpen) this.cancelWeaponWheel();
+    if (open) {
+      this.buildPauseMain();
+      if (this.wheelOpen) this.cancelWeaponWheel();
+    } else {
+      clearPause(this.pause);
+    }
   }
 
   private buildPauseMain(): void {

@@ -2,19 +2,27 @@ import {
   CALIBERS,
   MAGAZINE_DEFINITIONS,
   caliberName,
-  magFillLabel,
   magFillLevel,
   type InventoryItem,
   type PlayerInventoryState,
 } from '@ragelab/shared';
 import { el } from '../ui/dom';
 
+const CELL = 38;
+const RIG_COLS = 4;
+const RIG_ROWS = 6;
+const POCKET_COLS = 4;
+const POCKET_ROWS = 1;
+const PACK_COLS = 5;
+const PACK_ROWS = 4;
+
 /**
- * Tarkov-style tactical inventory opened with TAB.
+ * Compact Tarkov-like field inventory (TAB).
+ * Magazines use physical grid size: pistols 1×1, rifles 1×2.
  */
 export class InventoryPanel {
   readonly root: HTMLElement;
-  private readonly grid: HTMLElement;
+  private readonly board: HTMLElement;
   private readonly tip: HTMLElement;
   private open = false;
   private inventory: PlayerInventoryState = { items: [], chambered: {} };
@@ -23,22 +31,18 @@ export class InventoryPanel {
     this.root = el('div', 'inv-panel');
     this.root.hidden = true;
     const card = el('div', 'inv-card');
-    card.append(
-      el('div', 'inv-kicker', 'Field Inventory'),
-      el('h2', 'inv-title', 'INVENTORY'),
-      el('p', 'inv-sub', 'Physical magazines & ammo. Exact counts shown here only.'),
-    );
-    this.grid = el('div', 'inv-grid');
+    card.append(el('div', 'inv-kicker', 'ITEMS'), el('h2', 'inv-title', 'ИНВЕНТАРЬ'));
+    this.board = el('div', 'inv-board');
     this.tip = el('div', 'inv-tip');
     this.tip.hidden = true;
-    card.append(this.grid);
+    card.append(this.board);
     this.root.append(card, this.tip);
     host.append(this.root);
 
     this.root.addEventListener('mousemove', (e) => {
       if (this.tip.hidden) return;
-      this.tip.style.left = `${e.clientX + 14}px`;
-      this.tip.style.top = `${e.clientY + 14}px`;
+      this.tip.style.left = `${e.clientX + 12}px`;
+      this.tip.style.top = `${e.clientY + 12}px`;
     });
   }
 
@@ -70,44 +74,100 @@ export class InventoryPanel {
   }
 
   private render(): void {
-    this.grid.replaceChildren();
-    const sections: Array<{ title: string; items: InventoryItem[] }> = [
-      { title: 'Magazines', items: this.inventory.items.filter((i) => i.kind === 'magazine') },
-      { title: 'Ammo', items: this.inventory.items.filter((i) => i.kind === 'ammo') },
-    ];
+    this.board.replaceChildren();
 
-    for (const section of sections) {
-      const block = el('div', 'inv-section');
-      block.append(el('div', 'inv-section-title', section.title));
-      const row = el('div', 'inv-row');
-      if (section.items.length === 0) {
-        row.append(el('div', 'inv-empty', '—'));
-      }
-      for (const item of section.items) {
-        row.append(this.cardFor(item));
-      }
-      block.append(row);
-      this.grid.append(block);
-    }
+    const chamberedIds = new Set(Object.values(this.inventory.chambered).filter(Boolean) as string[]);
+    const mags = this.inventory.items.filter((i) => i.kind === 'magazine');
+    const ammo = this.inventory.items.filter((i) => i.kind === 'ammo');
+    const spareMags = mags.filter((i) => i.kind === 'magazine' && !chamberedIds.has(i.mag.instanceId));
+    const pocketItems: InventoryItem[] = [...spareMags.slice(8, 12), ...ammo.slice(0, 2)];
+    const packItems: InventoryItem[] = [...ammo, ...spareMags.slice(12)];
 
-    const chambered = el('div', 'inv-section');
-    chambered.append(el('div', 'inv-section-title', 'Chambered'));
-    const crow = el('div', 'inv-row');
+    const left = el('div', 'inv-col');
+    left.append(this.section('ОРУЖИЕ / CHAMBERED', this.chamberedCells(), 2, 3));
+    left.append(this.section('РАЗГРУЗКА', this.packCells(spareMags.slice(0, 8)), RIG_COLS, RIG_ROWS));
+    left.append(this.section('КАРМАНЫ', this.packCells(pocketItems), POCKET_COLS, POCKET_ROWS));
+
+    const right = el('div', 'inv-col');
+    right.append(this.section('РЮКЗАК', this.packCells(packItems), PACK_COLS, PACK_ROWS));
+
+    this.board.append(left, right);
+  }
+
+  private chamberedCells(): HTMLElement[] {
+    const cells: HTMLElement[] = [];
     for (const [weaponId, magId] of Object.entries(this.inventory.chambered)) {
       if (!magId) continue;
       const magItem = this.inventory.items.find(
         (i) => i.kind === 'magazine' && i.mag.instanceId === magId,
       );
-      if (!magItem || magItem.kind !== 'magazine') continue;
+      if (!magItem) continue;
       const card = this.cardFor(magItem);
       card.classList.add('chambered');
-      const badge = el('div', 'inv-badge', weaponId.toUpperCase());
-      card.prepend(badge);
-      crow.append(card);
+      card.prepend(el('div', 'inv-badge', weaponId.toUpperCase()));
+      cells.push(card);
     }
-    if (!crow.childElementCount) crow.append(el('div', 'inv-empty', '—'));
-    chambered.append(crow);
-    this.grid.append(chambered);
+    return cells;
+  }
+
+  private packCells(items: InventoryItem[]): HTMLElement[] {
+    return items.map((item) => this.cardFor(item));
+  }
+
+  private section(title: string, items: HTMLElement[], cols: number, rows: number): HTMLElement {
+    const block = el('div', 'inv-section');
+    block.append(el('div', 'inv-section-title', title));
+    const grid = el('div', 'inv-grid-slots');
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${CELL}px)`;
+    grid.style.gridAutoRows = `${CELL}px`;
+    grid.style.minHeight = `${rows * CELL}px`;
+    // Ghost cells for Tarkov feel
+    for (let i = 0; i < cols * rows; i++) {
+      const ghost = el('div', 'inv-ghost');
+      ghost.style.gridColumn = `${(i % cols) + 1}`;
+      ghost.style.gridRow = `${Math.floor(i / cols) + 1}`;
+      grid.append(ghost);
+    }
+    // Simple left-to-right packing
+    let cursor = 0;
+    const occupied = new Set<number>();
+    const mark = (c: number, r: number, w: number, h: number): boolean => {
+      if (c + w > cols || r + h > rows) return false;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (occupied.has((r + y) * cols + (c + x))) return false;
+        }
+      }
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) occupied.add((r + y) * cols + (c + x));
+      }
+      return true;
+    };
+    for (const item of items) {
+      const w = Number(item.style.getPropertyValue('--gw') || 1);
+      const h = Number(item.style.getPropertyValue('--gh') || 1);
+      let placed = false;
+      for (let i = 0; i < cols * rows; i++) {
+        const c = i % cols;
+        const r = Math.floor(i / cols);
+        if (mark(c, r, w, h)) {
+          item.style.gridColumn = `${c + 1} / span ${w}`;
+          item.style.gridRow = `${r + 1} / span ${h}`;
+          grid.append(item);
+          placed = true;
+          cursor = i + 1;
+          break;
+        }
+      }
+      if (!placed) {
+        // Overflow strip below
+        item.style.gridColumn = `1 / span ${Math.min(w, cols)}`;
+        grid.append(item);
+      }
+    }
+    void cursor;
+    block.append(grid);
+    return block;
   }
 
   private cardFor(item: InventoryItem): HTMLElement {
@@ -116,23 +176,28 @@ export class InventoryPanel {
     if (item.kind === 'magazine') {
       const m = item.mag;
       const def = MAGAZINE_DEFINITIONS[m.defId];
+      const w = def?.width ?? 1;
+      const h = def?.height ?? 2;
+      card.style.setProperty('--gw', String(w));
+      card.style.setProperty('--gh', String(h));
       const level = magFillLevel(m.currentAmmo, m.capacity);
-      const ammoText = m.currentAmmo <= 0 ? 'EMPTY' : `${m.currentAmmo} / ${m.capacity}`;
+      const ammoText = m.currentAmmo <= 0 ? 'EMPTY' : `${m.currentAmmo}/${m.capacity}`;
       card.append(
-        el('div', 'inv-item-kind', 'MAGAZINE'),
-        el('div', 'inv-item-name', def?.name ?? 'Magazine'),
+        el('div', 'inv-item-kind', 'MAG'),
+        el('div', 'inv-item-name', shortName(def?.name ?? 'Mag')),
         el('div', 'inv-item-meta', caliberName(m.caliber)),
         el('div', `inv-item-ammo ${level}`, ammoText),
+        el('div', `inv-fill ${level}`),
       );
       card.addEventListener('mouseenter', () => {
         this.tip.hidden = false;
         this.tip.innerHTML = `
           <strong>MAGAZINE</strong><br/>
+          ${def?.name ?? 'Magazine'}<br/>
           Caliber: ${caliberName(m.caliber)}<br/>
-          Capacity: ${m.capacity}<br/>
-          Current: ${m.currentAmmo} / ${m.capacity}<br/>
-          Weight: ${(def?.weight ?? 0.3).toFixed(2)} kg<br/>
-          Compatible: ${m.compatibleWeapons.join(', ')}
+          ${m.currentAmmo} / ${m.capacity}<br/>
+          Size: ${w}×${h}<br/>
+          ${m.compatibleWeapons.join(', ')}
         `;
       });
       card.addEventListener('mouseleave', () => {
@@ -141,15 +206,17 @@ export class InventoryPanel {
     } else {
       const a = item.ammo;
       const name = CALIBERS[a.caliber]?.name ?? a.caliber;
+      card.style.setProperty('--gw', '1');
+      card.style.setProperty('--gh', '1');
       card.append(
         el('div', 'inv-item-kind', 'AMMO'),
-        el('div', 'inv-item-name', name),
+        el('div', 'inv-item-name', shortName(name)),
         el('div', 'inv-item-meta', a.caliber),
-        el('div', 'inv-item-ammo high', `× ${a.quantity}`),
+        el('div', 'inv-item-ammo high', `×${a.quantity}`),
       );
       card.addEventListener('mouseenter', () => {
         this.tip.hidden = false;
-        this.tip.innerHTML = `<strong>AMMO</strong><br/>${name}<br/>Quantity: ${a.quantity}`;
+        this.tip.innerHTML = `<strong>AMMO</strong><br/>${name}<br/>×${a.quantity}`;
       });
       card.addEventListener('mouseleave', () => {
         this.tip.hidden = true;
@@ -157,6 +224,10 @@ export class InventoryPanel {
     }
     return card;
   }
+}
+
+function shortName(name: string): string {
+  return name.length > 14 ? `${name.slice(0, 13)}…` : name;
 }
 
 export function approxAmmoBars(level: ReturnType<typeof magFillLevel>): string {
@@ -174,4 +245,4 @@ export function approxAmmoBars(level: ReturnType<typeof magFillLevel>): string {
   }
 }
 
-export { magFillLabel, magFillLevel };
+export { magFillLevel };
