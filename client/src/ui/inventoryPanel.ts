@@ -59,6 +59,8 @@ export class InventoryPanel {
   private inventory: PlayerInventoryState = { items: [], chambered: {} };
   private drag: DragState | null = null;
   private containerEls = new Map<InventoryContainerId, HTMLElement>();
+  private lastPointerX = 0;
+  private lastPointerY = 0;
 
   onMoveItem:
     | ((payload: {
@@ -81,12 +83,20 @@ export class InventoryPanel {
 
     this.root.addEventListener('mousemove', (e) => this.onPointerMove(e));
     this.root.addEventListener('mouseup', (e) => this.onPointerUp(e));
+    window.addEventListener('mousemove', (e) => {
+      if (!this.drag) return;
+      this.onPointerMove(e);
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (!this.drag) return;
+      this.onPointerUp(e);
+    });
     window.addEventListener('keydown', (e) => {
       if (!this.open || !this.drag) return;
       if (e.code === 'KeyR') {
         this.drag.rotated = !this.drag.rotated;
         this.updateGhostVisual();
-        this.onPointerMove(e as unknown as MouseEvent);
+        this.syncDragPreview(this.lastPointerX, this.lastPointerY);
         e.preventDefault();
       }
     });
@@ -173,26 +183,6 @@ export class InventoryPanel {
     stage.append(figure);
 
     col.append(stage);
-
-    const chamber = el('div', 'inv-chamber');
-    chamber.append(el('div', 'inv-section-head', 'LOADED'));
-    const chamberRow = el('div', 'inv-chamber-row');
-    let any = false;
-    for (const [weaponId, magId] of Object.entries(this.inventory.chambered)) {
-      if (!magId) continue;
-      const item = this.inventory.items.find(
-        (i) => i.kind === 'magazine' && i.mag.instanceId === magId,
-      );
-      if (!item) continue;
-      any = true;
-      const tile = this.makeTile(item, true);
-      const wrap = el('div', 'inv-chamber-slot');
-      wrap.append(el('span', 'inv-chamber-weapon', weaponId.toUpperCase()), tile);
-      chamberRow.append(wrap);
-    }
-    if (!any) chamberRow.append(el('div', 'inv-empty-note', 'No magazine chambered'));
-    chamber.append(chamberRow);
-    col.append(chamber);
 
     return col;
   }
@@ -329,6 +319,11 @@ export class InventoryPanel {
     ghost.append(cloneIcon);
     document.body.append(ghost);
 
+    const src = this.root.querySelector(`[data-instance-id="${p.instanceId}"]`) as HTMLElement | null;
+    const srcRect = src?.getBoundingClientRect();
+    const grabOx = srcRect ? e.clientX - srcRect.left : cell * 0.5;
+    const grabOy = srcRect ? e.clientY - srcRect.top : cell * 0.5;
+
     this.drag = {
       instanceId: p.instanceId,
       item,
@@ -337,15 +332,16 @@ export class InventoryPanel {
       fromGy: p.gy,
       fromRotated: p.rotated,
       rotated: p.rotated,
-      grabOx: cell * 0.5,
-      grabOy: cell * 0.5,
+      grabOx,
+      grabOy,
       ghost,
     };
 
-    const src = this.root.querySelector(`[data-instance-id="${p.instanceId}"]`);
     src?.classList.add('is-dragging-src');
+    this.lastPointerX = e.clientX;
+    this.lastPointerY = e.clientY;
     this.updateGhostVisual();
-    this.positionGhost(e.clientX, e.clientY);
+    this.syncDragPreview(e.clientX, e.clientY);
   }
 
   private updateGhostVisual(): void {
@@ -360,26 +356,39 @@ export class InventoryPanel {
     this.drag.ghost.style.height = `${h * cell}px`;
   }
 
-  private positionGhost(x: number, y: number): void {
+  private positionGhostFree(x: number, y: number): void {
     if (!this.drag) return;
     this.drag.ghost.style.left = `${x - this.drag.grabOx}px`;
     this.drag.ghost.style.top = `${y - this.drag.grabOy}px`;
   }
 
-  private onPointerMove(e: MouseEvent): void {
-    if (this.tip && !this.tip.hidden && !this.drag) {
-      this.tip.style.left = `${e.clientX + 14}px`;
-      this.tip.style.top = `${e.clientY + 14}px`;
-    }
+  private snapGhostToCell(
+    containerId: InventoryContainerId,
+    gx: number,
+    gy: number,
+  ): void {
     if (!this.drag) return;
-    this.positionGhost(e.clientX, e.clientY);
-    const hit = this.hitTest(e.clientX, e.clientY);
+    const grid = this.containerEls.get(containerId);
+    if (!grid) {
+      return;
+    }
+    const rect = grid.getBoundingClientRect();
+    const cell = this.cellSize();
+    this.drag.ghost.style.left = `${Math.round(rect.left + gx * cell)}px`;
+    this.drag.ghost.style.top = `${Math.round(rect.top + gy * cell)}px`;
+  }
+
+  private syncDragPreview(clientX: number, clientY: number): void {
+    if (!this.drag) return;
+    const hit = this.hitTest(clientX, clientY);
     this.clearHighlights();
     if (!hit) {
+      this.positionGhostFree(clientX, clientY);
       this.drag.ghost.classList.add('is-invalid');
       this.drag.ghost.classList.remove('is-valid');
       return;
     }
+    this.snapGhostToCell(hit.containerId, hit.gx, hit.gy);
     const ok = canPlaceItem(
       this.inventory,
       this.drag.item,
@@ -392,6 +401,17 @@ export class InventoryPanel {
     this.drag.ghost.classList.toggle('is-valid', ok);
     this.drag.ghost.classList.toggle('is-invalid', !ok);
     this.highlightPlacement(hit.containerId, hit.gx, hit.gy, ok);
+  }
+
+  private onPointerMove(e: MouseEvent): void {
+    this.lastPointerX = e.clientX;
+    this.lastPointerY = e.clientY;
+    if (this.tip && !this.tip.hidden && !this.drag) {
+      this.tip.style.left = `${e.clientX + 14}px`;
+      this.tip.style.top = `${e.clientY + 14}px`;
+    }
+    if (!this.drag) return;
+    this.syncDragPreview(e.clientX, e.clientY);
   }
 
   private onPointerUp(e: MouseEvent): void {
@@ -427,6 +447,12 @@ export class InventoryPanel {
   ): { containerId: InventoryContainerId; gx: number; gy: number } | null {
     if (!this.drag) return null;
     const cell = this.cellSize();
+    const probe: InventoryItem =
+      this.drag.item.kind === 'magazine'
+        ? { kind: 'magazine', mag: { ...this.drag.item.mag, rotated: this.drag.rotated } }
+        : { kind: 'ammo', ammo: { ...this.drag.item.ammo, rotated: this.drag.rotated } };
+    const { w, h } = getItemFootprint(probe);
+
     for (const layout of INVENTORY_CONTAINERS) {
       const grid = this.containerEls.get(layout.id);
       if (!grid) continue;
@@ -439,13 +465,12 @@ export class InventoryPanel {
       ) {
         continue;
       }
-      const probe: InventoryItem =
-        this.drag.item.kind === 'magazine'
-          ? { kind: 'magazine', mag: { ...this.drag.item.mag, rotated: this.drag.rotated } }
-          : { kind: 'ammo', ammo: { ...this.drag.item.ammo, rotated: this.drag.rotated } };
-      const { w, h } = getItemFootprint(probe);
-      let gx = Math.floor((clientX - rect.left) / cell);
-      let gy = Math.floor((clientY - rect.top) / cell);
+
+      // Top-left of item = nearest cell to ghost top-left; cursor drives intent.
+      const rawLeft = clientX - this.drag.grabOx;
+      const rawTop = clientY - this.drag.grabOy;
+      let gx = Math.round((rawLeft - rect.left) / cell);
+      let gy = Math.round((rawTop - rect.top) / cell);
       gx = Math.max(0, Math.min(layout.cols - w, gx));
       gy = Math.max(0, Math.min(layout.rows - h, gy));
       return { containerId: layout.id, gx, gy };

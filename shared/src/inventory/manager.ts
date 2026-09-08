@@ -119,7 +119,7 @@ export function canPlaceItem(
 export function findFreeSlot(
   inv: PlayerInventoryState,
   item: InventoryItem,
-  preferred: InventoryContainerId[] = ['rig', 'pockets', 'backpack'],
+  preferred: InventoryContainerId[] = ['rig', 'backpack'],
 ): { containerId: InventoryContainerId; gx: number; gy: number; rotated: boolean } | null {
   const ignore = itemPlacement(item).instanceId;
   for (const containerId of preferred) {
@@ -191,6 +191,15 @@ export function normalizeInventoryPlacements(inv: PlayerInventoryState): void {
       item.ammo.gy = item.ammo.gy ?? 0;
       item.ammo.rotated = Boolean(item.ammo.rotated);
     }
+  }
+  // Keep pockets empty by default — relocate any pocketed gear into rig/backpack.
+  const equipped = chamberedSet(inv);
+  for (const item of inv.items) {
+    if (item.kind === 'magazine' && equipped.has(item.mag.instanceId)) continue;
+    const p = itemPlacement(item);
+    if (p.containerId !== 'pockets') continue;
+    const slot = findFreeSlot(inv, item, ['rig', 'backpack']);
+    if (slot) setItemPlacement(item, slot);
   }
   autoPackLooseItems(inv);
 }
@@ -286,7 +295,7 @@ export function swapMagazine(inv: PlayerInventoryState, weaponId: WeaponId): Mag
       next.containerId = 'equipped';
       next.gx = 0;
       next.gy = 0;
-      const slot = findFreeSlot(inv, item, ['rig', 'pockets', 'backpack']);
+      const slot = findFreeSlot(inv, item, ['rig', 'backpack']);
       if (slot) {
         prev.containerId = slot.containerId;
         prev.gx = slot.gx;
@@ -348,7 +357,7 @@ export function addAmmoStack(inv: PlayerInventoryState, caliber: CaliberId, quan
     rotated: false,
   };
   const item: InventoryItem = { kind: 'ammo', ammo };
-  const slot = findFreeSlot(inv, item, ['backpack', 'pockets', 'rig']);
+  const slot = findFreeSlot(inv, item, ['backpack', 'rig']);
   if (slot) {
     ammo.containerId = slot.containerId;
     ammo.gx = slot.gx;
