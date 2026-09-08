@@ -374,13 +374,11 @@ input[type='range'] {
   background: var(--rage);
 }
 
-.hud-vitals,
-.hud-weapon {
+.hud-vitals {
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .hud-vitals.dim,
-.hud-weapon.dim,
 .weapon-bar.dim {
   opacity: 0.28;
 }
@@ -407,6 +405,9 @@ input[type='range'] {
 .hud-vitals.critical .bar > span {
   background: linear-gradient(90deg, #ff3b2a, #ff8a6a);
 }
+
+
+
 
 .vital-kicker {
   margin-bottom: 8px;
@@ -470,80 +471,13 @@ input[type='range'] {
   color: var(--hud-text);
 }
 
-.hud-weapon {
-  position: absolute;
-  right: max(18px, env(safe-area-inset-right, 0px));
-  bottom: 92px;
-  width: min(230px, 28vw);
-  padding: 14px 16px 16px;
-  border-radius: var(--hud-radius);
-  text-align: right;
-}
 
-.hud-weapon.switching .ammo {
-  animation: ammo-swap 0.18s ease;
-}
-
-.hud-weapon .name {
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: 12px;
-  color: var(--hud-text);
-  margin-bottom: 2px;
-}
-
-.hud-weapon .ammo {
-  font-family: var(--mono);
-  font-size: 42px;
-  font-weight: 600;
-  line-height: 0.95;
-  margin: 4px 0 8px;
-  letter-spacing: -0.02em;
-  color: #f7ffd8;
-  text-shadow: 0 0 22px rgba(78, 196, 255, 0.18);
-}
-
-.hud-weapon .ammo small {
-  font-size: 15px;
-  color: var(--hud-muted);
-  letter-spacing: 0;
-}
-
-.hud-weapon.low .ammo {
-  color: #ffd36a;
-}
-
-.hud-weapon.empty .ammo {
-  color: #ff8a8a;
-}
-
-.hud-mag-strip {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.hud-mag-ico {
-  width: 22px;
-  height: 34px;
-  padding: 1px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.35);
-  opacity: 0.72;
-}
-
-.hud-mag-ico.is-active {
-  opacity: 1;
-  border-color: rgba(224, 122, 47, 0.65);
-  box-shadow: inset 0 0 0 1px rgba(224, 122, 47, 0.2);
-}
-
-.hud-mag-ico svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+/* Right HUD: intentionally empty — no ammo, LOW/FULL, or magazine strip. */
+.hud-weapon,
+.hud-mag-strip,
+.hud-mag-ico,
+.ww-center-ammo {
+  display: none !important;
 }
 
 .weapon-bar {
@@ -1502,8 +1436,7 @@ input[type='range'] {
     width: 48px;
     min-height: 48px;
   }
-  .hud-vitals,
-  .hud-weapon {
+  .hud-vitals {
     width: min(180px, 42vw);
     bottom: 78px;
   }
@@ -1543,8 +1476,7 @@ input[type='range'] {
     width: 38px;
     min-height: 42px;
   }
-  .hud-vitals,
-  .hud-weapon {
+  .hud-vitals {
     bottom: 66px;
     width: min(150px, 44vw);
   }
@@ -1567,3 +1499,6 @@ input[type='range'] {
   }
 }
 
+
+/* HUD ammo panel killed */
+.hud-weapon, .hud-mag-strip, .hud-mag-ico, .ww-center-ammo { display: none !important; }

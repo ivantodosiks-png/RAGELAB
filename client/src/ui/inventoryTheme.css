@@ -22,14 +22,69 @@
 }
 
 .inv-card {
-  width: min(720px, calc(100vw - 28px));
-  max-height: min(78vh, 640px);
-  overflow: auto;
-  padding: 12px 14px 16px;
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(74vh, 560px);
+  overflow: hidden;
+  padding: 10px 12px 12px;
   border: 1px solid rgba(220, 220, 210, 0.12);
-  background: rgba(8, 10, 8, 0.9);
+  background: rgba(8, 10, 8, 0.92);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(16px);
+}
+
+.inv-ico-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.inv-ico-img {
+  max-width: 92%;
+  max-height: 88%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
+
+.inv-ico-fill {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 4%;
+  height: 3px;
+  background: #2a2c26;
+  pointer-events: none;
+}
+
+.inv-ico-fill::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: calc(var(--fill, 1) * 100%);
+  background: #6a9a4a;
+}
+
+.inv-ico-fill.medium::after {
+  background: #c4a03a;
+}
+
+.inv-ico-fill.low::after {
+  background: #c45a2a;
+}
+
+.inv-ico-fill.empty::after {
+  width: 0;
+}
+
+.inv-icon {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .inv-kicker {
@@ -56,7 +111,9 @@
 .inv-board {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  max-height: calc(74vh - 70px);
+  overflow: auto;
 }
 
 .inv-section-title {

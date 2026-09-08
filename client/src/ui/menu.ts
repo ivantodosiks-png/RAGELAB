@@ -347,16 +347,14 @@ export class MainMenu {
 
   private renderMapSelect(): void {
     const view = el('div', 'tk-flow tk-map-flow');
-    view.append(el('p', 'tk-flow-kicker', 'ЛОКАЦИЯ'));
-    view.append(el('h2', 'tk-flow-title', 'ВЫБОР КАРТЫ'));
-    view.append(el('p', 'tk-flow-lead', 'Сейчас открыты две локации. Выберите карту и выходите в рейд.'));
+    view.append(el('h2', 'tk-flow-title', 'КАРТА'));
 
     const board = el('div', 'tk-map-board');
     const pins = el('div', 'tk-map-pins');
 
     const layouts: Array<{ id: string; x: number; y: number }> = [
-      { id: 'arena', x: 32, y: 42 },
-      { id: 'desert', x: 68, y: 58 },
+      { id: 'arena', x: 34, y: 44 },
+      { id: 'desert', x: 66, y: 56 },
     ];
 
     for (const layout of layouts) {
@@ -368,10 +366,7 @@ export class MainMenu {
       pin.style.top = `${layout.y}%`;
       pin.innerHTML = `
         <span class="tk-pin-dot"></span>
-        <span class="tk-pin-label">
-          <b>${escapeHtml(map.name)}</b>
-          <i>ДОСТУПНО</i>
-        </span>`;
+        <span class="tk-pin-label"><b>${escapeHtml(map.name)}</b></span>`;
       pin.addEventListener('click', () => {
         this.selectedMapId = layout.id;
         this.render();
@@ -379,37 +374,13 @@ export class MainMenu {
       pins.append(pin);
     }
 
-    // Decorative locked stubs so the board feels like Tarkov
-    for (const stub of [
-      { x: 48, y: 28, name: 'Завод' },
-      { x: 78, y: 34, name: 'Лес' },
-      { x: 22, y: 68, name: 'Берег' },
-    ]) {
-      const pin = el('div', 'tk-map-pin is-locked');
-      pin.style.left = `${stub.x}%`;
-      pin.style.top = `${stub.y}%`;
-      pin.innerHTML = `
-        <span class="tk-pin-dot"></span>
-        <span class="tk-pin-label">
-          <b>${stub.name}</b>
-          <i>ЗАКРЫТО</i>
-        </span>`;
-      pins.append(pin);
-    }
-
     board.append(el('div', 'tk-map-grid'), pins);
     view.append(board);
 
+    const bar = el('div', 'tk-map-bar');
     const selected = getMap(this.selectedMapId);
-    const detail = el('div', 'tk-map-detail');
-    detail.innerHTML = `
-      <div>
-        <p class="tk-flow-kicker">ВЫБРАНО</p>
-        <h3>${escapeHtml(selected.name)}</h3>
-        <p>${escapeHtml(selected.id === 'arena' ? 'Закрытый двор с несколькими уровнями и короткими дистанциями.' : 'Открытые пески — дальние углы и редкие укрытия.')}</p>
-      </div>`;
+    bar.append(el('span', 'tk-map-selected', selected.name));
 
-    const actions = el('div', 'tk-map-actions');
     const deploy = el('button', 'tk-deploy', 'В РЕЙД');
     deploy.type = 'button';
     deploy.addEventListener('click', () => {
@@ -420,15 +391,12 @@ export class MainMenu {
         team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
       });
     });
-    actions.append(deploy);
+    bar.append(deploy);
 
     if (this.isAdmin || this.canHostOnline) {
-      const create = el('button', 'tk-secondary', this.createBusy ? 'СОЗДАНИЕ…' : 'ЛОББИ');
+      const create = el('button', 'tk-secondary', this.createBusy ? '…' : 'ЛОББИ');
       create.type = 'button';
       create.disabled = this.createBusy;
-      create.title = this.canHostOnline
-        ? 'Create online lobby (local server)'
-        : 'Create online lobby (admin)';
       create.addEventListener('click', () => {
         if (this.createBusy) return;
         const mapId = this.selectedMapId;
@@ -440,14 +408,10 @@ export class MainMenu {
           team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
         });
       });
-      actions.append(create);
-    } else {
-      const hint = el('p', 'tk-lobby-hint', 'Для онлайн: npm run dev → появится ЛОББИ');
-      actions.append(hint);
+      bar.append(create);
     }
 
-    detail.append(actions);
-    view.append(detail);
+    view.append(bar);
 
     const back = el('button', 'tk-back', 'НАЗАД');
     back.type = 'button';

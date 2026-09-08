@@ -2,7 +2,6 @@ import { el } from './dom';
 import { BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
 import { settingsStore } from '../settings/settingsStore';
-import { magazineIconSvg } from './inventoryIcons';
 
 export interface HudScoreRow {
   id: number;
@@ -32,12 +31,8 @@ export class Hud {
 
   private readonly healthFill: HTMLElement;
   private readonly healthText: HTMLElement;
-  private readonly ammoFill: HTMLElement;
-  private readonly ammoText: HTMLElement;
   private readonly ammoPanel: HTMLElement;
-  private readonly ammoBig: HTMLElement;
   private readonly ammoName: HTMLElement;
-  private readonly magStrip: HTMLElement;
   private readonly killfeed: HTMLElement;
   private readonly chatLog: HTMLElement;
   private readonly chatBox: HTMLElement;
@@ -86,7 +81,6 @@ export class Hud {
   private lastHealth = -1;
   private lastStamina = -1;
   private lastAmmo = '';
-  private lastMagIcons = '';
   private lastWeapon = '';
   private lastNet = '';
   private lastInteract = '';
@@ -146,17 +140,9 @@ export class Hud {
     this.vitals.append(hpKicker, hpLabel, hpBar, stLabel, stBar);
 
     this.ammoPanel = el('div', 'hud-weapon');
-    const ammoKicker = el('div', 'vital-kicker', 'Weapon');
     this.ammoName = el('div', 'name', '—');
-    this.ammoBig = el('div', 'ammo', 'FULL<small> · ████████</small>');
-    const magRow = el('div', 'vital-meta');
-    magRow.append(el('span', '', 'Spares'), (this.ammoText = el('span', '', '0 MAG')));
-    const magBar = el('div', 'bar ammo');
-    this.ammoFill = el('span');
-    magBar.append(this.ammoFill);
-    this.ammoPanel.append(ammoKicker, this.ammoName, this.ammoBig, magRow, magBar);
-    this.magStrip = el('div', 'hud-mag-strip');
-    this.ammoPanel.append(this.magStrip);
+    // Minimal HUD: right panel hidden via CSS. No ammo / LOW / mag strip.
+    this.ammoPanel.append(this.ammoName);
 
     this.weaponBar = el('div', 'weapon-bar');
     for (let i = 0; i < WHEEL_SLOTS; i++) {
@@ -295,18 +281,8 @@ export class Hud {
     const key = `${mag}/${reserve}/${magSize}`;
     if (key === this.lastAmmo) return;
     this.lastAmmo = key;
-    const magPct = magSize > 0 ? mag / magSize : 0;
-    this.ammoFill.style.transform = `scaleX(${magPct})`;
-    let label = 'EMPTY';
-    if (magSize <= 0 || mag <= 0) label = 'EMPTY';
-    else if (magPct >= 0.95) label = 'FULL';
-    else if (magPct >= 0.65) label = 'HIGH';
-    else if (magPct >= 0.35) label = 'MEDIUM';
-    else label = 'LOW';
-    this.ammoText.textContent = `${reserve} MAG`;
-    this.ammoBig.innerHTML = `${label}<small> · ${barsForApprox(label)}</small>`;
+    // Keep internal state for wheel / logic — never show counts or LOW/FULL on HUD.
     this.ammoPanel.classList.toggle('empty', mag <= 0);
-    this.ammoPanel.classList.toggle('low', magPct > 0 && magPct <= 0.25);
     if (this.loadout[this.lastSlot]) {
       this.loadout[this.lastSlot]!.mag = mag;
       this.loadout[this.lastSlot]!.reserve = reserve;
@@ -315,19 +291,8 @@ export class Hud {
     if (this.wheelOpen) this.paintWheelCenter(this.wheelHighlight);
   }
 
-  /** Spare magazine icons (approximate fill only). Active = chambered. */
-  setMagazineIcons(
-    icons: Array<{ icon: string; fill: number; active?: boolean }>,
-  ): void {
-    const key = icons.map((i) => `${i.icon}:${i.fill.toFixed(2)}:${i.active ? 1 : 0}`).join('|');
-    if (key === this.lastMagIcons) return;
-    this.lastMagIcons = key;
-    this.magStrip.replaceChildren();
-    for (const entry of icons.slice(0, 8)) {
-      const cell = el('div', entry.active ? 'hud-mag-ico is-active' : 'hud-mag-ico');
-      cell.innerHTML = magazineIconSvg(entry.icon, entry.fill);
-      this.magStrip.append(cell);
-    }
+  setMagazineIcons(_icons: Array<{ icon: string; fill: number; active?: boolean }>): void {
+    // Magazines live only in TAB inventory — never on the in-game HUD.
   }
 
   setWeapon(name: string): void {
@@ -734,26 +699,7 @@ export class Hud {
     this.wheelCenterIcon.innerHTML = slotGlyph(info?.id || 'empty');
     this.wheelCenterName.textContent = info?.id ? info.name : 'Empty';
     this.wheelCenterBlurb.textContent = info?.blurb ?? (tool ? 'Sandbox manipulator.' : weaponBlurb(info?.id ?? ''));
-    if (tool) {
-      this.wheelCenterAmmo.textContent = 'Slot 6';
-    } else if (slot === BUILD_PLAN_UI_SLOT) {
-      this.wheelCenterAmmo.textContent = 'Slot 4';
-    } else if (slot === HAMMER_UI_SLOT) {
-      this.wheelCenterAmmo.textContent = 'Slot 5';
-    } else if (info && info.mag !== undefined && info.magSize) {
-      const pct = info.magSize > 0 ? info.mag / info.magSize : 0;
-      let label = 'EMPTY';
-      if (info.mag <= 0) label = 'EMPTY';
-      else if (pct >= 0.95) label = 'FULL';
-      else if (pct >= 0.65) label = 'HIGH';
-      else if (pct >= 0.35) label = 'MEDIUM';
-      else label = 'LOW';
-      this.wheelCenterAmmo.textContent = `${label} · ${info.reserve ?? 0} MAG`;
-    } else if (info?.magSize) {
-      this.wheelCenterAmmo.textContent = 'READY';
-    } else {
-      this.wheelCenterAmmo.textContent = '';
-    }
+    this.wheelCenterAmmo.textContent = '';
   }
 }
 
@@ -816,21 +762,6 @@ function weaponBlurb(id: string): string {
       return 'Empty slot. Spawn a gun with Tool Gun, then E to pick up.';
     default:
       return 'Equipped firearm.';
-  }
-}
-
-function barsForApprox(label: string): string {
-  switch (label) {
-    case 'FULL':
-      return '████████';
-    case 'HIGH':
-      return '██████░░';
-    case 'MEDIUM':
-      return '████░░░░';
-    case 'LOW':
-      return '██░░░░░░';
-    default:
-      return '░░░░░░░░';
   }
 }
 

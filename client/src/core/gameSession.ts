@@ -41,11 +41,8 @@ import {
   isCaliberId,
   ammoDefForCaliber,
   getChamberedMagazine,
-  magFillLabel,
-  magFillLevel,
   consumeChamberedRound,
   normalizeInventoryPlacements,
-  MAGAZINE_DEFINITIONS,
 } from '@ragelab/shared';
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
@@ -1240,7 +1237,6 @@ export class GameSession {
     if (this.sandbox.toolGunActive) {
       this.ui.hud.setAmmo(0, 0, 1);
       this.ui.hud.setWeapon('TOOL GUN');
-      this.ui.hud.setMagazineIcons([]);
       this.ui.hud.setSpread(0.004 + speedRatio * 0.006);
       const kind =
         this.sandbox.selection.category === 'npc'
@@ -1260,7 +1256,6 @@ export class GameSession {
     } else if (!this.weapon.hasWeapon) {
       this.ui.hud.setAmmo(0, 0, 1);
       this.ui.hud.setWeapon('EMPTY');
-      this.ui.hud.setMagazineIcons([]);
       this.ui.hud.setSpread(0.004 + speedRatio * 0.006);
       this.ui.hud.setToolGun(false, 'NPC', true);
       this.ui.hud.setCrosshairMotion(speedRatio, Boolean(this.sandbox.aimedWeapon), false);
@@ -1268,19 +1263,6 @@ export class GameSession {
     } else {
       this.ui.hud.setAmmo(this.weapon.ammoInMag, this.weapon.ammoReserve, def.magazineSize);
       this.ui.hud.setWeapon(def.name);
-      const chamberedId = this.inventory.chambered[def.id] ?? null;
-      const magIcons: Array<{ icon: string; fill: number; active?: boolean }> = [];
-      for (const item of this.inventory.items) {
-        if (item.kind !== 'magazine') continue;
-        if (!item.mag.compatibleWeapons.includes(def.id)) continue;
-        const magDef = MAGAZINE_DEFINITIONS[item.mag.defId];
-        magIcons.push({
-          icon: magDef?.icon ?? 'mag_stanag',
-          fill: item.mag.capacity > 0 ? item.mag.currentAmmo / item.mag.capacity : 0,
-          active: item.mag.instanceId === chamberedId,
-        });
-      }
-      this.ui.hud.setMagazineIcons(magIcons);
       this.ui.hud.setSpread(
         this.weapon.spreadRadians({
           moving: speedRatio > 0.15,
@@ -1359,8 +1341,8 @@ export class GameSession {
       this.ui.hud.showToast('No magazine');
       return;
     }
-    const level = magFillLevel(mag.currentAmmo, mag.capacity);
-    this.ui.hud.showToast(`MAGAZINE · ${magFillLabel(level)}`);
+    // Exact count only in TAB inventory; inspect stays silent on fill words.
+    this.ui.hud.showToast(`${mag.currentAmmo} / ${mag.capacity}`);
   }
 
   private performOfflineMagSwap(): void {

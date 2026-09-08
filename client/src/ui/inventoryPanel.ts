@@ -14,7 +14,7 @@ import {
   type PlayerInventoryState,
 } from '@ragelab/shared';
 import { el } from '../ui/dom';
-import { magazineIconSvg } from './inventoryIcons';
+import { magazineIconHtml } from './inventoryIcons';
 
 const CELL = 44;
 
@@ -187,7 +187,7 @@ export class InventoryPanel {
       const level = magFillLevel(item.mag.currentAmmo, item.mag.capacity);
       const ratio = item.mag.capacity > 0 ? item.mag.currentAmmo / item.mag.capacity : 0;
       const icon = el('div', 'inv-icon');
-      icon.innerHTML = magazineIconSvg(def?.icon ?? 'mag_stanag', ratio);
+      icon.innerHTML = magazineIconHtml(def?.icon ?? 'mag_stanag', ratio);
       tile.append(icon);
       tile.append(el('div', `inv-fill-strip ${level}`));
       tile.addEventListener('mouseenter', (e) => {
@@ -200,7 +200,7 @@ export class InventoryPanel {
     } else {
       const def = AMMO_DEFINITIONS[item.ammo.defId];
       const icon = el('div', 'inv-icon');
-      icon.innerHTML = magazineIconSvg(def?.icon ?? 'ammo_box', 1);
+      icon.innerHTML = magazineIconHtml(def?.icon ?? 'ammo_box', 1);
       tile.append(icon);
       tile.append(el('div', 'inv-ammo-qty', `×${item.ammo.quantity}`));
       tile.addEventListener('mouseenter', (e) => {
