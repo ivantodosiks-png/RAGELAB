@@ -76,6 +76,12 @@ export const JUMP_VELOCITY = 6.4;
 export const MAX_FALL_SPEED = -60;
 export const COYOTE_TIME_MS = 90;
 export const JUMP_COOLDOWN_MS = 120;
+/** Stamina is 0..1; jump is the expensive action. */
+export const STAMINA_JUMP_COST = 0.34;
+export const STAMINA_SPRINT_DRAIN_PER_SEC = 0.16;
+export const STAMINA_REGEN_PER_SEC = 0.28;
+export const STAMINA_MIN_JUMP = 0.2;
+export const STAMINA_MIN_SPRINT = 0.05;
 export const STEP_HEIGHT = 0.4;
 export const MAX_SLOPE_CLIMB_DEG = 50;
 export const FALL_DAMAGE_MIN_SPEED = 14;

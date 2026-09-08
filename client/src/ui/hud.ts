@@ -75,6 +75,8 @@ export class Hud {
   private readonly wheelCenterIcon: HTMLElement;
   private readonly wheelCursor: HTMLElement;
   private readonly vitals: HTMLElement;
+  private readonly staminaFill: HTMLElement;
+  private readonly staminaText: HTMLElement;
   private readonly lobbyChip: HTMLButtonElement;
   private readonly scope: HTMLElement;
 
@@ -84,6 +86,7 @@ export class Hud {
   private deathEndsAt = 0;
   private chatLines: string[] = [];
   private lastHealth = -1;
+  private lastStamina = -1;
   private lastAmmo = '';
   private lastWeapon = '';
   private lastNet = '';
@@ -142,14 +145,19 @@ export class Hud {
     const hpBar = el('div', 'bar');
     this.healthFill = el('span');
     hpBar.append(this.healthFill);
-    this.vitals.append(hpKicker, hpLabel, hpBar);
+    const stLabel = el('div', 'vital-meta stamina-meta');
+    stLabel.append(el('span', '', 'Stamina'), (this.staminaText = el('span', '', '100')));
+    const stBar = el('div', 'bar stamina');
+    this.staminaFill = el('span');
+    stBar.append(this.staminaFill);
+    this.vitals.append(hpKicker, hpLabel, hpBar, stLabel, stBar);
 
     this.ammoPanel = el('div', 'hud-weapon');
     const ammoKicker = el('div', 'vital-kicker', 'Weapon');
     this.ammoName = el('div', 'name', '—');
-    this.ammoBig = el('div', 'ammo', '0');
+    this.ammoBig = el('div', 'ammo', '0<small> / 0</small>');
     const magRow = el('div', 'vital-meta');
-    magRow.append(el('span', '', 'Reserve'), (this.ammoText = el('span', '', '0')));
+    magRow.append(el('span', '', 'Magazine'), (this.ammoText = el('span', '', '0%')));
     const magBar = el('div', 'bar ammo');
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);
@@ -278,13 +286,26 @@ export class Hud {
     this.vitals.classList.toggle('critical', t <= 0.28);
   }
 
+  setStamina(current: number, max = 1): void {
+    const t = Math.max(0, Math.min(1, current / max));
+    const rounded = Math.round(t * 100);
+    if (rounded === this.lastStamina) return;
+    this.lastStamina = rounded;
+    this.staminaFill.style.transform = `scaleX(${t})`;
+    this.staminaText.textContent = String(rounded);
+    this.vitals.classList.toggle('winded', t <= 0.22);
+  }
+
   setAmmo(mag: number, reserve: number, magSize: number): void {
     const key = `${mag}/${reserve}/${magSize}`;
     if (key === this.lastAmmo) return;
     this.lastAmmo = key;
-    this.ammoFill.style.transform = `scaleX(${magSize > 0 ? mag / magSize : 0})`;
-    this.ammoText.textContent = String(reserve);
+    const magPct = magSize > 0 ? mag / magSize : 0;
+    this.ammoFill.style.transform = `scaleX(${magPct})`;
+    this.ammoText.textContent = `${Math.round(magPct * 100)}%`;
     this.ammoBig.innerHTML = `${mag}<small> / ${reserve}</small>`;
+    this.ammoPanel.classList.toggle('empty', mag <= 0 && reserve <= 0);
+    this.ammoPanel.classList.toggle('low', magSize > 0 && mag / magSize <= 0.25 && mag > 0);
     if (this.loadout[this.lastSlot]) {
       this.loadout[this.lastSlot]!.mag = mag;
       this.loadout[this.lastSlot]!.reserve = reserve;

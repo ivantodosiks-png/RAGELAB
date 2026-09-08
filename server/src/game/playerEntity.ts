@@ -211,6 +211,7 @@ export class PlayerEntity {
     this.movement.grounded = false;
     this.movement.crouching = false;
     this.movement.stepDistance = 0;
+    this.movement.stamina = 1;
     this.yaw = yaw;
     this.pitch = 0;
     this.currentSlot = 0;

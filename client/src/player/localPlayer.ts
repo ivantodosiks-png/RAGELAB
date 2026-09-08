@@ -32,6 +32,7 @@ interface PendingCommand {
   x: number;
   y: number;
   z: number;
+  stamina: number;
 }
 
 export interface LocalPlayerFrame {
@@ -170,6 +171,7 @@ export class LocalPlayer {
         x: this.movement.position.x,
         y: this.movement.position.y,
         z: this.movement.position.z,
+        stamina: this.movement.stamina,
       });
       if (this.pending.length > MAX_PENDING_INPUTS) this.pending.shift();
       out.push(command);
@@ -264,6 +266,7 @@ export class LocalPlayer {
     this.movement.velocity.z = dqVel(state.vz);
     this.movement.grounded = (state.flags & PlayerFlag.Grounded) !== 0;
     this.movement.crouching = (state.flags & PlayerFlag.Crouching) !== 0;
+    this.movement.stamina = predicted.stamina;
     this.physics.character.teleport(this.movement.position);
 
     // Replay everything the server has not seen yet.
@@ -280,6 +283,7 @@ export class LocalPlayer {
       entry.x = this.movement.position.x;
       entry.y = this.movement.position.y;
       entry.z = this.movement.position.z;
+      entry.stamina = this.movement.stamina;
     }
 
     if (error > HARD_SNAP_DISTANCE) {
@@ -328,6 +332,7 @@ export class LocalPlayer {
     this.movement.velocity.z = 0;
     this.movement.grounded = false;
     this.movement.crouching = false;
+    this.movement.stamina = 1;
     this.errorOffset.x = 0;
     this.errorOffset.y = 0;
     this.errorOffset.z = 0;

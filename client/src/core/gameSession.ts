@@ -1134,6 +1134,7 @@ export class GameSession {
   private updateHud(dt: number, speedRatio: number, airborne: boolean, crouching: boolean, now: number): void {
     const def = this.weapon.definition;
     this.ui.hud.setHealth(this.local.health, MAX_HEALTH);
+    this.ui.hud.setStamina(this.local.movement.stamina, 1);
     this.ui.hud.setActiveSlot(this.input.uiSlot);
     if (this.sandbox.toolGunActive) {
       this.ui.hud.setAmmo(0, 0, 1);

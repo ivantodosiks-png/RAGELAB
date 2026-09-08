@@ -13,6 +13,11 @@ import {
   SPEED_CROUCH,
   SPEED_SPRINT,
   SPEED_WALK,
+  STAMINA_JUMP_COST,
+  STAMINA_MIN_JUMP,
+  STAMINA_MIN_SPRINT,
+  STAMINA_REGEN_PER_SEC,
+  STAMINA_SPRINT_DRAIN_PER_SEC,
 } from '../constants';
 import { clamp, type Vec3 } from '../math';
 import { Button, buttonDown, type InputCommand } from '../types/input';
@@ -52,6 +57,8 @@ export interface MovementState {
   lastJumpAtMs: number;
   /** Distance walked, drives footstep cadence on both sides. */
   stepDistance: number;
+  /** 0..1 — drains on jump/sprint, regenerates when grounded and calm. */
+  stamina: number;
 }
 
 export interface StepEvents {
@@ -73,6 +80,7 @@ export function createMovementState(position: Vec3): MovementState {
     lastGroundedAtMs: -100000,
     lastJumpAtMs: -100000,
     stepDistance: 0,
+    stamina: 1,
   };
 }
 
@@ -124,11 +132,12 @@ export function stepMovement(
     state.crouching = false;
   }
 
-  const sprinting =
+  const wantsSprint =
     buttonDown(input.buttons, Button.Sprint) &&
     !state.crouching &&
     input.moveZ > 0.1 &&
     !buttonDown(input.buttons, Button.Aim);
+  const sprinting = wantsSprint && state.stamina > STAMINA_MIN_SPRINT;
 
   const targetSpeed =
     (state.crouching ? SPEED_CROUCH : sprinting ? SPEED_SPRINT : SPEED_WALK) * speedMultiplier;
@@ -172,11 +181,13 @@ export function stepMovement(
   // Jump (with a small coyote window so edge jumps feel right).
   const coyoteOk = state.grounded || state.timeMs - state.lastGroundedAtMs <= COYOTE_TIME_MS;
   const cooldownOk = state.timeMs - state.lastJumpAtMs >= JUMP_COOLDOWN_MS;
-  if (buttonDown(input.buttons, Button.Jump) && coyoteOk && cooldownOk && !state.crouching) {
+  const canJump = state.stamina >= STAMINA_MIN_JUMP;
+  if (buttonDown(input.buttons, Button.Jump) && coyoteOk && cooldownOk && !state.crouching && canJump) {
     vel.y = JUMP_VELOCITY;
     state.lastJumpAtMs = state.timeMs;
     state.grounded = false;
     events.jumped = true;
+    state.stamina = Math.max(0, state.stamina - STAMINA_JUMP_COST);
   }
 
   vel.y += GRAVITY * dt;
@@ -221,6 +232,12 @@ export function stepMovement(
     }
   } else {
     state.stepDistance = Math.min(state.stepDistance, FOOTSTEP_DISTANCE * 0.75);
+  }
+
+  if (sprinting && wishLen > 0.1) {
+    state.stamina = Math.max(0, state.stamina - STAMINA_SPRINT_DRAIN_PER_SEC * dt);
+  } else if (state.grounded && !wantsSprint && !events.jumped) {
+    state.stamina = Math.min(1, state.stamina + STAMINA_REGEN_PER_SEC * dt);
   }
 }
 
