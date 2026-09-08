@@ -717,26 +717,17 @@ export class MainMenu {
         slider('Run bob', bc.runBob, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { runBob: v } }),
         ),
-        slider('Camera lag', bc.cameraLag, 0, 1, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { cameraLag: v } }),
-        ),
         slider('Shake', bc.shakeIntensity, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { shakeIntensity: v } }),
         ),
-        slider('FOV boost', bc.fovBoost, 0, 28, 1, (v) =>
+        slider('FOV boost', bc.fovBoost, 0, 14, 1, (v) =>
           this.callbacks.patchGraphics({ bodycam: { fovBoost: v } }),
-        ),
-        slider('Barrel distortion', bc.barrelDistortion, 0, 1, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { barrelDistortion: v } }),
         ),
         slider('Vignette', bc.vignette, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { vignette: v } }),
         ),
         slider('Chromatic aberration', bc.chromaticAberration, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { chromaticAberration: v } }),
-        ),
-        slider('Edge blur', bc.edgeBlur, 0, 1, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { edgeBlur: v } }),
         ),
         slider('Sensor noise', bc.noise, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { noise: v } }),

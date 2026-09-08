@@ -17,7 +17,8 @@ export interface CameraShake {
 
 /**
  * Gameplay camera: classic eye-level FPS, or chest-mounted bodycam when enabled.
- * Motion layers (bob / lag / landing / impact) stack; nothing here affects sim.
+ * Mouse look is always instant (yaw/pitch applied directly — no lag/smoothing).
+ * Bodycam only adds subtle position/roll from steps and impacts.
  */
 export class CameraRig {
   private eyeHeight = EYE_HEIGHT_STAND;
@@ -31,14 +32,12 @@ export class CameraRig {
   private currentFovMultiplier = 1;
   private targetFovMultiplier = 1;
   private rollAngle = 0;
-
-  private bodycam: BodycamSettings = { ...DEFAULT_BODYCAM, enabled: false };
-  private laggedYaw = 0;
-  private laggedPitch = 0;
-  private lagSeeded = false;
   private settleNoise = 0;
   private lastYaw = 0;
   private lastPitch = 0;
+  private aimSeeded = false;
+
+  private bodycam: BodycamSettings = { ...DEFAULT_BODYCAM, enabled: false };
 
   /** Angular velocity (rad/s) for motion blur post. */
   yawVelocity = 0;
@@ -71,15 +70,15 @@ export class CameraRig {
 
   addShake(amount: number, frequency = 22): void {
     const scale = this.bodycam.enabled ? this.bodycam.shakeIntensity : 1;
-    this.shake.amount = Math.min(1.4, this.shake.amount + amount * scale);
+    this.shake.amount = Math.min(1.2, this.shake.amount + amount * scale);
     this.shake.frequency = frequency;
   }
 
   onLanded(speed: number): void {
-    const landBoost = this.bodycam.enabled ? 1.35 * this.bodycam.shakeIntensity : 1;
-    this.landingDip = Math.min(0.28, speed * 0.012 * landBoost);
-    if (this.bodycam.enabled && speed > 4) {
-      this.addShake(0.22 + Math.min(0.35, speed * 0.02), 18);
+    const landBoost = this.bodycam.enabled ? 1.15 * this.bodycam.shakeIntensity : 1;
+    this.landingDip = Math.min(0.2, speed * 0.01 * landBoost);
+    if (this.bodycam.enabled && speed > 5) {
+      this.addShake(0.12 + Math.min(0.22, speed * 0.015), 16);
     }
   }
 
@@ -104,66 +103,59 @@ export class CameraRig {
     const bc = this.bodycam;
     const bodyOn = bc.enabled;
 
-    if (!this.lagSeeded) {
-      this.laggedYaw = yaw;
-      this.laggedPitch = pitch;
+    if (!this.aimSeeded) {
       this.lastYaw = yaw;
       this.lastPitch = pitch;
-      this.lagSeeded = true;
+      this.aimSeeded = true;
     }
 
     const invDt = dt > 1e-4 ? 1 / dt : 0;
-    this.yawVelocity = (yaw - this.lastYaw) * invDt;
+    // Raw mouse deltas — wrap yaw for continuous turns.
+    let dyaw = yaw - this.lastYaw;
+    while (dyaw > Math.PI) dyaw -= Math.PI * 2;
+    while (dyaw < -Math.PI) dyaw += Math.PI * 2;
+    this.yawVelocity = dyaw * invDt;
     this.pitchVelocity = (pitch - this.lastPitch) * invDt;
     this.lastYaw = yaw;
     this.lastPitch = pitch;
 
-      // Rotational lag (bodycam vest inertia) — heavier than classic FPS.
-    if (bodyOn) {
-      const lag = clamp(bc.cameraLag, 0, 1);
-      const follow = 1 - Math.exp(-(2.8 + (1 - lag) * 11) * dt);
-      this.laggedYaw = lerpAngle(this.laggedYaw, yaw, follow);
-      this.laggedPitch = lerp(this.laggedPitch, pitch, follow);
-    } else {
-      this.laggedYaw = yaw;
-      this.laggedPitch = pitch;
-    }
+    // Instant look: mouse → camera rotation with no lag / interpolation.
+    const lookYaw = yaw;
+    const lookPitch = bodyOn ? pitch + bc.pitchBias : pitch;
 
     const standH = bodyOn ? EYE_HEIGHT_STAND * bc.chestHeight : EYE_HEIGHT_STAND;
-    const crouchH = bodyOn ? EYE_HEIGHT_CROUCH * 0.92 : EYE_HEIGHT_CROUCH;
+    const crouchH = bodyOn ? EYE_HEIGHT_CROUCH * 0.94 : EYE_HEIGHT_CROUCH;
     const targetEye = crouching ? crouchH : standH;
-    this.eyeHeight = lerp(this.eyeHeight, targetEye, 1 - Math.exp(-12 * dt));
+    this.eyeHeight = lerp(this.eyeHeight, targetEye, 1 - Math.exp(-14 * dt));
 
-    // Body-mounted bob: lower frequency, dual-axis vest sway (not head-bob FPS).
+    // Subtle vest-mounted step motion (not classic FPS head-bob).
     const runGate = clamp((speedRatio - 1.05) / 0.55, 0, 1);
     const walkGate = clamp(speedRatio, 0, 1) * (1 - runGate * 0.35);
     const bobStrength = bodyOn
       ? walkGate * bc.walkBob + runGate * bc.runBob
       : clamp(speedRatio, 0, 1.5);
     const targetBob = grounded ? bobStrength : 0;
-    this.bobAmount = lerp(this.bobAmount, targetBob, 1 - Math.exp(-(bodyOn ? 6 : 9) * dt));
-    const bobRate = bodyOn ? 5.1 + speedRatio * 3.4 : 7.2 + speedRatio * 4.2;
+    this.bobAmount = lerp(this.bobAmount, targetBob, 1 - Math.exp(-(bodyOn ? 7 : 9) * dt));
+    const bobRate = bodyOn ? 4.6 + speedRatio * 2.8 : 7.2 + speedRatio * 4.2;
     this.bobPhase += dt * bobRate;
 
     let bobVertical: number;
     let bobHorizontal: number;
     let bobRoll: number;
     if (bodyOn) {
-      // Hard vest mount: pronounced step shock + residual settle when still.
       this.settleNoise = lerp(
         this.settleNoise,
-        grounded && speedRatio < 0.12 ? 0.55 : 0,
-        1 - Math.exp(-2.4 * dt),
+        grounded && speedRatio < 0.1 ? 0.25 : 0,
+        1 - Math.exp(-2.8 * dt),
       );
-      const amp = 0.028 + runGate * 0.038;
+      const amp = 0.01 + runGate * 0.014;
       bobVertical =
         Math.sin(this.bobPhase * 2) * amp * this.bobAmount +
-        Math.sin(this.bobPhase * 4.1) * 0.006 * runGate * this.bobAmount +
-        Math.sin(this.bobPhase * 0.37) * 0.007 * this.settleNoise;
+        Math.sin(this.bobPhase * 0.41) * 0.0025 * this.settleNoise;
       bobHorizontal =
-        Math.sin(this.bobPhase) * (0.032 + runGate * 0.03) * this.bobAmount +
-        Math.sin(this.bobPhase * 0.23) * 0.005 * this.settleNoise;
-      bobRoll = Math.sin(this.bobPhase * 0.5) * 0.022 * this.bobAmount + runGate * 0.008 * this.bobAmount;
+        Math.sin(this.bobPhase) * (0.012 + runGate * 0.01) * this.bobAmount +
+        Math.sin(this.bobPhase * 0.27) * 0.0018 * this.settleNoise;
+      bobRoll = Math.sin(this.bobPhase * 0.5) * 0.008 * this.bobAmount;
     } else {
       bobVertical = Math.sin(this.bobPhase * 2) * 0.022 * this.bobAmount;
       bobHorizontal = Math.sin(this.bobPhase) * 0.026 * this.bobAmount;
@@ -174,24 +166,22 @@ export class CameraRig {
     this.punch = lerp(this.punch, 0, 1 - Math.exp(-13 * dt));
     this.recoilPitch = lerp(this.recoilPitch, 0, 1 - Math.exp(-9 * dt));
     this.recoilYaw = lerp(this.recoilYaw, 0, 1 - Math.exp(-9 * dt));
-    this.shake.amount = Math.max(0, this.shake.amount - dt * 2.4);
+    this.shake.amount = Math.max(0, this.shake.amount - dt * 2.6);
 
-    const strafeRoll = bodyOn ? -strafeRatio * 0.07 : -strafeRatio * 0.028;
-    this.rollAngle = lerp(this.rollAngle, strafeRoll + bobRoll, 1 - Math.exp(-(bodyOn ? 5 : 7) * dt));
+    const strafeRoll = bodyOn ? -strafeRatio * 0.028 : -strafeRatio * 0.028;
+    this.rollAngle = lerp(this.rollAngle, strafeRoll + bobRoll, 1 - Math.exp(-8 * dt));
 
+    const shakeScale = bodyOn ? 0.028 : 0.03;
     const shakeX =
       this.shake.amount > 0
-        ? Math.sin(this.bobPhase * this.shake.frequency) * this.shake.amount * (bodyOn ? 0.055 : 0.03)
+        ? Math.sin(this.bobPhase * this.shake.frequency) * this.shake.amount * shakeScale
         : 0;
     const shakeY =
       this.shake.amount > 0
-        ? Math.cos(this.bobPhase * this.shake.frequency * 1.3) * this.shake.amount * (bodyOn ? 0.055 : 0.03)
+        ? Math.cos(this.bobPhase * this.shake.frequency * 1.3) * this.shake.amount * shakeScale
         : 0;
 
-    const lookYaw = bodyOn ? this.laggedYaw : yaw;
-    const lookPitch = bodyOn ? this.laggedPitch + bc.pitchBias : pitch;
-
-    // Chest mount: offset forward along look, slight right bias (typical chest cam).
+    // Chest mount: forward offset along look, slight right bias.
     let ox = bobHorizontal + shakeX;
     let oy = this.eyeHeight + bobVertical - this.landingDip - this.punch * 0.02;
     let oz = shakeY;
@@ -199,7 +189,7 @@ export class CameraRig {
       const cy = Math.cos(lookYaw);
       const sy = Math.sin(lookYaw);
       const forward = bc.forwardOffset;
-      const side = 0.04;
+      const side = 0.03;
       ox += sy * forward + cy * side;
       oz += cy * forward - sy * side;
     }
@@ -217,7 +207,6 @@ export class CameraRig {
       1 - Math.exp(-12 * dt),
     );
     const fovBoost = bodyOn ? bc.fovBoost : 0;
-    // ADS still narrows FOV; bodycam wide angle is the baseline.
     const fov = (this.baseFov + fovBoost) * this.currentFovMultiplier;
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = fov;
@@ -236,7 +225,6 @@ export class CameraRig {
     return this.currentFovMultiplier;
   }
 
-  /** Horizontal speed ratio helper for callers. */
   static speedRatio(speed: number): number {
     return speed / SPEED_WALK;
   }
@@ -250,16 +238,10 @@ export class CameraRig {
     this.bobAmount = 0;
     this.currentFovMultiplier = 1;
     this.targetFovMultiplier = 1;
-    this.lagSeeded = false;
+    this.aimSeeded = false;
     this.settleNoise = 0;
     this.yawVelocity = 0;
     this.pitchVelocity = 0;
+    this.rollAngle = 0;
   }
-}
-
-function lerpAngle(a: number, b: number, t: number): number {
-  let d = b - a;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return a + d * t;
 }

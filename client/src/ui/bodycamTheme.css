@@ -14,6 +14,56 @@
   opacity: 1;
 }
 
+.bc-shutoff {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleY(1);
+  transform-origin: center;
+  display: none;
+}
+
+.bc-overlay.is-shutting-off .bc-shutoff {
+  display: block;
+  animation: bc-crt-off 0.32s ease-in forwards;
+}
+
+.bc-cam-off {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  z-index: 21;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+}
+
+.bc-overlay.is-cam-off-text .bc-cam-off {
+  display: flex;
+}
+
+.bc-cam-off-label {
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: rgba(236, 236, 232, 0.88);
+  animation: bc-cam-off-flash 0.9s ease-out 1;
+}
+
+.bc-cam-off-sub {
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: rgba(229, 57, 53, 0.75);
+  font-weight: 600;
+}
+
 .bc-rec {
   position: absolute;
   left: max(14px, env(safe-area-inset-left, 0px));
@@ -26,6 +76,7 @@
   letter-spacing: 0.16em;
   font-weight: 700;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  z-index: 22;
 }
 
 .bc-rec.is-off {
@@ -69,6 +120,7 @@
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  z-index: 22;
 }
 
 .bc-cam-id {
@@ -79,6 +131,7 @@
   font-size: 10px;
   letter-spacing: 0.14em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  z-index: 22;
 }
 
 .bc-meta {
@@ -92,6 +145,7 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  z-index: 22;
 }
 
 .bc-battery {
@@ -122,38 +176,43 @@
   background: rgba(236, 236, 232, 0.62);
 }
 
-.bc-cam-off {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  text-align: center;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
-}
-
-.bc-cam-off-label {
-  font-size: clamp(28px, 5vw, 42px);
-  font-weight: 800;
-  letter-spacing: 0.28em;
-  color: rgba(236, 236, 232, 0.88);
-  animation: bc-cam-off-flash 0.9s ease-out 1;
-}
-
-.bc-cam-off-sub {
-  font-size: 11px;
-  letter-spacing: 0.35em;
-  color: rgba(229, 57, 53, 0.75);
-  font-weight: 600;
-}
-
 .bc-overlay.is-cam-off .bc-stamp,
 .bc-overlay.is-cam-off .bc-meta,
 .bc-overlay.is-cam-off .bc-cam-id {
   opacity: 0.35;
+}
+
+@keyframes bc-crt-off {
+  0% {
+    opacity: 0;
+    transform: scaleY(1) scaleX(1);
+    background: #000;
+  }
+  18% {
+    opacity: 1;
+    transform: scaleY(1) scaleX(1);
+    background: #f2f2ee;
+  }
+  32% {
+    opacity: 1;
+    transform: scaleY(0.08) scaleX(1);
+    background: #fff;
+  }
+  55% {
+    opacity: 1;
+    transform: scaleY(0.012) scaleX(0.92);
+    background: #fff;
+  }
+  78% {
+    opacity: 1;
+    transform: scaleY(0.004) scaleX(0.15);
+    background: #c8c8c0;
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(0) scaleX(0);
+    background: #000;
+  }
 }
 
 @keyframes bc-rec-blink {
@@ -186,7 +245,7 @@
   opacity: 0;
 }
 
-/* Keep CAM OFF readable over the death scrim */
+/* Keep death bodycam chrome above the death scrim */
 .hud:has(.death.show) .bc-overlay.is-on {
   opacity: 1;
   z-index: 12;
@@ -196,5 +255,11 @@
   .bc-rec-dot,
   .bc-cam-off-label {
     animation: none;
+  }
+
+  .bc-overlay.is-shutting-off .bc-shutoff {
+    animation: none;
+    opacity: 1;
+    background: #000;
   }
 }

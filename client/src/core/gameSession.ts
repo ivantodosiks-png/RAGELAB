@@ -135,6 +135,7 @@ export class GameSession {
   private lastYaw = 0;
   private lastPitch = 0;
   private respawnAt = 0;
+  private wasAlive = true;
   private previousNow = 0;
   private raf = 0;
   private fps = 60;
@@ -908,9 +909,11 @@ export class GameSession {
       } else if (this.input.isActionHeld('jump') && this.net && this.net.serverNowMs() >= this.respawnAt) {
         this.net.sendRespawnRequest();
       }
-    } else {
+    } else if (!this.wasAlive) {
+      // Rising edge only — never flash CAM OFF / death UI on every alive frame.
       this.ui.hud.hideDeath();
     }
+    this.wasAlive = this.local.alive;
 
     if (this.offline && this.local.alive && predicted.position.y < this.map.killPlaneY) {
       this.offlineRespawn();
@@ -1047,6 +1050,7 @@ export class GameSession {
       case 'death':
         if (event.victim === this.localId) {
           this.respawnAt = event.respawnAt;
+          this.wasAlive = false;
           this.audio.play('death', { volume: 0.8 });
           this.ui.hud.showDeath(event.respawnAt, this.net?.serverNowMs() ?? performance.now());
         }
@@ -1058,6 +1062,7 @@ export class GameSession {
           this.input.resetToggles();
           this.camera.reset();
           this.weapon.equip(this.loadout[0]!, performance.now());
+          this.wasAlive = true;
           this.ui.hud.hideDeath();
           if (this.offline) {
             const inv = createEmptyInventory();
@@ -1212,6 +1217,7 @@ export class GameSession {
     if (this.loadout[this.input.firearmSlot]) {
       this.weapon.equip(this.loadout[this.input.firearmSlot]!, performance.now());
     }
+    this.wasAlive = true;
     this.ui.hud.hideDeath();
   }
 

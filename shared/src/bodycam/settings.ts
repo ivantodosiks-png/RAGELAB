@@ -8,27 +8,33 @@ export interface BodycamSettings {
   chestHeight: number;
   /** Forward push from torso center (meters). */
   forwardOffset: number;
-  /** Slight downward pitch bias (radians). */
+  /** Slight downward pitch bias (radians). Static offset only — never smoothed. */
   pitchBias: number;
-  /** Extra FOV degrees for wide-angle bodycam. */
+  /** Extra FOV degrees (keep low — no fisheye). */
   fovBoost: number;
-  /** Walk bob intensity 0–1. */
+  /** Walk bob intensity 0–1 (subtle vest motion). */
   walkBob: number;
   /** Run bob intensity 0–1. */
   runBob: number;
-  /** Rotational lag / stabilization 0–1 (higher = more lag). */
+  /**
+   * Deprecated: mouse look is always instant. Kept for save compatibility.
+   * @deprecated
+   */
   cameraLag: number;
   /** Global shake multiplier 0–1. */
   shakeIntensity: number;
 
   // ── Lens (post-process) ──────────────────────────────────────────────────
-  /** Barrel / wide-angle distortion 0–1. */
+  /**
+   * Deprecated: barrel/fisheye disabled — image stays proportional.
+   * @deprecated
+   */
   barrelDistortion: number;
-  /** Optical corner vignette 0–1. */
+  /** Soft corner darkening 0–1 (no warp). */
   vignette: number;
-  /** Edge-only chromatic aberration 0–1. */
+  /** Very mild edge chromatic aberration 0–1 (no geometry warp). */
   chromaticAberration: number;
-  /** Softness toward frame edges 0–1. */
+  /** Deprecated edge softness — kept for saves, unused when distortion-free. */
   edgeBlur: number;
 
   // ── Sensor (post-process) ────────────────────────────────────────────────
@@ -36,7 +42,7 @@ export interface BodycamSettings {
   noise: number;
   /** Mild unsharp mask 0–1. */
   sharpening: number;
-  /** Motion blur strength 0–1. */
+  /** Motion blur strength 0–1 (only on fast turns). */
   motionBlur: number;
 
   // ── Exposure ─────────────────────────────────────────────────────────────
@@ -55,26 +61,26 @@ export interface BodycamSettings {
 
 export const DEFAULT_BODYCAM: BodycamSettings = {
   enabled: true,
-  chestHeight: 0.71,
-  forwardOffset: 0.2,
-  pitchBias: -0.1,
-  fovBoost: 26,
-  walkBob: 0.9,
-  runBob: 1,
-  cameraLag: 0.68,
-  shakeIntensity: 1,
-  barrelDistortion: 0.55,
-  vignette: 0.62,
-  chromaticAberration: 0.4,
-  edgeBlur: 0.48,
-  noise: 0.42,
-  sharpening: 0.45,
-  motionBlur: 0.62,
+  chestHeight: 0.74,
+  forwardOffset: 0.12,
+  pitchBias: -0.03,
+  fovBoost: 6,
+  walkBob: 0.38,
+  runBob: 0.55,
+  cameraLag: 0,
+  shakeIntensity: 0.55,
+  barrelDistortion: 0,
+  vignette: 0.28,
+  chromaticAberration: 0.12,
+  edgeBlur: 0,
+  noise: 0.18,
+  sharpening: 0.22,
+  motionBlur: 0.22,
   autoExposure: true,
-  exposureSpeed: 0.72,
-  minExposure: 0.38,
-  maxExposure: 2.05,
-  whiteBalance: 0.55,
+  exposureSpeed: 0.95,
+  minExposure: 0.5,
+  maxExposure: 1.7,
+  whiteBalance: 0.35,
   showRec: true,
   showMeta: true,
 };
@@ -89,12 +95,12 @@ export function bodycamQualityScale(quality: string): {
 } {
   switch (quality) {
     case 'low':
-      return { post: true, exposure: false, motionBlur: false, noise: 0.45, samples: 0 };
+      return { post: true, exposure: false, motionBlur: false, noise: 0.4, samples: 0 };
     case 'medium':
-      return { post: true, exposure: true, motionBlur: true, noise: 0.75, samples: 1 };
+      return { post: true, exposure: true, motionBlur: true, noise: 0.7, samples: 1 };
     case 'ultra':
       return { post: true, exposure: true, motionBlur: true, noise: 1, samples: 3 };
     default:
-      return { post: true, exposure: true, motionBlur: true, noise: 0.9, samples: 2 };
+      return { post: true, exposure: true, motionBlur: true, noise: 0.85, samples: 2 };
   }
 }

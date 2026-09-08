@@ -259,7 +259,10 @@ export class Hud {
     this.root.style.display = visible ? '' : 'none';
     this.root.classList.toggle('hud-ready', visible);
     this.bodycam.setVisible(visible);
-    if (visible) this.bodycam.resetRecTimer();
+    if (visible) {
+      this.bodycam.clearDeath();
+      this.bodycam.resetRecTimer();
+    }
   }
 
   applyBodycamSettings(): void {
@@ -559,13 +562,16 @@ export class Hud {
     this.deathEndsAt = respawnAt;
     this.updateDeath(now);
     this.death.onclick = () => this.onRespawn?.();
-    this.bodycam.setCamOff(true);
+    this.bodycam.playDeathShutoff();
   }
 
   hideDeath(): void {
-    if (!this.death.classList.contains('show')) return;
+    if (!this.death.classList.contains('show')) {
+      this.bodycam.clearDeath();
+      return;
+    }
     this.death.classList.remove('show');
-    this.bodycam.setCamOff(false);
+    this.bodycam.clearDeath();
     this.bodycam.resetRecTimer();
   }
 

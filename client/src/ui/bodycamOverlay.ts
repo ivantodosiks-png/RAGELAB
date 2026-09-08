@@ -1,8 +1,11 @@
 import type { BodycamSettings } from '@ragelab/shared';
 import { el } from './dom';
 
+const SHUTOFF_MS = 320;
+
 /**
  * Minimal digital bodycam recording HUD — Axon/Bodycam-footage style chrome.
+ * CAM OFF only after an explicit death shutoff; never on spawn/load.
  */
 export class BodycamOverlay {
   readonly root: HTMLElement;
@@ -13,16 +16,21 @@ export class BodycamOverlay {
   private readonly meta: HTMLElement;
   private readonly batteryFill: HTMLElement;
   private readonly camOff: HTMLElement;
+  private readonly shutoff: HTMLElement;
   private settings: BodycamSettings;
   private recStartedAt = performance.now();
   private raf = 0;
   private visible = false;
   private camOffActive = false;
+  private shutoffTimer = 0;
 
   constructor(settings: BodycamSettings) {
     this.settings = { ...settings };
     this.root = el('div', 'bc-overlay');
     this.root.setAttribute('aria-hidden', 'true');
+
+    this.shutoff = el('div', 'bc-shutoff');
+    this.shutoff.setAttribute('aria-hidden', 'true');
 
     this.rec = el('div', 'bc-rec');
     this.rec.innerHTML = `<span class="bc-rec-dot"></span><span class="bc-rec-label">REC</span>`;
@@ -42,27 +50,48 @@ export class BodycamOverlay {
     this.camOff = el('div', 'bc-cam-off');
     this.camOff.innerHTML =
       `<span class="bc-cam-off-label">CAM OFF</span><span class="bc-cam-off-sub">SIGNAL LOST</span>`;
-    this.camOff.hidden = true;
 
-    this.root.append(this.rec, this.stamp, this.camId, this.meta, this.camOff);
+    this.root.append(this.shutoff, this.rec, this.stamp, this.camId, this.meta, this.camOff);
+    this.clearDeath();
     this.apply(settings);
   }
 
   setVisible(on: boolean): void {
     this.visible = on;
+    if (!on) this.clearDeath();
     this.syncVisibility();
   }
 
-  /** Freeze recording UI and show CAM OFF (local player death). */
-  setCamOff(off: boolean): void {
-    this.camOffActive = off;
-    this.root.classList.toggle('is-cam-off', off);
-    this.camOff.hidden = !off;
-    this.rec.classList.toggle('is-off', off);
+  /**
+   * CRT-style shutoff then CAM OFF. Call only on real local-player death.
+   */
+  playDeathShutoff(): void {
+    if (this.camOffActive && this.root.classList.contains('is-shutting-off')) return;
+    window.clearTimeout(this.shutoffTimer);
+    this.camOffActive = true;
+    this.root.classList.add('is-cam-off', 'is-shutting-off');
+    this.root.classList.remove('is-cam-off-text');
+    this.rec.classList.add('is-off');
     const label = this.rec.querySelector('.bc-rec-label');
-    if (label) label.textContent = off ? 'OFF' : 'REC';
-    if (off) this.stopRecClock();
-    else if (this.visible && this.settings.enabled && this.settings.showRec) this.startRecClock();
+    if (label) label.textContent = 'OFF';
+    this.stopRecClock();
+    this.syncVisibility();
+
+    this.shutoffTimer = window.setTimeout(() => {
+      this.root.classList.remove('is-shutting-off');
+      this.root.classList.add('is-cam-off-text');
+    }, SHUTOFF_MS);
+  }
+
+  /** Full reset after respawn / leaving match. */
+  clearDeath(): void {
+    window.clearTimeout(this.shutoffTimer);
+    this.shutoffTimer = 0;
+    this.camOffActive = false;
+    this.root.classList.remove('is-cam-off', 'is-shutting-off', 'is-cam-off-text');
+    this.rec.classList.remove('is-off');
+    const label = this.rec.querySelector('.bc-rec-label');
+    if (label) label.textContent = 'REC';
     this.syncVisibility();
   }
 
@@ -82,6 +111,7 @@ export class BodycamOverlay {
   }
 
   dispose(): void {
+    window.clearTimeout(this.shutoffTimer);
     this.stopRecClock();
     this.root.remove();
   }

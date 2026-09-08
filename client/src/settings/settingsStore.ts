@@ -11,8 +11,8 @@ import {
 import { EventBus } from '../core/eventBus';
 
 const STORAGE_KEY = 'ragelab.settings.v1';
-/** Bump to force-apply new hard bodycam defaults over soft saved values. */
-const BODYCAM_PRESET_REV = 2;
+/** Bump to force-apply refined bodycam defaults (no distortion, instant look). */
+const BODYCAM_PRESET_REV = 3;
 const BODYCAM_REV_KEY = 'ragelab.bodycam.rev';
 
 export interface SettingsEvents {

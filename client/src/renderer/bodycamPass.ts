@@ -13,15 +13,13 @@ void main() {
 }
 `;
 
-/** Full-frame digital bodycam look — no circular crop. */
+/** Full-frame digital bodycam look — proportional image, no fisheye/warp. */
 const FRAG = /* glsl */ `
 precision highp float;
 uniform sampler2D tDiffuse;
 uniform vec2 uResolution;
-uniform float uBarrel;
 uniform float uVignette;
 uniform float uChroma;
-uniform float uEdgeBlur;
 uniform float uNoise;
 uniform float uSharpen;
 uniform float uMotion;
@@ -36,17 +34,6 @@ float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-vec2 barrel(vec2 uv, float amount) {
-  vec2 c = vec2(0.5);
-  vec2 d = uv - c;
-  float aspect = uResolution.x / max(uResolution.y, 1.0);
-  d.x *= aspect;
-  float r2 = dot(d, d);
-  d *= 1.0 + amount * r2;
-  d.x /= aspect;
-  return c + d;
-}
-
 float luma(vec3 c) {
   return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
@@ -57,73 +44,52 @@ void main() {
   vec2 d = uv - vec2(0.5);
   vec2 dn = vec2(d.x * aspect, d.y);
   float dist = length(dn);
-  float edge = smoothstep(0.15, 0.72, dist);
+  float edge = smoothstep(0.22, 0.78, dist);
 
-  vec2 distorted = barrel(uv, uBarrel * 0.72);
-
-  // Mild motion blur along recent angular motion.
+  // No UV warp — keep geometry proportional across the whole frame.
   vec2 mDir = uMotionDir;
-  float mAmt = uMotion * edge * 0.018;
-  vec2 px = (uEdgeBlur * edge * 2.2) / uResolution;
+  float mAmt = uMotion * 0.008;
 
-  vec2 radial = normalize(distorted - vec2(0.5) + 1e-5);
-  float ca = uChroma * 0.0048 * edge * edge;
-
-  vec2 uvR = distorted + radial * ca + mDir * mAmt;
-  vec2 uvG = distorted;
-  vec2 uvB = distorted - radial * ca - mDir * mAmt;
+  // Tiny edge-only CA (samples nearby pixels; does not stretch the image).
+  float ca = uChroma * 0.0018 * edge * edge;
+  vec2 radial = normalize(d + 1e-5);
 
   vec3 col;
-  col.r = texture2D(tDiffuse, uvR).r;
-  col.g = texture2D(tDiffuse, uvG).g;
-  col.b = texture2D(tDiffuse, uvB).b;
+  col.r = texture2D(tDiffuse, uv + radial * ca).r;
+  col.g = texture2D(tDiffuse, uv).g;
+  col.b = texture2D(tDiffuse, uv - radial * ca).b;
 
-  if (uMotion > 0.02) {
-    vec3 a = texture2D(tDiffuse, distorted + mDir * mAmt * 0.5).rgb;
-    vec3 b = texture2D(tDiffuse, distorted - mDir * mAmt * 0.5).rgb;
-    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * edge, 0.0, 0.55));
+  if (uMotion > 0.04) {
+    vec3 a = texture2D(tDiffuse, uv + mDir * mAmt).rgb;
+    vec3 b = texture2D(tDiffuse, uv - mDir * mAmt).rgb;
+    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * 0.35, 0.0, 0.35));
   }
 
-  if (uEdgeBlur > 0.01) {
-    vec3 blur =
-      texture2D(tDiffuse, distorted + vec2( px.x, 0.0)).rgb +
-      texture2D(tDiffuse, distorted + vec2(-px.x, 0.0)).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0,  px.y)).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0, -px.y)).rgb;
-    col = mix(col, blur * 0.25, clamp(edge * uEdgeBlur, 0.0, 0.65));
-  }
-
-  // Subtle sharpen in center.
   if (uSharpen > 0.01) {
     vec3 blur =
-      texture2D(tDiffuse, distorted + vec2(1.0, 0.0) / uResolution).rgb +
-      texture2D(tDiffuse, distorted + vec2(-1.0, 0.0) / uResolution).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0, 1.0) / uResolution).rgb +
-      texture2D(tDiffuse, distorted + vec2(0.0, -1.0) / uResolution).rgb;
+      texture2D(tDiffuse, uv + vec2(1.0, 0.0) / uResolution).rgb +
+      texture2D(tDiffuse, uv + vec2(-1.0, 0.0) / uResolution).rgb +
+      texture2D(tDiffuse, uv + vec2(0.0, 1.0) / uResolution).rgb +
+      texture2D(tDiffuse, uv + vec2(0.0, -1.0) / uResolution).rgb;
     blur *= 0.25;
-    col += (col - blur) * uSharpen * (1.0 - edge * 0.85);
+    col += (col - blur) * uSharpen * (1.0 - edge * 0.5);
   }
 
   col *= uExposure;
   col *= uWB;
 
-  // Optical vignette (corners), not a drawn circle.
-  float vig = 1.0 - uVignette * pow(clamp(dist * 1.28, 0.0, 1.0), 1.35);
+  // Soft optical corner falloff — darkens only, never warps.
+  float vig = 1.0 - uVignette * pow(clamp(dist * 1.15, 0.0, 1.0), 1.75);
   col *= vig;
 
-  // Digital sensor noise — stronger in darks.
   float nAmt = uNoise * uQualityNoise;
   if (nAmt > 0.001) {
-    float n = hash(gl_FragCoord.xy + vec2(uTime * 90.0, uTime * 23.0)) - 0.5;
-    float dark = 1.0 - smoothstep(0.04, 0.4, luma(col));
-    col += n * nAmt * (0.055 + dark * 0.1);
-    col.r += (hash(gl_FragCoord.xy + 19.0) - 0.5) * nAmt * 0.02;
-    col.b += (hash(gl_FragCoord.xy + 41.0) - 0.5) * nAmt * 0.02;
+    float n = hash(gl_FragCoord.xy + vec2(uTime * 70.0, uTime * 19.0)) - 0.5;
+    float dark = 1.0 - smoothstep(0.05, 0.42, luma(col));
+    col += n * nAmt * (0.028 + dark * 0.05);
   }
 
-  // Soft compression-ish crush in highlights
-  col = col / (1.0 + col * 0.12);
-
+  col = col / (1.0 + col * 0.06);
   gl_FragColor = vec4(clamp(col, 0.0, 4.0), 1.0);
 }
 `;
@@ -172,12 +138,10 @@ export class BodycamPass {
       uniforms: {
         tDiffuse: { value: null as THREE.Texture | null },
         uResolution: { value: new THREE.Vector2(1, 1) },
-        uBarrel: { value: 0.35 },
-        uVignette: { value: 0.4 },
-        uChroma: { value: 0.2 },
-        uEdgeBlur: { value: 0.25 },
-        uNoise: { value: 0.2 },
-        uSharpen: { value: 0.2 },
+        uVignette: { value: 0.28 },
+        uChroma: { value: 0.12 },
+        uNoise: { value: 0.18 },
+        uSharpen: { value: 0.22 },
         uMotion: { value: 0 },
         uMotionDir: { value: new THREE.Vector2(0, 0) },
         uExposure: { value: 1 },
@@ -217,11 +181,8 @@ export class BodycamPass {
       this.wb.set(1, 1, 1);
     }
     const u = this.material.uniforms;
-    // LOW: keep light optics, drop heavy edge/sharpen work.
-    u.uBarrel!.value = settings.barrelDistortion * (quality === 'low' ? 0.75 : 1);
-    u.uVignette!.value = settings.vignette * (quality === 'low' ? 0.85 : 1);
-    u.uChroma!.value = settings.chromaticAberration * (quality === 'low' ? 0.35 : 1);
-    u.uEdgeBlur!.value = quality === 'low' ? 0 : settings.edgeBlur;
+    u.uVignette!.value = settings.vignette * (quality === 'low' ? 0.75 : 1);
+    u.uChroma!.value = settings.chromaticAberration * (quality === 'low' ? 0.4 : 1);
     u.uNoise!.value = settings.noise;
     u.uSharpen!.value = quality === 'low' ? 0 : settings.sharpening;
     u.uQualityNoise!.value = q.noise;
