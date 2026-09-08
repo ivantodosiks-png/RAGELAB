@@ -118,10 +118,10 @@ export class CameraRig {
     this.lastYaw = yaw;
     this.lastPitch = pitch;
 
-    // Rotational lag (bodycam vest inertia) — not classic FPS snap.
+      // Rotational lag (bodycam vest inertia) — heavier than classic FPS.
     if (bodyOn) {
       const lag = clamp(bc.cameraLag, 0, 1);
-      const follow = 1 - Math.exp(-(4.5 + (1 - lag) * 14) * dt);
+      const follow = 1 - Math.exp(-(2.8 + (1 - lag) * 11) * dt);
       this.laggedYaw = lerpAngle(this.laggedYaw, yaw, follow);
       this.laggedPitch = lerp(this.laggedPitch, pitch, follow);
     } else {
@@ -149,20 +149,21 @@ export class CameraRig {
     let bobHorizontal: number;
     let bobRoll: number;
     if (bodyOn) {
-      // Step-driven vertical + lateral sway; residual settle when almost still.
+      // Hard vest mount: pronounced step shock + residual settle when still.
       this.settleNoise = lerp(
         this.settleNoise,
-        grounded && speedRatio < 0.12 ? 0.35 : 0,
-        1 - Math.exp(-3 * dt),
+        grounded && speedRatio < 0.12 ? 0.55 : 0,
+        1 - Math.exp(-2.4 * dt),
       );
-      const amp = 0.018 + runGate * 0.022;
+      const amp = 0.028 + runGate * 0.038;
       bobVertical =
         Math.sin(this.bobPhase * 2) * amp * this.bobAmount +
-        Math.sin(this.bobPhase * 0.37) * 0.004 * this.settleNoise;
+        Math.sin(this.bobPhase * 4.1) * 0.006 * runGate * this.bobAmount +
+        Math.sin(this.bobPhase * 0.37) * 0.007 * this.settleNoise;
       bobHorizontal =
-        Math.sin(this.bobPhase) * (0.02 + runGate * 0.018) * this.bobAmount +
-        Math.sin(this.bobPhase * 0.23) * 0.003 * this.settleNoise;
-      bobRoll = Math.sin(this.bobPhase * 0.5) * 0.012 * this.bobAmount;
+        Math.sin(this.bobPhase) * (0.032 + runGate * 0.03) * this.bobAmount +
+        Math.sin(this.bobPhase * 0.23) * 0.005 * this.settleNoise;
+      bobRoll = Math.sin(this.bobPhase * 0.5) * 0.022 * this.bobAmount + runGate * 0.008 * this.bobAmount;
     } else {
       bobVertical = Math.sin(this.bobPhase * 2) * 0.022 * this.bobAmount;
       bobHorizontal = Math.sin(this.bobPhase) * 0.026 * this.bobAmount;
@@ -175,16 +176,16 @@ export class CameraRig {
     this.recoilYaw = lerp(this.recoilYaw, 0, 1 - Math.exp(-9 * dt));
     this.shake.amount = Math.max(0, this.shake.amount - dt * 2.4);
 
-    const strafeRoll = bodyOn ? -strafeRatio * 0.04 : -strafeRatio * 0.028;
-    this.rollAngle = lerp(this.rollAngle, strafeRoll + bobRoll, 1 - Math.exp(-7 * dt));
+    const strafeRoll = bodyOn ? -strafeRatio * 0.07 : -strafeRatio * 0.028;
+    this.rollAngle = lerp(this.rollAngle, strafeRoll + bobRoll, 1 - Math.exp(-(bodyOn ? 5 : 7) * dt));
 
     const shakeX =
       this.shake.amount > 0
-        ? Math.sin(this.bobPhase * this.shake.frequency) * this.shake.amount * (bodyOn ? 0.038 : 0.03)
+        ? Math.sin(this.bobPhase * this.shake.frequency) * this.shake.amount * (bodyOn ? 0.055 : 0.03)
         : 0;
     const shakeY =
       this.shake.amount > 0
-        ? Math.cos(this.bobPhase * this.shake.frequency * 1.3) * this.shake.amount * (bodyOn ? 0.038 : 0.03)
+        ? Math.cos(this.bobPhase * this.shake.frequency * 1.3) * this.shake.amount * (bodyOn ? 0.055 : 0.03)
         : 0;
 
     const lookYaw = bodyOn ? this.laggedYaw : yaw;

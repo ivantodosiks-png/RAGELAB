@@ -11,6 +11,9 @@ import {
 import { EventBus } from '../core/eventBus';
 
 const STORAGE_KEY = 'ragelab.settings.v1';
+/** Bump to force-apply new hard bodycam defaults over soft saved values. */
+const BODYCAM_PRESET_REV = 2;
+const BODYCAM_REV_KEY = 'ragelab.bodycam.rev';
 
 export interface SettingsEvents {
   changed: UserSettings;
@@ -53,9 +56,18 @@ export class SettingsStore {
   private load(): UserSettings {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return structuredClone(DEFAULT_SETTINGS);
+      if (!raw) {
+        localStorage.setItem(BODYCAM_REV_KEY, String(BODYCAM_PRESET_REV));
+        return structuredClone(DEFAULT_SETTINGS);
+      }
       const parsed = JSON.parse(raw);
       const merged = mergeSettings(structuredClone(DEFAULT_SETTINGS), parsed);
+      const rev = Number(localStorage.getItem(BODYCAM_REV_KEY) || '0');
+      if (rev < BODYCAM_PRESET_REV) {
+        merged.graphics.bodycam = structuredClone(DEFAULT_SETTINGS.graphics.bodycam);
+        localStorage.setItem(BODYCAM_REV_KEY, String(BODYCAM_PRESET_REV));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      }
       const oldCrouch = parsed?.controls?.bindings?.crouch;
       if (oldCrouch === 'ControlLeft' || oldCrouch === 'ControlRight') {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));

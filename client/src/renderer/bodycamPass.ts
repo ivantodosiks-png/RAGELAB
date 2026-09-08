@@ -59,15 +59,15 @@ void main() {
   float dist = length(dn);
   float edge = smoothstep(0.15, 0.72, dist);
 
-  vec2 distorted = barrel(uv, uBarrel * 0.55);
+  vec2 distorted = barrel(uv, uBarrel * 0.72);
 
   // Mild motion blur along recent angular motion.
   vec2 mDir = uMotionDir;
-  float mAmt = uMotion * edge * 0.012;
-  vec2 px = (uEdgeBlur * edge * 1.8) / uResolution;
+  float mAmt = uMotion * edge * 0.018;
+  vec2 px = (uEdgeBlur * edge * 2.2) / uResolution;
 
   vec2 radial = normalize(distorted - vec2(0.5) + 1e-5);
-  float ca = uChroma * 0.0032 * edge * edge;
+  float ca = uChroma * 0.0048 * edge * edge;
 
   vec2 uvR = distorted + radial * ca + mDir * mAmt;
   vec2 uvG = distorted;
@@ -108,22 +108,21 @@ void main() {
   col *= uWB;
 
   // Optical vignette (corners), not a drawn circle.
-  float vig = 1.0 - uVignette * pow(clamp(dist * 1.35, 0.0, 1.0), 1.6);
+  float vig = 1.0 - uVignette * pow(clamp(dist * 1.28, 0.0, 1.0), 1.35);
   col *= vig;
 
   // Digital sensor noise — stronger in darks.
   float nAmt = uNoise * uQualityNoise;
   if (nAmt > 0.001) {
-    float n = hash(gl_FragCoord.xy + vec2(uTime * 60.0, uTime * 17.0)) - 0.5;
-    float dark = 1.0 - smoothstep(0.05, 0.45, luma(col));
-    col += n * nAmt * (0.035 + dark * 0.06);
-    // Mild chroma noise
-    col.r += (hash(gl_FragCoord.xy + 19.0) - 0.5) * nAmt * 0.012;
-    col.b += (hash(gl_FragCoord.xy + 41.0) - 0.5) * nAmt * 0.012;
+    float n = hash(gl_FragCoord.xy + vec2(uTime * 90.0, uTime * 23.0)) - 0.5;
+    float dark = 1.0 - smoothstep(0.04, 0.4, luma(col));
+    col += n * nAmt * (0.055 + dark * 0.1);
+    col.r += (hash(gl_FragCoord.xy + 19.0) - 0.5) * nAmt * 0.02;
+    col.b += (hash(gl_FragCoord.xy + 41.0) - 0.5) * nAmt * 0.02;
   }
 
   // Soft compression-ish crush in highlights
-  col = col / (1.0 + col * 0.08);
+  col = col / (1.0 + col * 0.12);
 
   gl_FragColor = vec4(clamp(col, 0.0, 4.0), 1.0);
 }

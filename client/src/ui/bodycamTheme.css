@@ -1,4 +1,4 @@
-/* Bodycam recording HUD — technical, tiny, no lens frame */
+/* Hard bodycam recording chrome — technical Axon/Bodycam-footage style */
 
 .bc-overlay {
   position: absolute;
@@ -6,8 +6,8 @@
   z-index: 6;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.18s ease;
-  font-family: "Consolas", "Segoe UI Mono", ui-monospace, monospace;
+  transition: opacity 0.12s ease;
+  font-family: "Consolas", "Lucida Console", "Segoe UI Mono", ui-monospace, monospace;
 }
 
 .bc-overlay.is-on {
@@ -16,58 +16,89 @@
 
 .bc-rec {
   position: absolute;
-  left: max(12px, env(safe-area-inset-left, 0px));
-  top: max(10px, env(safe-area-inset-top, 0px));
+  left: max(14px, env(safe-area-inset-left, 0px));
+  top: max(12px, env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: rgba(230, 232, 228, 0.62);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-  opacity: 0.78;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  gap: 7px;
+  color: rgba(236, 236, 232, 0.78);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+.bc-rec.is-off {
+  color: rgba(200, 200, 196, 0.55);
+}
+
+.bc-rec.is-off .bc-rec-dot {
+  background: #555;
+  box-shadow: none;
+  animation: none;
+  opacity: 0.7;
 }
 
 .bc-rec-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #c62828;
-  box-shadow: 0 0 4px rgba(198, 40, 40, 0.45);
-  animation: bc-rec-blink 1.6s steps(1) infinite;
+  background: #e53935;
+  box-shadow: 0 0 5px rgba(229, 57, 53, 0.55);
+  animation: bc-rec-blink 1.35s steps(1) infinite;
 }
 
 .bc-rec-label {
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
 }
 
 .bc-rec-timer {
   margin-left: 2px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.06em;
-  color: rgba(230, 232, 228, 0.48);
-  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(236, 236, 232, 0.55);
+  font-weight: 600;
+}
+
+.bc-stamp {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left, 0px));
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  color: rgba(236, 236, 232, 0.48);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.bc-cam-id {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  color: rgba(236, 236, 232, 0.4);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .bc-meta {
   position: absolute;
-  right: max(12px, env(safe-area-inset-right, 0px));
-  top: max(10px, env(safe-area-inset-top, 0px));
+  right: max(14px, env(safe-area-inset-right, 0px));
+  top: max(12px, env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   gap: 10px;
-  color: rgba(230, 232, 228, 0.45);
+  color: rgba(236, 236, 232, 0.5);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.12em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
 }
 
 .bc-battery {
   position: relative;
   width: 18px;
   height: 8px;
-  border: 1px solid rgba(230, 232, 228, 0.4);
+  border: 1px solid rgba(236, 236, 232, 0.45);
   border-radius: 1px;
   padding: 1px;
   box-sizing: border-box;
@@ -80,25 +111,73 @@
   top: 1.5px;
   width: 2px;
   height: 4px;
-  background: rgba(230, 232, 228, 0.4);
+  background: rgba(236, 236, 232, 0.45);
   border-radius: 0 1px 1px 0;
 }
 
 .bc-battery-fill {
   display: block;
   height: 100%;
-  width: 86%;
-  background: rgba(230, 232, 228, 0.55);
+  width: 78%;
+  background: rgba(236, 236, 232, 0.62);
+}
+
+.bc-cam-off {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+}
+
+.bc-cam-off-label {
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: rgba(236, 236, 232, 0.88);
+  animation: bc-cam-off-flash 0.9s ease-out 1;
+}
+
+.bc-cam-off-sub {
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: rgba(229, 57, 53, 0.75);
+  font-weight: 600;
+}
+
+.bc-overlay.is-cam-off .bc-stamp,
+.bc-overlay.is-cam-off .bc-meta,
+.bc-overlay.is-cam-off .bc-cam-id {
+  opacity: 0.35;
 }
 
 @keyframes bc-rec-blink {
   0%,
-  55% {
+  52% {
     opacity: 1;
   }
-  56%,
+  53%,
   100% {
-    opacity: 0.2;
+    opacity: 0.15;
+  }
+}
+
+@keyframes bc-cam-off-flash {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.5em;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    letter-spacing: 0.28em;
   }
 }
 
@@ -107,8 +186,15 @@
   opacity: 0;
 }
 
+/* Keep CAM OFF readable over the death scrim */
+.hud:has(.death.show) .bc-overlay.is-on {
+  opacity: 1;
+  z-index: 12;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .bc-rec-dot {
+  .bc-rec-dot,
+  .bc-cam-off-label {
     animation: none;
   }
 }

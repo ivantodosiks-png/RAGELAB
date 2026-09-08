@@ -193,7 +193,6 @@ export class Hud {
     this.toast = el('div', 'toast');
 
     this.death = el('div', 'death');
-    this.death.append(el('h2', '', 'Eliminated'));
     this.deathSub = el('p', '', '');
     this.death.append(this.deathSub);
 
@@ -567,10 +566,14 @@ export class Hud {
     this.deathEndsAt = respawnAt;
     this.updateDeath(now);
     this.death.onclick = () => this.onRespawn?.();
+    this.bodycam.setCamOff(true);
   }
 
   hideDeath(): void {
+    if (!this.death.classList.contains('show')) return;
     this.death.classList.remove('show');
+    this.bodycam.setCamOff(false);
+    this.bodycam.resetRecTimer();
   }
 
   private updateDeath(now: number): void {
