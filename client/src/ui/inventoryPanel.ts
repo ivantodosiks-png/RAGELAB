@@ -169,16 +169,45 @@ export class InventoryPanel {
 
     const figure = el('div', 'inv-figure');
     figure.innerHTML = `
-      <div class="inv-man" aria-hidden="true">
-        <div class="inv-man-head"></div>
-        <div class="inv-man-neck"></div>
-        <div class="inv-man-torso"></div>
-        <div class="inv-man-arm inv-man-arm--l"></div>
-        <div class="inv-man-arm inv-man-arm--r"></div>
-        <div class="inv-man-hip"></div>
-        <div class="inv-man-leg inv-man-leg--l"></div>
-        <div class="inv-man-leg inv-man-leg--r"></div>
-        <div class="inv-man-rifle"></div>
+      <div class="inv-op" aria-hidden="true">
+        <div class="inv-op-glow"></div>
+        <div class="inv-op-shadow"></div>
+        <div class="inv-op-body">
+          <div class="inv-op-helmet">
+            <span class="inv-op-visor"></span>
+            <span class="inv-op-nvg"></span>
+          </div>
+          <div class="inv-op-neck"></div>
+          <div class="inv-op-torso">
+            <span class="inv-op-plate"></span>
+            <span class="inv-op-pouches"></span>
+            <span class="inv-op-radio"></span>
+          </div>
+          <div class="inv-op-arm inv-op-arm--l">
+            <span class="inv-op-sleeve"></span>
+            <span class="inv-op-glove"></span>
+          </div>
+          <div class="inv-op-arm inv-op-arm--r">
+            <span class="inv-op-sleeve"></span>
+            <span class="inv-op-glove"></span>
+          </div>
+          <div class="inv-op-belt"></div>
+          <div class="inv-op-leg inv-op-leg--l">
+            <span class="inv-op-knee"></span>
+            <span class="inv-op-boot"></span>
+          </div>
+          <div class="inv-op-leg inv-op-leg--r">
+            <span class="inv-op-knee"></span>
+            <span class="inv-op-boot"></span>
+          </div>
+          <div class="inv-op-rifle">
+            <span class="inv-op-rifle-stock"></span>
+            <span class="inv-op-rifle-body"></span>
+            <span class="inv-op-rifle-mag"></span>
+            <span class="inv-op-rifle-barrel"></span>
+          </div>
+        </div>
+        <div class="inv-op-tag">OPERATOR</div>
       </div>`;
     stage.append(figure);
 

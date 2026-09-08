@@ -1,5 +1,5 @@
 import { el } from './dom';
-import { BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
+import { TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
 import { settingsStore } from '../settings/settingsStore';
 import { BodycamOverlay } from './bodycamOverlay';
@@ -24,7 +24,7 @@ export interface HudSlotInfo {
 
 export type ToolGunKind = 'NPC' | 'Prop' | 'Tool' | 'Weapon';
 
-const WHEEL_SLOTS = 6;
+const WHEEL_SLOTS = 4;
 const WHEEL_DEADZONE = 36;
 
 export class Hud {
@@ -317,7 +317,7 @@ export class Hud {
     this.loadout = slots.slice();
     if (key === this.loadoutKey) return;
     this.loadoutKey = key;
-    for (let i = 0; i < BUILD_PLAN_UI_SLOT; i++) {
+    for (let i = 0; i < TOOL_GUN_UI_SLOT; i++) {
       const info = slots[i];
       const name = this.slotNames[i];
       const icon = this.slotIcons[i];
@@ -329,21 +329,14 @@ export class Hud {
       if (wName) wName.textContent = info && info.id ? shortWeaponName(info.name) : '—';
       if (wIcon) wIcon.innerHTML = slotGlyph(info?.id || 'empty');
     }
-    const labels: Array<[number, string, string]> = [
-      [BUILD_PLAN_UI_SLOT, 'Build', 'build'],
-      [HAMMER_UI_SLOT, 'Hammer', 'hammer'],
-      [TOOL_GUN_UI_SLOT, 'Tool Gun', 'toolgun'],
-    ];
-    for (const [slot, label, glyph] of labels) {
-      const name = this.slotNames[slot];
-      const icon = this.slotIcons[slot];
-      if (name) name.textContent = label;
-      if (icon) icon.innerHTML = slotGlyph(glyph);
-      const wName = this.wheelNames[slot];
-      const wIcon = this.wheelIcons[slot];
-      if (wName) wName.textContent = label;
-      if (wIcon) wIcon.innerHTML = slotGlyph(glyph);
-    }
+    const name = this.slotNames[TOOL_GUN_UI_SLOT];
+    const icon = this.slotIcons[TOOL_GUN_UI_SLOT];
+    if (name) name.textContent = 'Tool Gun';
+    if (icon) icon.innerHTML = slotGlyph('toolgun');
+    const wName = this.wheelNames[TOOL_GUN_UI_SLOT];
+    const wIcon = this.wheelIcons[TOOL_GUN_UI_SLOT];
+    if (wName) wName.textContent = 'Tool Gun';
+    if (wIcon) wIcon.innerHTML = slotGlyph('toolgun');
   }
 
   setActiveSlot(slot: number): void {

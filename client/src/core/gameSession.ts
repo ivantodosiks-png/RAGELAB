@@ -51,7 +51,7 @@ import { MapDecor } from '../maps/mapDecor';
 import { pickMapSpawn, pickTeamSpawn } from '../maps/spawnLayout';
 import { LocalPlayer } from '../player/localPlayer';
 import { LocalCharacter, clipFromAnimation } from '../player/localCharacter';
-import { InputController, BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
+import { InputController, TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { InventoryPanel } from '../ui/inventoryPanel';
 import { CameraRig } from '../player/cameraRig';
 import { NetClient, type ConnectOptions } from '../networking/netClient';
@@ -762,7 +762,7 @@ export class GameSession {
       this.inspectChamberedMag();
     }
 
-    // Weapon wheel (Q hold) disabled — use hotbar 1–6 instead.
+    // Weapon wheel (Q hold) disabled — use hotbar 1–4 instead.
     if (this.input.weaponWheelOpen) {
       this.ui.hud.cancelWeaponWheel();
       this.input.closeWeaponWheel();
@@ -1134,15 +1134,6 @@ export class GameSession {
     if (slot === TOOL_GUN_UI_SLOT) {
       this.sandbox.setTool('toolGun');
       this.audio.play('equip', { volume: 0.62 });
-      return;
-    }
-    if (slot === BUILD_PLAN_UI_SLOT || slot === HAMMER_UI_SLOT) {
-      this.closeSpawnMenu();
-      this.sandbox.setTool('none');
-      this.weapon.unequip();
-      this.ui.hud.setWeapon(slot === BUILD_PLAN_UI_SLOT ? 'BUILD PLAN' : 'HAMMER');
-      this.ui.hud.setAmmo(0, 0, 1);
-      this.audio.play('equip', { volume: 0.5 });
       return;
     }
     this.closeSpawnMenu();

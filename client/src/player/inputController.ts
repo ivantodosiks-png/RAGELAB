@@ -1,11 +1,7 @@
 import { Button, clamp, wrapAngle, type ControlSettings } from '@ragelab/shared';
 
-/** Local HUD slot for the Build Plan. Never sent as a weapon index. */
-export const BUILD_PLAN_UI_SLOT = 3;
-/** Local HUD slot for the Hammer. */
-export const HAMMER_UI_SLOT = 4;
 /** Local HUD slot for the Tool Gun. Never sent to the server as a weapon index. */
-export const TOOL_GUN_UI_SLOT = 5;
+export const TOOL_GUN_UI_SLOT = 3;
 
 export interface AimState {
   yaw: number;
@@ -31,7 +27,7 @@ export class InputController {
   pitch = 0;
 
   /**
-   * HUD slot 0–5. Slots 0–2 firearms; 3 build plan; 4 hammer; 5 tool gun.
+   * HUD slot 0–3. Slots 0–2 firearms; 3 tool gun.
    * `sample().weaponSlot` always reports a firearm index for the network.
    */
   uiSlot = 0;
@@ -242,14 +238,6 @@ export class InputController {
           break;
         case 'weapon4':
           if (this.freezeSlots) break;
-          this.uiSlot = BUILD_PLAN_UI_SLOT;
-          break;
-        case 'weapon5':
-          if (this.freezeSlots) break;
-          this.uiSlot = HAMMER_UI_SLOT;
-          break;
-        case 'weapon6':
-          if (this.freezeSlots) break;
           this.uiSlot = TOOL_GUN_UI_SLOT;
           break;
         case 'scoreboard':
@@ -287,16 +275,8 @@ export class InputController {
     return this.uiSlot === TOOL_GUN_UI_SLOT;
   }
 
-  get buildPlanEquipped(): boolean {
-    return this.uiSlot === BUILD_PLAN_UI_SLOT;
-  }
-
-  get hammerEquipped(): boolean {
-    return this.uiSlot === HAMMER_UI_SLOT;
-  }
-
   get specialToolEquipped(): boolean {
-    return this.toolGunEquipped || this.buildPlanEquipped || this.hammerEquipped;
+    return this.toolGunEquipped;
   }
 
   /** ALT + T magazine inspect edge. */
@@ -317,7 +297,7 @@ export class InputController {
   }
 
   selectUiSlot(slot: number): void {
-    if (slot === TOOL_GUN_UI_SLOT || slot === BUILD_PLAN_UI_SLOT || slot === HAMMER_UI_SLOT) {
+    if (slot === TOOL_GUN_UI_SLOT) {
       this.uiSlot = slot;
       return;
     }
