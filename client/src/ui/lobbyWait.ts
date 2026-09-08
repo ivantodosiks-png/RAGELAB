@@ -17,6 +17,7 @@ export interface LobbyWaitState {
 
 export class LobbyWait {
   readonly root: HTMLElement;
+  private readonly stage: HTMLElement;
   private readonly card: HTMLElement;
   onStart: (() => void) | null = null;
   onLeave: (() => void) | null = null;
@@ -24,40 +25,65 @@ export class LobbyWait {
   constructor(host: HTMLElement) {
     this.root = el('div', 'lobby-wait hit');
     this.root.hidden = true;
+
+    const bg = el('div', 'lobby-bg');
+    bg.innerHTML = `
+      <div class="lobby-forest" aria-hidden="true"></div>
+      <div class="lobby-mist" aria-hidden="true"></div>
+      <div class="lobby-lamp-pole" aria-hidden="true">
+        <div class="lobby-lamp-arm"></div>
+        <div class="lobby-lamp-bulb"></div>
+        <div class="lobby-lamp-glow"></div>
+      </div>
+      <div class="lobby-sign" aria-hidden="true">
+        <div class="lobby-sign-wire lobby-sign-wire--l"></div>
+        <div class="lobby-sign-wire lobby-sign-wire--r"></div>
+        <div class="lobby-sign-board">
+          <span class="lobby-sign-escape">ESCAPE FROM</span>
+          <span class="lobby-sign-russia">
+            <i class="is-fixed">R</i><i class="is-fixed">U</i><i class="is-fixed">S</i><i class="is-hang" style="--tilt:-7deg;--drop:6px;--delay:0s">S</i><i class="is-hang" style="--tilt:5deg;--drop:14px;--delay:0.15s">I</i><i class="is-hang" style="--tilt:-11deg;--drop:9px;--delay:0.35s">A</i>
+          </span>
+        </div>
+      </div>`;
+    this.root.append(bg);
+
+    this.stage = el('div', 'lobby-stage');
     this.card = el('div', 'lobby-wait-card');
-    this.root.append(this.card);
+    this.stage.append(this.card);
+    this.root.append(this.stage);
     host.append(this.root);
   }
 
   setVisible(visible: boolean): void {
     this.root.hidden = !visible;
+    this.root.classList.toggle('is-on', visible);
   }
 
   render(state: LobbyWaitState): void {
     clear(this.card);
-    this.card.append(el('p', 'lobby-kicker', 'RAGELAB'));
-    this.card.append(el('h2', '', state.isHost ? 'Lobby ready' : 'In lobby'));
+    this.card.append(el('p', 'lobby-kicker', 'ONLINE LOBBY'));
+    this.card.append(el('h2', '', state.isHost ? 'Лобби готово' : 'В лобби'));
     this.card.append(el('p', 'lobby-lead', `${state.name} · ${state.mapId}`));
 
     const codeBox = el('div', 'lobby-code-box');
-    codeBox.append(el('span', 'lobby-code-label', 'Code'));
+    codeBox.append(el('span', 'lobby-code-label', 'Код'));
     const code = el('div', 'lobby-code', formatLobbyCode(state.code));
     codeBox.append(code);
-    const copy = el('button', 'rl-btn lobby-copy', 'Copy code');
+    const copy = el('button', 'rl-btn lobby-copy', 'Скопировать');
     copy.addEventListener('click', async () => {
       const ok = await copyText(state.code);
-      copy.textContent = ok ? 'Copied' : 'Copy failed';
+      copy.textContent = ok ? 'Скопировано' : 'Ошибка';
       window.setTimeout(() => {
-        copy.textContent = 'Copy code';
+        copy.textContent = 'Скопировать';
       }, 1600);
     });
     codeBox.append(copy);
     this.card.append(codeBox);
 
     const list = el('div', 'lobby-players');
-    list.append(el('h3', '', `Players · ${state.players.length}/${state.maxPlayers}`));
+    list.append(el('h3', '', `Игроки · ${state.players.length}/${state.maxPlayers}`));
     if (state.players.length === 0) {
-      list.append(el('p', 'lobby-empty', 'Nobody here yet. Share the code.'));
+      list.append(el('p', 'lobby-empty', 'Пока никого. Отправь код друзьям.'));
     } else {
       for (const player of state.players) {
         const row = el('div', 'lobby-player');
@@ -65,7 +91,7 @@ export class LobbyWait {
         const name = el('span', 'lobby-player-name', player.username);
         row.append(name);
         if (player.id === state.hostPlayerId) row.append(el('span', 'lobby-badge', 'Host'));
-        if (player.id === state.localPlayerId) row.append(el('span', 'lobby-badge muted', 'You'));
+        if (player.id === state.localPlayerId) row.append(el('span', 'lobby-badge muted', 'Вы'));
         list.append(row);
       }
     }
@@ -73,15 +99,15 @@ export class LobbyWait {
 
     const actions = el('div', 'lobby-actions');
     if (state.isHost) {
-      const start = el('button', 'rl-btn primary lobby-start', state.starting ? 'Starting…' : 'Start match');
+      const start = el('button', 'rl-btn primary lobby-start', state.starting ? 'Запуск…' : 'Начать матч');
       start.disabled = state.starting;
       if (state.starting) start.classList.add('is-loading');
       start.addEventListener('click', () => this.onStart?.());
       actions.append(start);
     } else {
-      actions.append(el('p', 'lobby-wait-note', 'Waiting for the host to start…'));
+      actions.append(el('p', 'lobby-wait-note', 'Ждём хоста…'));
     }
-    const leave = el('button', 'rl-btn', 'Leave lobby');
+    const leave = el('button', 'rl-btn', 'Выйти');
     leave.addEventListener('click', () => this.onLeave?.());
     actions.append(leave);
     this.card.append(actions);

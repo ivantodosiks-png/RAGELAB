@@ -660,6 +660,16 @@
   cursor: wait;
 }
 
+.tk-lobby-hint {
+  margin: 0;
+  max-width: 180px;
+  color: var(--mm-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-align: right;
+}
+
 /* —— Character —— */
 
 .tk-char {

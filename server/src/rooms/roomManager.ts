@@ -146,7 +146,9 @@ export class RoomManager {
     connection: Connection,
     partial: Partial<RoomConfig> = {},
   ): { room: Room } | { error: 'not_admin' | 'already_in_room' } {
-    if (!connection.isAdmin) return { error: 'not_admin' };
+    // Admins always; local npm run (region=local + guests) can host without signing in.
+    const localDevHost = config.allowGuests && config.region === 'local';
+    if (!connection.isAdmin && !localDevHost) return { error: 'not_admin' };
 
     if (connection.profileId) {
       const hosted = this.findHostedLobby(connection.profileId);

@@ -96,6 +96,8 @@ export class MainMenu {
   private pendingBanId: string | null = null;
   private adminNotice = '';
   private createBusy = false;
+  /** True when local game server answers /health (npm run dev). */
+  private canHostOnline = false;
 
   constructor(
     host: HTMLElement,
@@ -175,6 +177,12 @@ export class MainMenu {
     if (this.screen === 'map') this.render();
   }
 
+  setCanHostOnline(can: boolean): void {
+    if (this.canHostOnline === can) return;
+    this.canHostOnline = can;
+    if (this.screen === 'map') this.render();
+  }
+
   setProfile(profile: FullProfile | null, weaponStats: WeaponStatRow[], leaderboard: LeaderboardEntry[]): void {
     this.profile = profile;
     this.weaponStats = weaponStats;
@@ -239,6 +247,11 @@ export class MainMenu {
 
   private operatorName(): string {
     return this.signedIn ? this.username : this.guestName;
+  }
+
+  /** Public callsign for join / lobby create. */
+  get callsign(): string {
+    return this.operatorName();
   }
 
   private flashLocked(label: string): void {
@@ -400,10 +413,13 @@ export class MainMenu {
     });
     actions.append(deploy);
 
-    if (this.isAdmin) {
+    if (this.isAdmin || this.canHostOnline) {
       const create = el('button', 'tk-secondary', this.createBusy ? 'СОЗДАНИЕ…' : 'ЛОББИ');
       create.type = 'button';
       create.disabled = this.createBusy;
+      create.title = this.canHostOnline
+        ? 'Create online lobby (local server)'
+        : 'Create online lobby (admin)';
       create.addEventListener('click', () => {
         if (this.createBusy) return;
         const mapId = this.selectedMapId;
@@ -416,6 +432,9 @@ export class MainMenu {
         });
       });
       actions.append(create);
+    } else {
+      const hint = el('p', 'tk-lobby-hint', 'Для онлайн: npm run dev → появится ЛОББИ');
+      actions.append(hint);
     }
 
     detail.append(actions);

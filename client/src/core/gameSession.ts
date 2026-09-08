@@ -1295,6 +1295,8 @@ export class GameSession {
   private applyInventory(inv: PlayerInventoryState): void {
     this.inventory = inv;
     this.inventoryPanel?.setInventory(inv);
+    // Weapon is created later in buildWorld — skip sync until it exists.
+    if (!this.weapon || !this.local) return;
     const weaponId = this.weapon.hasWeapon ? this.weapon.weaponId : this.loadout[this.input.firearmSlot];
     if (weaponId) {
       const sync = syncWeaponAmmoFromMag(inv, weaponId);

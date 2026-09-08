@@ -125,14 +125,23 @@ export class UiApp {
 
   private async refreshPresence(): Promise<void> {
     try {
+      const localUp = await localGameServerReachable();
+      this.menu.setCanHostOnline(localUp);
       const rooms = await this.fetchRooms();
       const playersOnline = rooms.reduce((sum, room) => sum + room.playerCount, 0);
       this.menu.setPresence({
         playersOnline,
-        serverLabel: rooms.length > 0 ? `${rooms.length} lobbies online` : 'Waiting for lobbies',
+        serverLabel: localUp
+          ? rooms.length > 0
+            ? `${rooms.length} lobbies online`
+            : 'Local server ready'
+          : rooms.length > 0
+            ? `${rooms.length} lobbies online`
+            : 'Waiting for lobbies',
         pingMs: rooms[0] ? Math.max(12, Math.round(rooms[0].tickMs * 4)) : null,
       });
     } catch {
+      this.menu.setCanHostOnline(false);
       this.menu.setPresence({
         playersOnline: 0,
         serverLabel: 'Server unreachable',
@@ -212,10 +221,15 @@ export class UiApp {
         settingsStore.attachRemote((settings) => {
           void profileService.saveSettings(state.user!.id, settings);
         });
-        if (full.ban) {
+        if (full.ban && !isListedAdminEmail(state.user.email)) {
           this.showBan(full.ban.reason);
           this.onLeaveMatch?.();
           return;
+        }
+        // Listed admins ignore stale ban rows so local hosting still works.
+        if (full.ban && isListedAdminEmail(state.user.email)) {
+          this.hideBan();
+          this.menu.setAdmin(true);
         }
       } else {
         this.menu.setAdmin(false);
@@ -434,13 +448,20 @@ export class UiApp {
     team?: number;
   }): Promise<void> {
     if (this.blockedByBan()) return;
-    if (!this.menu.isAdmin) {
-      this.toast('Only an administrator can create a lobby.');
+    const localUp = await localGameServerReachable();
+    // Local `npm run dev` can host without a signed-in admin; remote still needs admin.
+    if (!this.menu.isAdmin && !localUp) {
+      this.toast('Only an administrator can create a lobby. Run npm run dev for local online.');
       return;
     }
-    if (await localGameServerReachable()) {
+    if (localUp) {
       this.menu.setCreateBusy(true);
-      this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId, team: opts.team });
+      this.onJoin?.({
+        username: this.menu.callsign,
+        create: opts,
+        mapId: opts.mapId,
+        team: opts.team,
+      });
       return;
     }
     this.toast('Online unavailable. Run npm run dev on this PC, then create a lobby.');

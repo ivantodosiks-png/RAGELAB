@@ -199,8 +199,12 @@ export class Gateway {
         return;
       }
       if (profile.banned) {
-        connection.sendError(ErrorCode.Banned, profile.banReason ?? 'account banned', true);
-        return;
+        const listedAdminEarly =
+          Boolean(user.email) && config.adminEmails.includes(user.email!.trim().toLowerCase());
+        if (!listedAdminEarly && !profile.isAdmin) {
+          connection.sendError(ErrorCode.Banned, profile.banReason ?? 'account banned', true);
+          return;
+        }
       }
       connection.profileId = profile.id;
       connection.username = profile.username;
