@@ -2,9 +2,11 @@ import {
   BODY_PART_IDS,
   BODY_PART_LABEL,
   BODY_PART_MAX,
-  bodyPartRatio,
+  BODY_PART_CONDITION_LABEL,
+  bodyPartCondition,
   cloneBodyParts,
   createFullBodyParts,
+  type BodyPartCondition,
   type BodyPartId,
   type BodyPartState,
 } from '@ragelab/shared';
@@ -12,24 +14,15 @@ import { el } from './dom';
 
 export type BodyStatusMode = 'hud' | 'detail';
 
-/** Olive → amber → red by remaining ratio. */
-export function bodyPartFillColor(ratio: number): string {
-  const t = Math.max(0, Math.min(1, ratio));
-  if (t >= 0.72) return `rgb(${Math.round(72 + (1 - t) * 40)}, ${Math.round(110 + t * 28)}, ${Math.round(70 + t * 18)})`;
-  if (t >= 0.38) {
-    const u = (t - 0.38) / 0.34;
-    return `rgb(${Math.round(190 - u * 40)}, ${Math.round(140 + u * 20)}, ${Math.round(48 + u * 20)})`;
-  }
-  if (t > 0.02) {
-    const u = t / 0.38;
-    return `rgb(${Math.round(168 + (1 - u) * 40)}, ${Math.round(48 + u * 60)}, ${Math.round(42 + u * 10)})`;
-  }
-  return 'rgb(48, 22, 22)';
-}
+const CONDITION_COLOR: Record<BodyPartCondition, string> = {
+  healthy: 'rgb(86, 108, 78)',
+  damaged: 'rgb(196, 158, 52)',
+  critical: 'rgb(176, 58, 48)',
+  destroyed: 'rgb(18, 18, 18)',
+};
 
 /**
- * Shared limb-HP silhouette used by in-game HUD and TAB inventory.
- * Zones mirror OPERATOR_PART_CAPSULES on the madtrollstudio Soldier mesh.
+ * Shared limb status — HUD + TAB. Colors are persistent conditions, not timed FX.
  */
 export class BodyStatusView {
   readonly root: HTMLElement;
@@ -44,6 +37,10 @@ export class BodyStatusView {
 
   constructor(mode: BodyStatusMode) {
     this.root = el('div', `body-status body-status--${mode}`);
+    if (mode === 'hud') {
+      this.root.append(el('div', 'body-status-kicker', 'BODY'));
+    }
+
     this.sil = el('div', 'body-status-sil');
     this.sil.setAttribute('aria-hidden', 'true');
 
@@ -56,23 +53,31 @@ export class BodyStatusView {
     this.root.append(this.sil);
 
     if (mode === 'detail') {
+      const panel = el('div', 'body-status-detail');
+      panel.append(el('div', 'body-status-detail-title', 'OPERATOR STATUS'));
       this.list = el('ul', 'body-status-list');
       for (const id of BODY_PART_IDS) {
         const row = el('li', 'body-status-row');
         row.dataset.part = id;
         row.append(
           el('span', 'body-status-swatch'),
-          el('span', 'body-status-line', `${BODY_PART_LABEL[id]} ${BODY_PART_MAX[id]}/${BODY_PART_MAX[id]} HP`),
+          el('span', 'body-status-line', `${BODY_PART_LABEL[id]}  ${BODY_PART_MAX[id]}/${BODY_PART_MAX[id]}  ·  OK`),
         );
         this.list.append(row);
         this.rowEls.set(id, row);
       }
-      this.root.append(this.list);
+      const legend = el('div', 'body-status-legend');
+      legend.innerHTML =
+        '<span data-c="damaged">Damaged</span>' +
+        '<span data-c="critical">Critical</span>' +
+        '<span data-c="destroyed">Destroyed</span>';
+      panel.append(this.list, legend);
+      this.root.append(panel);
     } else {
       this.list = null;
     }
 
-    this.paint(null, true);
+    this.paint(true);
   }
 
   get state(): BodyPartState {
@@ -83,16 +88,16 @@ export class BodyStatusView {
     this.parts = cloneBodyParts(parts);
     if (hit) {
       this.hitPart = hit;
-      this.hitTimer = 0.55;
+      this.hitTimer = 0.4;
     }
-    this.paint(hit ?? null, false);
+    this.paint(false);
   }
 
   reset(): void {
     this.parts = createFullBodyParts();
     this.hitPart = null;
     this.hitTimer = 0;
-    this.paint(null, true);
+    this.paint(true);
   }
 
   tick(dt: number): void {
@@ -100,36 +105,41 @@ export class BodyStatusView {
     this.hitTimer = Math.max(0, this.hitTimer - dt);
     if (this.hitTimer <= 0 && this.hitPart) {
       this.hitPart = null;
-      this.paint(null, false);
+      this.paint(false);
     }
   }
 
-  private paint(_flash: BodyPartId | null, force: boolean): void {
+  private paint(force: boolean): void {
     const key =
-      BODY_PART_IDS.map((id) => `${id}:${Math.round(this.parts[id])}`).join('|') + `|${this.hitPart ?? ''}`;
+      BODY_PART_IDS.map((id) => `${id}:${this.parts[id]}:${bodyPartCondition(this.parts, id)}`).join('|') +
+      `|${this.hitPart ?? ''}`;
     if (!force && key === this.lastKey) return;
     this.lastKey = key;
 
     for (const id of BODY_PART_IDS) {
-      const ratio = bodyPartRatio(this.parts, id);
-      const color = bodyPartFillColor(ratio);
+      const condition = bodyPartCondition(this.parts, id);
+      const color = CONDITION_COLOR[condition];
       const zone = this.partEls.get(id)!;
       zone.style.background = color;
-      zone.style.opacity = ratio <= 0.02 ? '0.35' : '0.92';
+      zone.dataset.condition = condition;
       zone.classList.toggle('is-hit', this.hitPart === id);
-      zone.classList.toggle('is-critical', ratio > 0 && ratio <= 0.34);
-      zone.classList.toggle('is-destroyed', ratio <= 0.02);
+      zone.classList.toggle('is-damaged', condition === 'damaged');
+      zone.classList.toggle('is-critical', condition === 'critical');
+      zone.classList.toggle('is-destroyed', condition === 'destroyed');
 
       const row = this.rowEls.get(id);
       if (row) {
         const swatch = row.querySelector('.body-status-swatch') as HTMLElement;
         const line = row.querySelector('.body-status-line') as HTMLElement;
         swatch.style.background = color;
+        swatch.dataset.condition = condition;
         const cur = Math.round(this.parts[id]);
-        line.textContent = `${BODY_PART_LABEL[id]} ${cur}/${BODY_PART_MAX[id]} HP`;
+        line.textContent = `${BODY_PART_LABEL[id]}  ${cur}/${BODY_PART_MAX[id]}  ·  ${BODY_PART_CONDITION_LABEL[condition]}`;
+        row.dataset.condition = condition;
         row.classList.toggle('is-hit', this.hitPart === id);
-        row.classList.toggle('is-critical', ratio > 0 && ratio <= 0.34);
-        row.classList.toggle('is-destroyed', ratio <= 0.02);
+        row.classList.toggle('is-damaged', condition === 'damaged');
+        row.classList.toggle('is-critical', condition === 'critical');
+        row.classList.toggle('is-destroyed', condition === 'destroyed');
       }
     }
   }

@@ -393,38 +393,40 @@ input[type='range'] {
 
 .hud-combat {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left, 0px));
-  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
   z-index: 6;
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  padding: 8px 10px 9px;
+  gap: 12px;
+  padding: 10px 12px 11px;
   border-radius: 2px;
-  background: rgba(8, 9, 7, 0.72);
-  border: 1px solid rgba(160, 168, 140, 0.12);
+  background:
+    linear-gradient(180deg, rgba(22, 24, 18, 0.55), rgba(8, 9, 7, 0.82));
+  border: 1px solid rgba(168, 174, 148, 0.14);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   transition: opacity 0.15s ease;
 }
 
 .hud-combat.dim {
-  opacity: 0.22;
+  opacity: 0.2;
 }
 
 .hud-combat-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  min-width: 52px;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 54px;
 }
 
-/* Thin Tarkov-like stamina strip under the silhouette */
+/* Thin stamina under silhouette — existing system, visual only */
 .hud-stamina {
-  width: 48px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 0;
   overflow: hidden;
   border-radius: 0;
 }
@@ -434,13 +436,12 @@ input[type='range'] {
   height: 100%;
   width: 100%;
   transform-origin: left center;
-  background: rgba(170, 178, 150, 0.55);
+  background: rgba(168, 176, 148, 0.55);
   box-shadow: none;
-  transition: background 0.12s linear;
 }
 
 .hud-stamina.winded > span {
-  background: rgba(180, 130, 80, 0.65);
+  background: rgba(176, 128, 72, 0.7);
 }
 
 .hud-stamina-value {
@@ -702,37 +703,36 @@ input[type='range'] {
   bottom: auto;
   transform: none;
   display: flex;
-  gap: 4px;
+  gap: 5px;
   padding: 0;
   border-radius: 0;
   background: transparent;
   border: 0;
   box-shadow: none;
-  transition: opacity 0.15s ease;
 }
 
 .weapon-slot {
-  width: 44px;
-  min-height: 46px;
-  padding: 4px 3px 5px;
+  width: 46px;
+  min-height: 50px;
+  padding: 5px 3px 6px;
   border-radius: 1px;
-  border: 1px solid rgba(180, 186, 160, 0.14);
-  background: rgba(255, 255, 255, 0.025);
-  color: rgba(180, 186, 168, 0.55);
+  border: 1px solid rgba(168, 174, 148, 0.16);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(168, 174, 156, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+  gap: 3px;
+  transition: border-color 0.1s ease, color 0.1s ease, background 0.1s ease;
 }
 
 .weapon-slot .slot-num {
   font-family: "Barlow Condensed", "Rajdhani", sans-serif;
   font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  opacity: 0.75;
+  letter-spacing: 0.14em;
+  opacity: 0.8;
   line-height: 1;
 }
 
@@ -740,7 +740,7 @@ input[type='range'] {
   width: 18px;
   height: 13px;
   color: inherit;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .weapon-slot .slot-icon svg {
@@ -751,21 +751,21 @@ input[type='range'] {
 
 .weapon-slot .slot-name {
   font-size: 7px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .weapon-slot.selected {
-  color: rgba(220, 224, 204, 0.92);
-  border-color: rgba(200, 206, 170, 0.45);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(226, 230, 210, 0.95);
+  border-color: rgba(196, 204, 168, 0.55);
+  background: rgba(255, 255, 255, 0.07);
   transform: none;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(196, 204, 168, 0.08);
 }
 
 .weapon-bar.switching .weapon-slot.selected {

@@ -14,9 +14,8 @@ import {
   zoneMultiplier,
   HitZone,
   cloneBodyParts,
-  damageBodyPart,
+  applyPartHit,
   healthFromParts,
-  isBodyDestroyed,
   type BodyPartId,
   type HitZoneId,
   type GameEvent,
@@ -222,12 +221,18 @@ export function applyDamage(
     if (attacker.identity.team === victim.identity.team) return;
   }
 
-  // Per-part shot budgets: 1 landed hit = 1 damage to that zone only.
-  // Mixing chest + arm hits cannot kill until one zone is emptied.
-  const partHits = isWeaponCause(cause) ? 1 : Math.min(4, Math.max(1, Math.ceil(amount / 40)));
-  damageBodyPart(victim.bodyParts, part, partHits);
-  const destroyed = isBodyDestroyed(victim.bodyParts);
-  victim.health = destroyed ? 0 : healthFromParts(victim.bodyParts);
+  // Independent limb budgets. Head = instant kill. Hit on already-black zone = death.
+  // Cross-part hits never pool into a shared HP bar.
+  let killed = false;
+  const hits = isWeaponCause(cause) ? 1 : Math.min(4, Math.max(1, Math.ceil(amount / 40)));
+  for (let i = 0; i < hits; i++) {
+    const result = applyPartHit(victim.bodyParts, part);
+    if (result.killed) {
+      killed = true;
+      break;
+    }
+  }
+  victim.health = killed ? 0 : healthFromParts(victim.bodyParts);
 
   const dealt = Math.max(1, Math.round(amount));
   if (attacker) {
@@ -238,7 +243,7 @@ export function applyDamage(
       target: victim.id,
       dmg: Math.round(dealt),
       head: headshot || part === 'head',
-      lethal: destroyed,
+      lethal: killed,
     });
   }
 
@@ -252,7 +257,7 @@ export function applyDamage(
     parts: cloneBodyParts(victim.bodyParts),
   });
 
-  if (destroyed) {
+  if (killed) {
     killPlayer(ctx, victim, attacker ? attacker.id : null, cause, headshot || part === 'head');
   }
 }

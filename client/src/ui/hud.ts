@@ -160,7 +160,11 @@ export class Hud {
       const num = el('div', 'slot-num', String(i + 1));
       const icon = el('div', 'slot-icon');
       icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : i === 0 ? 'pistol' : 'rifle');
-      const name = el('div', 'slot-name', i === TOOL_GUN_UI_SLOT ? 'TOOL' : '—');
+      const name = el(
+        'div',
+        'slot-name',
+        i === TOOL_GUN_UI_SLOT ? 'TOOL' : i === 0 ? 'PISTOL' : 'PRIMARY',
+      );
       slot.append(num, icon, name);
       this.weaponBar.append(slot);
       this.slotNodes.push(slot);
@@ -360,11 +364,11 @@ export class Hud {
       const name = this.slotNames[i];
       const icon = this.slotIcons[i];
       if (!name || !icon) continue;
-      name.textContent = info && info.id ? shortWeaponName(info.name) : '—';
+      name.textContent = info && info.id ? shortWeaponName(info.name) : i === 0 ? 'PISTOL' : 'PRIMARY';
       icon.innerHTML = slotGlyph(info?.id || 'empty');
       const wName = this.wheelNames[i];
       const wIcon = this.wheelIcons[i];
-      if (wName) wName.textContent = info && info.id ? shortWeaponName(info.name) : '—';
+      if (wName) wName.textContent = info && info.id ? shortWeaponName(info.name) : i === 0 ? 'Pistol' : 'Primary';
       if (wIcon) wIcon.innerHTML = slotGlyph(info?.id || 'empty');
     }
     const name = this.slotNames[TOOL_GUN_UI_SLOT];

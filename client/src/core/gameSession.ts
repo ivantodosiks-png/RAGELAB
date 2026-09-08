@@ -450,6 +450,8 @@ export class GameSession {
     };
     this.ui.hud.setLoadout(this.loadoutRows());
     this.ui.hud.setActiveSlot(this.input.uiSlot);
+    this.ui.hud.setBodyParts(this.local.bodyParts);
+    this.inventoryPanel.setBodyParts(this.local.bodyParts);
 
     this.identities.clear();
     for (const id of welcome.players) this.identities.set(id.id, id);

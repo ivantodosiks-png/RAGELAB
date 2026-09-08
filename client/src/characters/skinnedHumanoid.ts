@@ -8,14 +8,14 @@ import type { NpcLook } from '../sandbox/npcModel';
 const BASE = import.meta.env.BASE_URL;
 
 /**
- * Shared characters: madtrollstudio Soldier (players) + civilian humanoids (NPCs).
- * Facing is applied on an un-animated parent so Mixamo bind cannot overwrite game yaw (−Z).
+ * Shared characters: Mixamo Vanguard operator (players) + civilian humanoids (NPCs).
+ * Facing is on an un-animated parent so Mixamo bind cannot overwrite game yaw (−Z).
  */
 export const CHARACTER_KINDS = ['operator', 'man', 'woman'] as const;
 export type CharacterKind = (typeof CHARACTER_KINDS)[number];
 export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'getup';
 
-/** Primary player mesh — Soldier by madtrollstudio (CC-BY). */
+/** Primary player mesh — Mixamo Vanguard tactical soldier (three.js Soldier.glb). */
 export const PLAYER_CHARACTER_KIND: CharacterKind = 'operator';
 
 const KIND_FILE: Record<CharacterKind, string> = {
@@ -172,7 +172,7 @@ export class SkinnedCharacter {
       }
     });
 
-    // Static soldiers (madtrollstudio) have no skeleton — synthetic sockets for weapons.
+    // Static meshes without a skeleton get a synthetic right-hand socket.
     if (!this.bones.handR) {
       const hand = new THREE.Object3D();
       hand.name = 'synth:handR';
@@ -271,6 +271,12 @@ export class SkinnedCharacter {
     if (this.mixer) {
       const step = camDist > 70 ? dt * 0.35 : camDist > 42 ? dt * 0.65 : dt;
       this.mixer.update(step);
+      // Soldier.glb has no Jump/Fall clips — bias the grounded mesh for airborne read.
+      if (this.meshRoot) {
+        const air =
+          this.current === 'jump' ? 0.05 : this.current === 'fall' ? 0.02 : 0;
+        this.meshRoot.position.y = this.groundY + air;
+      }
       return;
     }
     // Static mesh locomotion: light bob so walk/run still read at a glance.
@@ -280,7 +286,8 @@ export class SkinnedCharacter {
     const amp = this.current === 'run' ? 0.035 : this.current === 'walk' ? 0.022 : 0;
     if (moving) this.locoPhase += dt * rate;
     const bob = moving ? Math.abs(Math.sin(this.locoPhase)) * amp : 0;
-    this.meshRoot.position.y = this.groundY + bob;
+    const air = this.current === 'jump' ? 0.05 : this.current === 'fall' ? 0.02 : 0;
+    this.meshRoot.position.y = this.groundY + bob + air;
     const lean = this.current === 'run' ? 0.06 : this.current === 'walk' ? 0.03 : 0;
     this.meshRoot.rotation.x = lean;
   }
@@ -367,8 +374,8 @@ function groundToOrigin(rig: THREE.Object3D): void {
   rig.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(rig);
   if (!Number.isFinite(box.min.y)) return;
-  // Slight sink so boot soles sit flush on the movement feet plane (no float gap).
-  rig.position.y -= box.min.y + 0.012;
+  // Slight sink so boot soles sit flush on the movement feet plane.
+  rig.position.y -= box.min.y + 0.008;
 }
 
 function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {

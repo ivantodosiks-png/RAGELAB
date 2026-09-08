@@ -34,7 +34,7 @@ interface Limb {
 
 /**
  * Procedural capsule fallback for remote players until the operator GLB loads.
- * Live path upgrades to madtrollstudio Soldier (`operator.glb`) for every player.
+ * Live path upgrades to Mixamo Vanguard Soldier (`operator.glb`) for every player.
  */
 export class PlayerAvatar {
   readonly root = new THREE.Group();

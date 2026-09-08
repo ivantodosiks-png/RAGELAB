@@ -1,192 +1,248 @@
-/* Shared limb HP silhouette — organic Tarkov-style figure */
+/* Body status — tactical operator silhouette (HUD + TAB) */
 
 .body-status {
-  --bs-outline: rgba(190, 196, 178, 0.35);
+  --bs-line: rgba(210, 214, 198, 0.28);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   pointer-events: none;
   user-select: none;
 }
 
 .body-status--hud {
   position: relative;
-  left: auto;
-  bottom: auto;
-  z-index: auto;
   flex-direction: column;
   align-items: center;
-  gap: 0;
+  gap: 6px;
   padding: 0;
-  border: 0;
   background: transparent;
-  box-shadow: none;
+  border: 0;
+}
+
+.body-status-kicker {
+  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: rgba(176, 182, 158, 0.45);
+  line-height: 1;
+  align-self: flex-start;
+  margin-left: 2px;
 }
 
 .body-status-sil {
   position: relative;
-  width: 48px;
-  height: 90px;
+  width: 54px;
+  height: 96px;
 }
 
 .bs-part {
   position: absolute;
   box-sizing: border-box;
-  border: 1px solid var(--bs-outline);
-  background: rgb(78, 96, 72);
-  transition: background 0.1s linear, opacity 0.1s linear, border-color 0.1s linear;
+  border: 1px solid var(--bs-line);
+  background: rgb(86, 108, 78);
+  transition: background 0.08s linear, border-color 0.08s linear;
 }
 
 .bs-part.is-hit {
-  border-color: rgba(230, 210, 150, 0.9);
-  filter: brightness(1.22);
+  border-color: rgba(255, 236, 190, 0.95);
+  outline: 1px solid rgba(255, 220, 140, 0.35);
 }
 
 .bs-part.is-destroyed {
-  border-color: rgba(100, 60, 60, 0.4);
+  border-color: rgba(70, 70, 70, 0.55);
 }
 
-/* Rounded humanoid — no hard rectangles */
 .bs-head {
   left: 50%;
-  top: 1px;
-  width: 14px;
-  height: 15px;
-  margin-left: -7px;
-  border-radius: 50% 50% 46% 46%;
+  top: 0;
+  width: 15px;
+  height: 16px;
+  margin-left: -7.5px;
+  border-radius: 50% 50% 45% 45%;
 }
 
 .bs-chest {
   left: 50%;
-  top: 15px;
-  width: 22px;
-  height: 20px;
-  margin-left: -11px;
-  border-radius: 9px 9px 6px 6px / 10px 10px 7px 7px;
+  top: 16px;
+  width: 24px;
+  height: 22px;
+  margin-left: -12px;
+  border-radius: 10px 10px 7px 7px / 11px 11px 8px 8px;
 }
 
 .bs-stomach {
   left: 50%;
-  top: 33px;
-  width: 18px;
-  height: 14px;
-  margin-left: -9px;
-  border-radius: 5px 5px 9px 9px / 6px 6px 10px 10px;
+  top: 36px;
+  width: 19px;
+  height: 15px;
+  margin-left: -9.5px;
+  border-radius: 6px 6px 10px 10px / 7px 7px 11px 11px;
 }
 
 .bs-armL,
 .bs-armR {
-  top: 16px;
+  top: 17px;
   width: 8px;
-  height: 30px;
-  border-radius: 5px;
+  height: 32px;
 }
 
 .bs-armL {
-  left: 2px;
-  transform: rotate(8deg);
+  left: 1px;
+  transform: rotate(7deg);
   transform-origin: top center;
   border-radius: 5px 4px 5px 6px;
 }
 
 .bs-armR {
-  right: 2px;
-  transform: rotate(-8deg);
+  right: 1px;
+  transform: rotate(-7deg);
   transform-origin: top center;
   border-radius: 4px 5px 6px 5px;
 }
 
 .bs-legL,
 .bs-legR {
-  top: 46px;
-  width: 9px;
-  height: 42px;
+  top: 50px;
+  width: 10px;
+  height: 44px;
   border-radius: 5px 5px 4px 4px;
 }
 
 .bs-legL {
   left: 50%;
-  margin-left: -11px;
-  transform: rotate(3deg);
+  margin-left: -12px;
+  transform: rotate(2.5deg);
   transform-origin: top center;
 }
 
 .bs-legR {
   left: 50%;
   margin-left: 2px;
-  transform: rotate(-3deg);
+  transform: rotate(-2.5deg);
   transform-origin: top center;
 }
 
-/* Detail (TAB) — left-aligned figure + English HP list */
+/* TAB detail */
 .body-status--detail {
   width: 100%;
   height: 100%;
-  min-height: 280px;
-  padding: 20px 16px 20px 20px;
+  min-height: 300px;
+  padding: 18px 14px 18px 16px;
   box-sizing: border-box;
   justify-content: flex-start;
   align-items: center;
-  gap: 22px;
+  gap: 26px;
+}
+
+.body-status-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 210px;
+}
+
+.body-status-detail-title {
+  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: rgba(176, 182, 158, 0.5);
+}
+
+.body-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 4px;
+  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.body-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(180, 186, 168, 0.55);
+}
+
+.body-status-legend span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.body-status-legend span[data-c="damaged"]::before {
+  background: rgb(196, 158, 52);
+}
+
+.body-status-legend span[data-c="critical"]::before {
+  background: rgb(176, 58, 48);
+}
+
+.body-status-legend span[data-c="destroyed"]::before {
+  background: rgb(18, 18, 18);
 }
 
 .body-status--detail .body-status-sil {
-  width: 100px;
-  height: 188px;
+  width: 108px;
+  height: 196px;
   flex-shrink: 0;
 }
 
 .body-status--detail .bs-head {
-  width: 24px;
-  height: 26px;
-  margin-left: -12px;
-  top: 2px;
+  width: 26px;
+  height: 28px;
+  margin-left: -13px;
 }
 
 .body-status--detail .bs-chest {
-  top: 28px;
-  width: 42px;
-  height: 38px;
-  margin-left: -21px;
-  border-radius: 16px 16px 12px 12px / 18px 18px 14px 14px;
+  top: 30px;
+  width: 46px;
+  height: 42px;
+  margin-left: -23px;
+  border-radius: 18px 18px 14px 14px / 20px 20px 15px 15px;
 }
 
 .body-status--detail .bs-stomach {
-  top: 64px;
-  width: 34px;
-  height: 28px;
-  margin-left: -17px;
-  border-radius: 10px 10px 16px 16px / 12px 12px 18px 18px;
+  top: 70px;
+  width: 36px;
+  height: 30px;
+  margin-left: -18px;
 }
 
 .body-status--detail .bs-armL,
 .body-status--detail .bs-armR {
-  top: 30px;
-  width: 14px;
-  height: 58px;
+  top: 32px;
+  width: 15px;
+  height: 64px;
 }
 
 .body-status--detail .bs-armL {
-  left: 4px;
+  left: 3px;
 }
 
 .body-status--detail .bs-armR {
-  right: 4px;
+  right: 3px;
 }
 
 .body-status--detail .bs-legL,
 .body-status--detail .bs-legR {
-  top: 92px;
-  width: 16px;
-  height: 90px;
+  top: 100px;
+  width: 17px;
+  height: 92px;
 }
 
 .body-status--detail .bs-legL {
-  margin-left: -20px;
+  margin-left: -22px;
 }
 
 .body-status--detail .bs-legR {
-  margin-left: 4px;
+  margin-left: 5px;
 }
 
 .body-status-list {
@@ -194,48 +250,56 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
-  min-width: 168px;
-  align-self: center;
+  gap: 5px;
+  min-width: 200px;
 }
 
 .body-status-row {
   display: grid;
-  grid-template-columns: 10px 1fr;
+  grid-template-columns: 9px 1fr;
   align-items: center;
   gap: 10px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
-  color: rgba(220, 224, 210, 0.88);
+  border-radius: 1px;
   font-family: "Barlow", "Rajdhani", system-ui, sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(214, 218, 204, 0.88);
 }
 
 .body-status-row.is-hit {
-  border-color: rgba(220, 190, 120, 0.45);
-  background: rgba(255, 180, 80, 0.08);
+  border-color: rgba(220, 190, 120, 0.4);
+  background: rgba(255, 200, 100, 0.06);
+}
+
+.body-status-row.is-damaged .body-status-line {
+  color: rgb(210, 178, 72);
 }
 
 .body-status-row.is-critical .body-status-line {
-  color: #e07060;
+  color: rgb(210, 90, 78);
 }
 
 .body-status-row.is-destroyed {
-  opacity: 0.45;
+  opacity: 0.72;
+}
+
+.body-status-row.is-destroyed .body-status-line {
+  color: rgba(160, 160, 160, 0.75);
 }
 
 .body-status-swatch {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .body-status-line {
   font-variant-numeric: tabular-nums;
-  color: rgba(220, 224, 210, 0.9);
   font-weight: 500;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 10px;
 }

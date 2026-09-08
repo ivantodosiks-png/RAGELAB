@@ -1,4 +1,4 @@
-/** Per-limb HP: independent shot budgets. Destroying any part kills the player. */
+/** Per-limb HP with yellow / red / black condition states. */
 
 export const BodyPart = {
   Head: 'head',
@@ -23,17 +23,18 @@ export const BODY_PART_IDS: readonly BodyPartId[] = [
 ] as const;
 
 /**
- * Hits-to-destroy per zone (1 hit = 1 bullet/pellet that lands on that part).
- * Cross-part damage does not stack toward death — only emptying one part kills.
+ * Hits until a zone is black (destroyed). Independent per part.
+ * Progression with max 3: full → yellow → red → black → (next hit) death.
+ * Head is an instant-kill critical — max kept at 1 for display.
  */
 export const BODY_PART_MAX: Record<BodyPartId, number> = {
   head: 1,
-  chest: 4,
-  stomach: 4,
-  armL: 6,
-  armR: 6,
-  legL: 6,
-  legR: 6,
+  chest: 3,
+  stomach: 3,
+  armL: 3,
+  armR: 3,
+  legL: 3,
+  legR: 3,
 };
 
 export const BODY_PART_LABEL: Record<BodyPartId, string> = {
@@ -49,38 +50,40 @@ export const BODY_PART_LABEL: Record<BodyPartId, string> = {
 /** @deprecated Use BODY_PART_LABEL */
 export const BODY_PART_LABEL_RU = BODY_PART_LABEL;
 
+/** Persistent limb condition shown in HUD / TAB (not a timed flash). */
+export type BodyPartCondition = 'healthy' | 'damaged' | 'critical' | 'destroyed';
+
+export const BODY_PART_CONDITION_LABEL: Record<BodyPartCondition, string> = {
+  healthy: 'OK',
+  damaged: 'Damaged',
+  critical: 'Critical',
+  destroyed: 'Destroyed',
+};
+
 export type BodyPartState = Record<BodyPartId, number>;
 
 /**
  * Vertical capsule in local operator space (feet origin).
- * +X = right, +Y = up, −Z = forward at yaw 0 — matches game facing.
- * Tuned to madtrollstudio Soldier (static low-poly) scaled to ~1.8 m.
+ * +X = right, +Y = up, −Z = forward at yaw 0.
+ * Tuned to Mixamo Vanguard / Soldier.glb at ~1.8 m.
  */
 export interface OperatorPartCapsule {
   part: BodyPartId;
-  /** Local right offset (m). */
   lx: number;
-  /** Local forward offset (m), −Z is forward. */
   lz: number;
-  /** Capsule axis bottom Y above feet. */
   y0: number;
-  /** Capsule axis top Y above feet. */
   y1: number;
   radius: number;
 }
 
-/**
- * Authoritative hit volumes matching the madtrollstudio Soldier silhouette.
- * Left/right limbs are separate so HUD / TAB highlight the correct side.
- */
 export const OPERATOR_PART_CAPSULES: readonly OperatorPartCapsule[] = [
-  { part: BodyPart.Head, lx: 0, lz: 0.04, y0: 1.48, y1: 1.78, radius: 0.15 },
-  { part: BodyPart.Chest, lx: 0, lz: 0.05, y0: 1.1, y1: 1.48, radius: 0.22 },
-  { part: BodyPart.Stomach, lx: 0, lz: 0.04, y0: 0.78, y1: 1.1, radius: 0.19 },
-  { part: BodyPart.ArmL, lx: -0.38, lz: 0.02, y0: 0.86, y1: 1.4, radius: 0.11 },
-  { part: BodyPart.ArmR, lx: 0.38, lz: 0.02, y0: 0.86, y1: 1.4, radius: 0.11 },
-  { part: BodyPart.LegL, lx: -0.14, lz: 0.02, y0: 0.02, y1: 0.82, radius: 0.125 },
-  { part: BodyPart.LegR, lx: 0.14, lz: 0.02, y0: 0.02, y1: 0.82, radius: 0.125 },
+  { part: BodyPart.Head, lx: 0, lz: 0.03, y0: 1.5, y1: 1.78, radius: 0.14 },
+  { part: BodyPart.Chest, lx: 0, lz: 0.04, y0: 1.12, y1: 1.5, radius: 0.2 },
+  { part: BodyPart.Stomach, lx: 0, lz: 0.03, y0: 0.8, y1: 1.12, radius: 0.18 },
+  { part: BodyPart.ArmL, lx: -0.36, lz: 0.01, y0: 0.88, y1: 1.42, radius: 0.1 },
+  { part: BodyPart.ArmR, lx: 0.36, lz: 0.01, y0: 0.88, y1: 1.42, radius: 0.1 },
+  { part: BodyPart.LegL, lx: -0.13, lz: 0.02, y0: 0.02, y1: 0.84, radius: 0.12 },
+  { part: BodyPart.LegR, lx: 0.13, lz: 0.02, y0: 0.02, y1: 0.84, radius: 0.12 },
 ];
 
 export function createFullBodyParts(): BodyPartState {
@@ -111,29 +114,63 @@ export function resetBodyParts(parts: BodyPartState): void {
   for (const id of BODY_PART_IDS) parts[id] = BODY_PART_MAX[id];
 }
 
-/** Apply damage to one part; returns HP remaining on that part. */
 export function damageBodyPart(parts: BodyPartState, part: BodyPartId, amount: number): number {
   const next = Math.max(0, parts[part] - Math.max(0, amount));
   parts[part] = next;
   return next;
 }
 
-/** True when any zone is fully destroyed — that kills the player. */
-export function isBodyDestroyed(parts: BodyPartState): boolean {
-  for (const id of BODY_PART_IDS) {
-    if (parts[id] <= 0) return true;
-  }
-  return false;
+/**
+ * Healthy → Damaged (yellow) → Critical (red) → Destroyed (black).
+ * States persist until healed — never time out on their own.
+ */
+export function bodyPartCondition(parts: BodyPartState, part: BodyPartId): BodyPartCondition {
+  const hp = parts[part];
+  const max = BODY_PART_MAX[part];
+  if (hp <= 0) return 'destroyed';
+  if (max <= 1) return hp < max ? 'damaged' : 'healthy';
+  // Discrete stages for max=3: 3 OK · 2 yellow · 1 red · 0 black
+  if (hp <= 1) return 'critical';
+  if (hp < max) return 'damaged';
+  return 'healthy';
 }
 
 /**
- * Snapshot health 0..max for bars / protocol. Independent of cross-part stacking:
- * only reflects how intact the weakest zone is while alive.
+ * Apply one ballistic hit to a zone.
+ * - Head: always lethal.
+ * - Already destroyed (black) zone: lethal.
+ * - Otherwise: −1 HP on that zone only (no cross-part pooling).
  */
+export function applyPartHit(
+  parts: BodyPartState,
+  part: BodyPartId,
+): { killed: boolean; condition: BodyPartCondition } {
+  if (part === BodyPart.Head) {
+    parts.head = 0;
+    return { killed: true, condition: 'destroyed' };
+  }
+  if (parts[part] <= 0) {
+    return { killed: true, condition: 'destroyed' };
+  }
+  damageBodyPart(parts, part, 1);
+  return { killed: false, condition: bodyPartCondition(parts, part) };
+}
+
+/** True if any zone is black (destroyed). Player can still be alive until next hit there. */
+export function hasDestroyedPart(parts: BodyPartState): boolean {
+  return BODY_PART_IDS.some((id) => parts[id] <= 0 && id !== BodyPart.Head);
+}
+
+export function isBodyDestroyed(parts: BodyPartState): boolean {
+  return parts.head <= 0;
+}
+
+/** Protocol / bar health while alive — weakest non-head zone ratio. */
 export function healthFromParts(parts: BodyPartState, maxHealth = 100): number {
-  if (isBodyDestroyed(parts)) return 0;
+  if (parts.head <= 0) return 0;
   let worst = 1;
   for (const id of BODY_PART_IDS) {
+    if (id === BodyPart.Head) continue;
     const max = BODY_PART_MAX[id];
     if (max <= 0) continue;
     worst = Math.min(worst, parts[id] / max);
@@ -141,7 +178,6 @@ export function healthFromParts(parts: BodyPartState, maxHealth = 100): number {
   return Math.max(1, Math.round(worst * maxHealth));
 }
 
-/** Heal damaged parts preferentially (health packs / future meds). */
 export function healBodyParts(parts: BodyPartState, amount: number): void {
   let left = Math.max(0, amount);
   if (left <= 0) return;
@@ -157,7 +193,6 @@ export function healBodyParts(parts: BodyPartState, amount: number): void {
   }
 }
 
-/** Ratio 0..1 for coloring. */
 export function bodyPartRatio(parts: BodyPartState, part: BodyPartId): number {
   const max = BODY_PART_MAX[part];
   return max > 0 ? Math.max(0, Math.min(1, parts[part] / max)) : 0;
@@ -169,9 +204,6 @@ export function hitZoneForPart(part: BodyPartId): 'head' | 'legs' | 'body' {
   return 'body';
 }
 
-/**
- * Legacy height/lateral classifier — kept for tools; combat uses OPERATOR_PART_CAPSULES.
- */
 export function resolveBodyPartFromHit(
   feetY: number,
   height: number,
