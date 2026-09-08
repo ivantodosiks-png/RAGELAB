@@ -260,7 +260,12 @@ export class MainMenu {
     view.append(el('p', 'tk-beta', 'BETA TESTING'));
 
     const logo = el('h1', 'tk-title');
-    logo.textContent = 'Escape from Hamar';
+    logo.setAttribute('aria-label', 'Escape from Hamar');
+    logo.innerHTML = `
+      <span class="tk-title-stack">
+        <span class="tk-title-kicker">ESCAPE FROM</span>
+        <span class="tk-title-mark">HAMAR</span>
+      </span>`;
     view.append(logo);
 
     const warn = el('div', 'tk-warn');
