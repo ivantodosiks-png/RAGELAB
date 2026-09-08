@@ -3,6 +3,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { QualityLevel, type GraphicsSettings, type MapDefinition } from '@ragelab/shared';
 import { LAYER_WORLD } from './layers';
 import { BodycamPass } from './bodycamPass';
+import { setGlobalTextureAnisotropy } from './textures';
 
 /**
  * Owns the WebGL renderer, scene, camera and environment. Quality settings are
@@ -91,6 +92,9 @@ export class GameRenderer {
     this.scene.add(this.sky);
 
     this.applySettings(settings);
+    // Procedural textures were created before the GL context — raise anisotropy now.
+    const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
+    setGlobalTextureAnisotropy(Math.min(16, maxAniso));
   }
 
   private createSky(): THREE.Mesh {
@@ -228,14 +232,17 @@ export class GameRenderer {
     this.camera.updateProjectionMatrix();
 
     const dpr = window.devicePixelRatio || 1;
+    // Higher DPR + MSAA bodycam RT kill jagged edges without soft blur.
     const qualityCap =
       settings.quality === QualityLevel.Low
-        ? 1
+        ? 1.25
         : settings.quality === QualityLevel.Medium
-          ? 1.25
-          : 1.5;
+          ? 1.5
+          : settings.quality === QualityLevel.Ultra
+            ? 2
+            : 1.75;
     this.targetPixelRatio = Math.min(dpr, Math.max(0.5, settings.resolutionScale) * dpr, qualityCap);
-    this.bodycamPass.applySettings(settings.bodycam, settings.quality);
+    this.bodycamPass.applySettings(settings.bodycam, settings.quality, settings.antialias);
     this.resize();
   }
 
@@ -268,7 +275,7 @@ export class GameRenderer {
     this.viewModelCamera.aspect = width / height;
     this.viewModelCamera.updateProjectionMatrix();
     this.bodycamPass.resize(width, height, this.targetPixelRatio);
-    this.bodycamPass.applySettings(this.settings.bodycam, this.settings.quality);
+    this.bodycamPass.applySettings(this.settings.bodycam, this.settings.quality, this.settings.antialias);
   }
 
   render(dt = 1 / 60): void {

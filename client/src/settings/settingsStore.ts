@@ -11,8 +11,8 @@ import {
 import { EventBus } from '../core/eventBus';
 
 const STORAGE_KEY = 'ragelab.settings.v1';
-/** Bump to force-apply refined bodycam defaults (circular aperture lens). */
-const BODYCAM_PRESET_REV = 4;
+/** Bump to force-apply bodycam optics without circular black mask. */
+const BODYCAM_PRESET_REV = 5;
 const BODYCAM_REV_KEY = 'ragelab.bodycam.rev';
 
 export interface SettingsEvents {

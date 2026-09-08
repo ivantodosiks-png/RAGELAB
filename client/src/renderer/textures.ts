@@ -17,6 +17,26 @@ export type ProceduralTextureKind =
 const cache = new Map<string, THREE.Texture>();
 const pbrCache = new Map<string, ProceduralPbrMaps>();
 const SIZE = 1024;
+let globalAnisotropy = 16;
+
+/** Raise anisotropy on all cached procedural textures (call after GL context exists). */
+export function setGlobalTextureAnisotropy(value: number): void {
+  globalAnisotropy = Math.max(1, Math.floor(value));
+  for (const maps of pbrCache.values()) {
+    for (const tex of [maps.map, maps.roughnessMap, maps.normalMap, maps.aoMap]) {
+      if (tex.anisotropy !== globalAnisotropy) {
+        tex.anisotropy = globalAnisotropy;
+        tex.needsUpdate = true;
+      }
+    }
+  }
+  for (const tex of cache.values()) {
+    if (tex.anisotropy !== globalAnisotropy) {
+      tex.anisotropy = globalAnisotropy;
+      tex.needsUpdate = true;
+    }
+  }
+}
 
 export interface ProceduralPbrMaps {
   map: THREE.Texture;
@@ -113,7 +133,7 @@ function canvasTexture(canvas: HTMLCanvasElement, colorSpace: THREE.ColorSpace):
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.colorSpace = colorSpace;
-  texture.anisotropy = 16;
+  texture.anisotropy = globalAnisotropy;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;

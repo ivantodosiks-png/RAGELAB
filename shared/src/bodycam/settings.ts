@@ -10,7 +10,7 @@ export interface BodycamSettings {
   forwardOffset: number;
   /** Slight downward pitch bias (radians). Static offset only — never smoothed. */
   pitchBias: number;
-  /** Extra FOV degrees (keep low — no fisheye). */
+  /** Extra FOV degrees for wide-angle bodycam (keep modest). */
   fovBoost: number;
   /** Walk bob intensity 0–1 (subtle vest motion). */
   walkBob: number;
@@ -25,22 +25,28 @@ export interface BodycamSettings {
   shakeIntensity: number;
 
   // ── Lens (post-process) ──────────────────────────────────────────────────
+  /** Mild wide-angle barrel (optical stretch at edges — not fisheye). */
+  barrelDistortion: number;
+  /** Soft corner optical vignette 0–1 (never a hard circular mask). */
+  vignette: number;
   /**
-   * Deprecated: barrel/fisheye disabled — image stays proportional.
+   * Deprecated hard aperture mask. Forced off in the shader.
    * @deprecated
    */
-  barrelDistortion: number;
-  /** Soft darkening toward aperture edge 0–1 (no warp). */
-  vignette: number;
-  /** Circular lens aperture strength 0–1 (outside fades to black). */
   lensAperture: number;
-  /** Clear circle radius (aspect-corrected). Larger = more playable FOV. */
+  /**
+   * Deprecated circular crop radius.
+   * @deprecated
+   */
   lensRadius: number;
-  /** Soft glass rim at the aperture edge 0–1. */
+  /**
+   * Deprecated hard glass rim.
+   * @deprecated
+   */
   lensRim: number;
-  /** Very mild edge chromatic aberration 0–1 (no geometry warp). */
+  /** Edge-weighted chromatic aberration 0–1. */
   chromaticAberration: number;
-  /** Softness near the lens rim only 0–1. */
+  /** Softness toward frame edges 0–1. */
   edgeBlur: number;
 
   // ── Sensor (post-process) ────────────────────────────────────────────────
@@ -70,21 +76,21 @@ export const DEFAULT_BODYCAM: BodycamSettings = {
   chestHeight: 0.73,
   forwardOffset: 0.13,
   pitchBias: -0.035,
-  fovBoost: 8,
+  fovBoost: 10,
   walkBob: 0.48,
   runBob: 0.68,
   cameraLag: 0,
   shakeIntensity: 0.62,
-  barrelDistortion: 0,
-  vignette: 0.34,
-  lensAperture: 0.92,
-  lensRadius: 0.5,
-  lensRim: 0.55,
-  chromaticAberration: 0.16,
-  edgeBlur: 0.35,
-  noise: 0.2,
-  sharpening: 0.24,
-  motionBlur: 0.28,
+  barrelDistortion: 0.28,
+  vignette: 0.42,
+  lensAperture: 0,
+  lensRadius: 1,
+  lensRim: 0,
+  chromaticAberration: 0.22,
+  edgeBlur: 0.22,
+  noise: 0.18,
+  sharpening: 0.2,
+  motionBlur: 0.26,
   autoExposure: true,
   exposureSpeed: 0.95,
   minExposure: 0.5,
@@ -106,10 +112,10 @@ export function bodycamQualityScale(quality: string): {
     case 'low':
       return { post: true, exposure: false, motionBlur: false, noise: 0.4, samples: 0 };
     case 'medium':
-      return { post: true, exposure: true, motionBlur: true, noise: 0.7, samples: 1 };
+      return { post: true, exposure: true, motionBlur: true, noise: 0.7, samples: 2 };
     case 'ultra':
-      return { post: true, exposure: true, motionBlur: true, noise: 1, samples: 3 };
+      return { post: true, exposure: true, motionBlur: true, noise: 1, samples: 4 };
     default:
-      return { post: true, exposure: true, motionBlur: true, noise: 0.85, samples: 2 };
+      return { post: true, exposure: true, motionBlur: true, noise: 0.85, samples: 4 };
   }
 }

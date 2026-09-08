@@ -13,15 +13,16 @@ void main() {
 }
 `;
 
-/** Circular bodycam aperture — proportional image, no fisheye/warp. */
+/**
+ * Full-frame bodycam optics: mild wide-angle barrel + soft vignette + edge CA.
+ * No circular black mask / aperture crop — the whole framebuffer stays playable.
+ */
 const FRAG = /* glsl */ `
 precision highp float;
 uniform sampler2D tDiffuse;
 uniform vec2 uResolution;
+uniform float uBarrel;
 uniform float uVignette;
-uniform float uAperture;
-uniform float uLensRadius;
-uniform float uLensRim;
 uniform float uChroma;
 uniform float uEdgeBlur;
 uniform float uNoise;
@@ -42,88 +43,87 @@ float luma(vec3 c) {
   return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
+/** Mild barrel: stretch near edges without strong fisheye. */
+vec2 barrel(vec2 uv, float amount) {
+  vec2 c = vec2(0.5);
+  vec2 d = uv - c;
+  float aspect = uResolution.x / max(uResolution.y, 1.0);
+  d.x *= aspect;
+  float r2 = dot(d, d);
+  // Keep amount modest — optical wide-angle, not a novelty lens.
+  d *= 1.0 + amount * r2 * 0.55;
+  d.x /= aspect;
+  return c + d;
+}
+
 void main() {
   vec2 uv = vUv;
   float aspect = uResolution.x / max(uResolution.y, 1.0);
   vec2 d = uv - vec2(0.5);
   vec2 dn = vec2(d.x * aspect, d.y);
   float dist = length(dn);
+  // Soft radial weight for edge-only effects (no hard circle).
+  float edge = smoothstep(0.18, 0.78, dist);
+  float edge2 = edge * edge;
 
-  // Large circular clear zone (aspect-corrected). Outside fades to black.
-  // lensRadius slider: higher = larger clear circle (more playable FOV).
-  float radius = mix(0.42, 0.62, clamp(uLensRadius, 0.0, 1.0));
-  float fall = 0.045 + (1.0 - uAperture) * 0.04;
-  float outside = smoothstep(radius - fall * 0.35, radius + fall, dist);
-  float inside = 1.0 - outside;
-  float rimBand = smoothstep(radius - 0.028, radius - 0.006, dist)
-                * (1.0 - smoothstep(radius + 0.002, radius + 0.034, dist));
-  float nearRim = smoothstep(radius * 0.72, radius + 0.02, dist);
+  vec2 distorted = barrel(uv, clamp(uBarrel, 0.0, 1.0));
 
-  // No UV warp — keep geometry proportional.
   vec2 mDir = uMotionDir;
-  float mAmt = uMotion * 0.007;
-  float ca = uChroma * 0.0022 * nearRim * nearRim;
-  vec2 radial = normalize(d + 1e-5);
+  float mAmt = uMotion * edge * 0.01;
+  vec2 radial = normalize(distorted - vec2(0.5) + 1e-5);
+  float ca = uChroma * 0.0035 * edge2;
+
+  vec2 uvR = distorted + radial * ca + mDir * mAmt * 0.35;
+  vec2 uvG = distorted;
+  vec2 uvB = distorted - radial * ca - mDir * mAmt * 0.35;
 
   vec3 col;
-  col.r = texture2D(tDiffuse, uv + radial * ca).r;
-  col.g = texture2D(tDiffuse, uv).g;
-  col.b = texture2D(tDiffuse, uv - radial * ca).b;
+  col.r = texture2D(tDiffuse, uvR).r;
+  col.g = texture2D(tDiffuse, uvG).g;
+  col.b = texture2D(tDiffuse, uvB).b;
 
-  if (uMotion > 0.04) {
-    vec3 a = texture2D(tDiffuse, uv + mDir * mAmt).rgb;
-    vec3 b = texture2D(tDiffuse, uv - mDir * mAmt).rgb;
-    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * 0.32, 0.0, 0.32));
+  if (uMotion > 0.035) {
+    vec3 a = texture2D(tDiffuse, distorted + mDir * mAmt * 0.55).rgb;
+    vec3 b = texture2D(tDiffuse, distorted - mDir * mAmt * 0.55).rgb;
+    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * edge * 0.4, 0.0, 0.4));
   }
 
-  // Soft focus loss only near the glass rim (not a warp).
   if (uEdgeBlur > 0.01) {
-    vec2 px = (1.2 + uEdgeBlur * 2.4) / uResolution;
+    vec2 px = (uEdgeBlur * edge * 1.6) / uResolution;
     vec3 blur =
-      texture2D(tDiffuse, uv + vec2( px.x, 0.0)).rgb +
-      texture2D(tDiffuse, uv + vec2(-px.x, 0.0)).rgb +
-      texture2D(tDiffuse, uv + vec2(0.0,  px.y)).rgb +
-      texture2D(tDiffuse, uv + vec2(0.0, -px.y)).rgb;
+      texture2D(tDiffuse, distorted + vec2( px.x, 0.0)).rgb +
+      texture2D(tDiffuse, distorted + vec2(-px.x, 0.0)).rgb +
+      texture2D(tDiffuse, distorted + vec2(0.0,  px.y)).rgb +
+      texture2D(tDiffuse, distorted + vec2(0.0, -px.y)).rgb;
     blur *= 0.25;
-    col = mix(col, blur, clamp(nearRim * uEdgeBlur * 0.55, 0.0, 0.55));
+    col = mix(col, blur, clamp(edge2 * uEdgeBlur * 0.45, 0.0, 0.45));
   }
 
   if (uSharpen > 0.01) {
     vec3 blur =
-      texture2D(tDiffuse, uv + vec2(1.0, 0.0) / uResolution).rgb +
-      texture2D(tDiffuse, uv + vec2(-1.0, 0.0) / uResolution).rgb +
-      texture2D(tDiffuse, uv + vec2(0.0, 1.0) / uResolution).rgb +
-      texture2D(tDiffuse, uv + vec2(0.0, -1.0) / uResolution).rgb;
+      texture2D(tDiffuse, distorted + vec2(1.0, 0.0) / uResolution).rgb +
+      texture2D(tDiffuse, distorted + vec2(-1.0, 0.0) / uResolution).rgb +
+      texture2D(tDiffuse, distorted + vec2(0.0, 1.0) / uResolution).rgb +
+      texture2D(tDiffuse, distorted + vec2(0.0, -1.0) / uResolution).rgb;
     blur *= 0.25;
-    col += (col - blur) * uSharpen * inside * (1.0 - nearRim * 0.7);
+    col += (col - blur) * uSharpen * (1.0 - edge * 0.75);
   }
 
   col *= uExposure;
   col *= uWB;
 
-  // Inner optical vignette inside the clear circle.
-  float inner = smoothstep(radius * 0.28, radius * 0.95, dist);
-  col *= 1.0 - uVignette * inner * 0.55 * inside;
+  // Natural optical vignette — darkens corners gradually, never cuts a circle.
+  float vig = 1.0 - uVignette * pow(clamp(dist * 1.22, 0.0, 1.15), 1.65);
+  col *= clamp(vig, 0.2, 1.0);
 
   float nAmt = uNoise * uQualityNoise;
   if (nAmt > 0.001) {
     float n = hash(gl_FragCoord.xy + vec2(uTime * 70.0, uTime * 19.0)) - 0.5;
     float dark = 1.0 - smoothstep(0.05, 0.42, luma(col));
-    col += n * nAmt * (0.026 + dark * 0.048) * mix(0.35, 1.0, inside);
+    col += n * nAmt * (0.024 + dark * 0.05);
   }
 
   col = col / (1.0 + col * 0.06);
-
-  // Glass rim: thin dark ring + faint specular (no geometry stretch).
-  float rim = rimBand * uLensRim;
-  col = mix(col, col * 0.12, rim * 0.72);
-  col += rim * 0.055 * vec3(0.92, 0.94, 0.9);
-
-  // Outside aperture → deep black housing (bodycam bezel).
-  col *= mix(1.0, 0.0, outside * uAperture);
-  // Tiny residual ambient so pure black isn't crushing UI bleed.
-  col += (1.0 - inside) * uAperture * 0.008;
-
   gl_FragColor = vec4(clamp(col, 0.0, 4.0), 1.0);
 }
 `;
@@ -145,8 +145,8 @@ void main() {
 `;
 
 /**
- * Full-frame bodycam post — one RT + optional 1×1 luminance probe.
- * No second gameplay camera.
+ * Full-frame bodycam post — one RT (+ MSAA) + optional 1×1 luminance probe.
+ * No second gameplay camera. No circular crop.
  */
 export class BodycamPass {
   private rt: THREE.WebGLRenderTarget | null = null;
@@ -158,6 +158,7 @@ export class BodycamPass {
   private readonly lumMaterial: THREE.ShaderMaterial;
   private width = 1;
   private height = 1;
+  private samples = 0;
   private enabled = false;
   private doExposure = false;
   private frame = 0;
@@ -166,20 +167,19 @@ export class BodycamPass {
   private readonly lumPixel = new Uint8Array(4);
   private settings: BodycamSettings | null = null;
   private quality: QualityLevelId = 'high';
+  private wantAntialias = true;
 
   constructor() {
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: null as THREE.Texture | null },
         uResolution: { value: new THREE.Vector2(1, 1) },
-        uVignette: { value: 0.34 },
-        uAperture: { value: 0.92 },
-        uLensRadius: { value: 0.5 },
-        uLensRim: { value: 0.55 },
-        uChroma: { value: 0.16 },
-        uEdgeBlur: { value: 0.35 },
-        uNoise: { value: 0.2 },
-        uSharpen: { value: 0.24 },
+        uBarrel: { value: 0.28 },
+        uVignette: { value: 0.42 },
+        uChroma: { value: 0.22 },
+        uEdgeBlur: { value: 0.22 },
+        uNoise: { value: 0.18 },
+        uSharpen: { value: 0.2 },
         uMotion: { value: 0 },
         uMotionDir: { value: new THREE.Vector2(0, 0) },
         uExposure: { value: 1 },
@@ -208,9 +208,14 @@ export class BodycamPass {
     return settings.enabled;
   }
 
-  applySettings(settings: BodycamSettings, quality: QualityLevelId = 'high'): void {
+  applySettings(
+    settings: BodycamSettings,
+    quality: QualityLevelId = 'high',
+    antialias = true,
+  ): void {
     this.settings = settings;
     this.quality = quality;
+    this.wantAntialias = antialias;
     const q = bodycamQualityScale(quality);
     this.enabled = settings.enabled && q.post;
     this.doExposure = settings.enabled && settings.autoExposure && q.exposure;
@@ -220,15 +225,15 @@ export class BodycamPass {
     }
     const u = this.material.uniforms;
     const low = quality === 'low';
-    u.uVignette!.value = settings.vignette * (low ? 0.75 : 1);
-    u.uAperture!.value = settings.lensAperture ?? 0.92;
-    u.uLensRadius!.value = settings.lensRadius ?? 0.5;
-    u.uLensRim!.value = (settings.lensRim ?? 0.55) * (low ? 0.6 : 1);
-    u.uChroma!.value = settings.chromaticAberration * (low ? 0.4 : 1);
-    u.uEdgeBlur!.value = low ? settings.edgeBlur * 0.35 : settings.edgeBlur;
+    // Hard aperture/crop fields are ignored — optics are full-frame only.
+    u.uBarrel!.value = settings.barrelDistortion * (low ? 0.7 : 1);
+    u.uVignette!.value = settings.vignette * (low ? 0.8 : 1);
+    u.uChroma!.value = settings.chromaticAberration * (low ? 0.45 : 1);
+    u.uEdgeBlur!.value = low ? settings.edgeBlur * 0.4 : settings.edgeBlur;
     u.uNoise!.value = settings.noise;
     u.uSharpen!.value = low ? 0 : settings.sharpening;
     u.uQualityNoise!.value = q.noise;
+    this.samples = antialias ? q.samples : 0;
   }
 
   /** Brief exposure kick (muzzle flash / nearby blast). */
@@ -252,14 +257,14 @@ export class BodycamPass {
     const strength = clamp01(mag * 0.12) * this.settings.motionBlur;
     this.material.uniforms.uMotion!.value = strength;
     const len = Math.max(1e-4, mag);
-    // UV space: yaw → horizontal, pitch → vertical (flip Y).
     this.material.uniforms.uMotionDir!.value.set(yawVel / len, -pitchVel / len);
   }
 
   resize(width: number, height: number, pixelRatio: number): void {
     const w = Math.max(1, Math.floor(width * pixelRatio));
     const h = Math.max(1, Math.floor(height * pixelRatio));
-    if (w === this.width && h === this.height && this.rt) return;
+    const samples = this.wantAntialias ? this.samples : 0;
+    if (w === this.width && h === this.height && this.rt && this.rt.samples === samples) return;
     this.width = w;
     this.height = h;
     this.rt?.dispose();
@@ -270,6 +275,7 @@ export class BodycamPass {
       type: THREE.UnsignedByteType,
       depthBuffer: true,
       stencilBuffer: false,
+      samples,
     });
     this.lumRt?.dispose();
     this.lumRt = new THREE.WebGLRenderTarget(1, 1, {
@@ -299,7 +305,6 @@ export class BodycamPass {
     if (this.doExposure && this.lumRt && this.settings && this.frame % 3 === 0) {
       this.probeExposure(renderer, dt);
     } else if (this.settings) {
-      // Keep adapting toward neutral when not probing.
       const speed = this.settings.exposureSpeed * dt;
       this.exposure = THREE.MathUtils.lerp(this.exposure, 1, clamp01(speed * 0.15));
     }
@@ -324,7 +329,6 @@ export class BodycamPass {
     const lum = this.lumPixel[0]! / 255;
     const r = this.lumPixel[1]! / 255;
     const b = this.lumPixel[2]! / 255;
-    // Mid-grey target ~0.32 for bodycam sensor.
     const target = clamp(
       this.settings.minExposure,
       this.settings.maxExposure,
@@ -334,7 +338,6 @@ export class BodycamPass {
     this.exposure = THREE.MathUtils.lerp(this.exposure, target, adapt);
 
     if (this.settings.whiteBalance > 0.01) {
-      // Cool outdoor (more blue) vs warm indoor (more red) — gentle pull.
       const temp = clamp(-1, 1, (r - b) * 2.2);
       const cool = new THREE.Vector3(0.96, 0.99, 1.06);
       const warm = new THREE.Vector3(1.08, 1.0, 0.92);
