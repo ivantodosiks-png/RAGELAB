@@ -26,6 +26,8 @@ export const Op = {
   StartMatch: 10,
   /** JSON: { caliber, amount? } - Tool Gun / admin spawn ammo into inventory. */
   SpawnAmmo: 11,
+  /** JSON: { instanceId, containerId, gx, gy, rotated } - move inventory item in grid. */
+  MoveInventoryItem: 12,
 
   // ── server -> client ──
   /** JSON: WelcomePayload */

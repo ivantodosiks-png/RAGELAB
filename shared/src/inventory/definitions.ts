@@ -34,8 +34,9 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     capacity: 7,
     compatibleWeapons: ['pistol', 'magnum'],
     width: 1,
-    height: 1,
+    height: 2,
     weight: 0.18,
+    icon: 'mag_pistol',
   },
   mag_glock: {
     id: 'mag_glock',
@@ -44,8 +45,9 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     capacity: 17,
     compatibleWeapons: ['glock', 'usp', 'makarov'],
     width: 1,
-    height: 1,
+    height: 2,
     weight: 0.14,
+    icon: 'mag_pistol',
   },
   mag_smg: {
     id: 'mag_smg',
@@ -56,6 +58,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.28,
+    icon: 'mag_smg',
   },
   mag_bizon: {
     id: 'mag_bizon',
@@ -66,6 +69,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 2,
     height: 2,
     weight: 0.55,
+    icon: 'mag_drum',
   },
   mag_rifle: {
     id: 'mag_rifle',
@@ -76,6 +80,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.35,
+    icon: 'mag_stanag',
   },
   mag_ak: {
     id: 'mag_ak',
@@ -86,6 +91,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.4,
+    icon: 'mag_ak',
   },
   mag_shotgun: {
     id: 'mag_shotgun',
@@ -96,6 +102,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.3,
+    icon: 'mag_shotgun',
   },
   mag_autosg: {
     id: 'mag_autosg',
@@ -106,6 +113,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.38,
+    icon: 'mag_shotgun',
   },
   mag_saiga: {
     id: 'mag_saiga',
@@ -116,6 +124,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.32,
+    icon: 'mag_ak',
   },
   mag_sniper: {
     id: 'mag_sniper',
@@ -124,8 +133,9 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     capacity: 5,
     compatibleWeapons: ['sniper'],
     width: 1,
-    height: 2,
+    height: 3,
     weight: 0.7,
+    icon: 'mag_50bmg',
   },
   mag_dmr: {
     id: 'mag_dmr',
@@ -136,6 +146,7 @@ export const MAGAZINE_DEFINITIONS: Record<string, MagazineDefinition> = {
     width: 1,
     height: 2,
     weight: 0.42,
+    icon: 'mag_ak',
   },
 };
 
@@ -148,6 +159,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.012,
+    icon: 'ammo_box',
   },
   ammo_545x39: {
     id: 'ammo_545x39',
@@ -157,6 +169,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.011,
+    icon: 'ammo_box',
   },
   ammo_556x45: {
     id: 'ammo_556x45',
@@ -166,6 +179,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.012,
+    icon: 'ammo_box',
   },
   ammo_762x39: {
     id: 'ammo_762x39',
@@ -175,6 +189,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.016,
+    icon: 'ammo_box',
   },
   ammo_762x54r: {
     id: 'ammo_762x54r',
@@ -184,6 +199,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.022,
+    icon: 'ammo_box',
   },
   ammo_50bmg: {
     id: 'ammo_50bmg',
@@ -193,6 +209,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.12,
+    icon: 'ammo_box',
   },
   ammo_12gauge: {
     id: 'ammo_12gauge',
@@ -202,6 +219,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.045,
+    icon: 'ammo_box',
   },
   ammo_50ae: {
     id: 'ammo_50ae',
@@ -211,6 +229,7 @@ export const AMMO_DEFINITIONS: Record<string, AmmoDefinition> = {
     width: 1,
     height: 1,
     weightPerRound: 0.025,
+    icon: 'ammo_box',
   },
 };
 
@@ -219,7 +238,6 @@ export function magazineDefForWeapon(weaponId: WeaponId): MagazineDefinition {
     d.compatibleWeapons.includes(weaponId),
   );
   if (found) return found;
-  // Fallback generic based on caliber capacity from weapon table callers.
   return {
     id: `mag_generic_${weaponId}`,
     name: `${weaponId} Magazine`,
@@ -229,6 +247,7 @@ export function magazineDefForWeapon(weaponId: WeaponId): MagazineDefinition {
     width: 1,
     height: 2,
     weight: 0.3,
+    icon: 'mag_stanag',
   };
 }
 
@@ -243,6 +262,7 @@ export function ammoDefForCaliber(caliber: CaliberId): AmmoDefinition {
     width: 1,
     height: 1,
     weightPerRound: 0.012,
+    icon: 'ammo_box',
   };
 }
 

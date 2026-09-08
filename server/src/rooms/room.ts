@@ -17,6 +17,7 @@ import {
   isCaliberId,
   canReload,
   canSwapMagazine,
+  moveInventoryItem,
   decaySpread,
   distanceSq,
   encodeJson,
@@ -406,6 +407,33 @@ export class Room {
     const def = ammoDefForCaliber(caliber);
     const qty = Math.max(1, Math.min(300, amount ?? def.defaultStack));
     addAmmoStack(roomPlayer.entity.inventory, caliber, qty);
+    roomPlayer.pendingEvents.push({
+      t: 'inventorySync',
+      inventory: roomPlayer.entity.inventorySnapshot(),
+    });
+  }
+
+  handleMoveInventoryItem(
+    playerId: number,
+    payload: {
+      instanceId: string;
+      containerId: 'rig' | 'backpack' | 'pockets';
+      gx: number;
+      gy: number;
+      rotated: boolean;
+    },
+  ): void {
+    const roomPlayer = this.players.get(playerId);
+    if (!roomPlayer) return;
+    const ok = moveInventoryItem(
+      roomPlayer.entity.inventory,
+      payload.instanceId,
+      payload.containerId,
+      Math.floor(payload.gx),
+      Math.floor(payload.gy),
+      Boolean(payload.rotated),
+    );
+    if (!ok) return;
     roomPlayer.pendingEvents.push({
       t: 'inventorySync',
       inventory: roomPlayer.entity.inventorySnapshot(),

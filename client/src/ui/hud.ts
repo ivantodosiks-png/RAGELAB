@@ -2,6 +2,7 @@ import { el } from './dom';
 import { BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
 import { settingsStore } from '../settings/settingsStore';
+import { magazineIconSvg } from './inventoryIcons';
 
 export interface HudScoreRow {
   id: number;
@@ -36,6 +37,7 @@ export class Hud {
   private readonly ammoPanel: HTMLElement;
   private readonly ammoBig: HTMLElement;
   private readonly ammoName: HTMLElement;
+  private readonly magStrip: HTMLElement;
   private readonly killfeed: HTMLElement;
   private readonly chatLog: HTMLElement;
   private readonly chatBox: HTMLElement;
@@ -84,6 +86,7 @@ export class Hud {
   private lastHealth = -1;
   private lastStamina = -1;
   private lastAmmo = '';
+  private lastMagIcons = '';
   private lastWeapon = '';
   private lastNet = '';
   private lastInteract = '';
@@ -152,6 +155,8 @@ export class Hud {
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);
     this.ammoPanel.append(ammoKicker, this.ammoName, this.ammoBig, magRow, magBar);
+    this.magStrip = el('div', 'hud-mag-strip');
+    this.ammoPanel.append(this.magStrip);
 
     this.weaponBar = el('div', 'weapon-bar');
     for (let i = 0; i < WHEEL_SLOTS; i++) {
@@ -292,7 +297,6 @@ export class Hud {
     this.lastAmmo = key;
     const magPct = magSize > 0 ? mag / magSize : 0;
     this.ammoFill.style.transform = `scaleX(${magPct})`;
-    // Approximate magazine state only — never exact round counts on HUD.
     let label = 'EMPTY';
     if (magSize <= 0 || mag <= 0) label = 'EMPTY';
     else if (magPct >= 0.95) label = 'FULL';
@@ -309,6 +313,21 @@ export class Hud {
       this.loadout[this.lastSlot]!.magSize = magSize;
     }
     if (this.wheelOpen) this.paintWheelCenter(this.wheelHighlight);
+  }
+
+  /** Spare magazine icons (approximate fill only). Active = chambered. */
+  setMagazineIcons(
+    icons: Array<{ icon: string; fill: number; active?: boolean }>,
+  ): void {
+    const key = icons.map((i) => `${i.icon}:${i.fill.toFixed(2)}:${i.active ? 1 : 0}`).join('|');
+    if (key === this.lastMagIcons) return;
+    this.lastMagIcons = key;
+    this.magStrip.replaceChildren();
+    for (const entry of icons.slice(0, 8)) {
+      const cell = el('div', entry.active ? 'hud-mag-ico is-active' : 'hud-mag-ico');
+      cell.innerHTML = magazineIconSvg(entry.icon, entry.fill);
+      this.magStrip.append(cell);
+    }
   }
 
   setWeapon(name: string): void {

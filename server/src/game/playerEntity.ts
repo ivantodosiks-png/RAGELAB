@@ -14,6 +14,7 @@ import {
   swapMagazine,
   canSwapMagazine,
   cloneInventory,
+  normalizeInventoryPlacements,
   qAngle,
   qPos,
   qVel,
@@ -275,7 +276,9 @@ export class PlayerEntity {
   }
 
   inventorySnapshot(): PlayerInventoryState {
-    return cloneInventory(this.inventory);
+    const snap = cloneInventory(this.inventory);
+    normalizeInventoryPlacements(snap);
+    return snap;
   }
 
   dispose(): void {

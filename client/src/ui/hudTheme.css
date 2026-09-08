@@ -517,6 +517,35 @@ input[type='range'] {
   color: #ff8a8a;
 }
 
+.hud-mag-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.hud-mag-ico {
+  width: 22px;
+  height: 34px;
+  padding: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0.72;
+}
+
+.hud-mag-ico.is-active {
+  opacity: 1;
+  border-color: rgba(224, 122, 47, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(224, 122, 47, 0.2);
+}
+
+.hud-mag-ico svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .weapon-bar {
   position: absolute;
   left: 50%;

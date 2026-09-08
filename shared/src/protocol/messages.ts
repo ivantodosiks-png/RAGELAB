@@ -45,6 +45,14 @@ export interface SpawnAmmoPayload {
   amount?: number;
 }
 
+export interface MoveInventoryItemPayload {
+  instanceId: string;
+  containerId: 'rig' | 'backpack' | 'pockets';
+  gx: number;
+  gy: number;
+  rotated: boolean;
+}
+
 // ── server -> client JSON payloads ──────────────────────────────────────────
 
 export interface WelcomePayload {

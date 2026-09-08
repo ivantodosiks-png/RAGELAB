@@ -21,6 +21,7 @@ import {
   type RoomListPayload,
   type RosterPayload,
   type SpawnAmmoPayload,
+  type MoveInventoryItemPayload,
   type StartMatchPayload,
   type WelcomePayload,
   type WorldSnapshot,
@@ -269,6 +270,10 @@ export class NetClient {
 
   sendSpawnAmmo(caliber: SpawnAmmoPayload['caliber'], amount?: number): void {
     this.sendJson(Op.SpawnAmmo, { caliber, amount } satisfies SpawnAmmoPayload);
+  }
+
+  sendMoveInventoryItem(payload: MoveInventoryItemPayload): void {
+    this.sendJson(Op.MoveInventoryItem, payload satisfies MoveInventoryItemPayload);
   }
 
   private sendJson(op: OpCode, payload: unknown): void {

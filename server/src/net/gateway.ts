@@ -12,6 +12,7 @@ import {
   type CreateRoomPayload,
   type HelloPayload,
   type SpawnAmmoPayload,
+  type MoveInventoryItemPayload,
   type RoomListPayload,
   type SwitchWeaponPayload,
 } from '@ragelab/shared';
@@ -156,6 +157,9 @@ export class Gateway {
           break;
         case Op.SpawnAmmo:
           this.handleSpawnAmmo(connection, data);
+          break;
+        case Op.MoveInventoryItem:
+          this.handleMoveInventoryItem(connection, data);
           break;
         default:
           connection.sendError(ErrorCode.BadPacket, `unknown opcode ${op}`, true);
@@ -331,6 +335,14 @@ export class Gateway {
     const payload = decodeJsonBody<SpawnAmmoPayload>(data);
     if (typeof payload.caliber !== 'string') return;
     connection.room.handleSpawnAmmo(connection.playerId, payload.caliber, payload.amount);
+  }
+
+  private handleMoveInventoryItem(connection: Connection, data: Uint8Array): void {
+    if (!connection.room || !connection.allowControlMessage()) return;
+    if (connection.playerId == null) return;
+    const payload = decodeJsonBody<MoveInventoryItemPayload>(data);
+    if (!payload?.instanceId || typeof payload.gx !== 'number' || typeof payload.gy !== 'number') return;
+    connection.room.handleMoveInventoryItem(connection.playerId, payload);
   }
 
   private async onClose(connection: Connection): Promise<void> {
