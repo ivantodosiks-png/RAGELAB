@@ -11,6 +11,7 @@ import {
   type ChatPayload,
   type CreateRoomPayload,
   type HelloPayload,
+  type SpawnAmmoPayload,
   type RoomListPayload,
   type SwitchWeaponPayload,
 } from '@ragelab/shared';
@@ -152,6 +153,9 @@ export class Gateway {
           break;
         case Op.StartMatch:
           this.handleStartMatch(connection);
+          break;
+        case Op.SpawnAmmo:
+          this.handleSpawnAmmo(connection, data);
           break;
         default:
           connection.sendError(ErrorCode.BadPacket, `unknown opcode ${op}`, true);
@@ -316,6 +320,13 @@ export class Gateway {
     }
     if (room.phase !== 'lobby') return;
     room.startMatch();
+  }
+
+  private handleSpawnAmmo(connection: Connection, data: Uint8Array): void {
+    if (!connection.room || !connection.allowControlMessage()) return;
+    const payload = decodeJsonBody<SpawnAmmoPayload>(data);
+    if (typeof payload.caliber !== 'string') return;
+    connection.room.handleSpawnAmmo(connection.playerId, payload.caliber, payload.amount);
   }
 
   private async onClose(connection: Connection): Promise<void> {

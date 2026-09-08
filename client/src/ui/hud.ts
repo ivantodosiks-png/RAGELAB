@@ -1,5 +1,5 @@
 import { el } from './dom';
-import { TOOL_GUN_UI_SLOT } from '../player/inputController';
+import { BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
 import { settingsStore } from '../settings/settingsStore';
 
@@ -145,9 +145,8 @@ export class Hud {
     this.ammoPanel = el('div', 'hud-weapon');
     const ammoKicker = el('div', 'vital-kicker', 'Weapon');
     this.ammoName = el('div', 'name', '—');
-    this.ammoBig = el('div', 'ammo', '0<small> / 0</small>');
-    const magRow = el('div', 'vital-meta');
-    magRow.append(el('span', '', 'Magazine'), (this.ammoText = el('span', '', '0%')));
+    magRow.append(el('span', '', 'Spares'), (this.ammoText = el('span', '', '0 MAG')));
+    this.ammoBig = el('div', 'ammo', 'FULL<small> · ████████</small>');
     const magBar = el('div', 'bar ammo');
     this.ammoFill = el('span');
     magBar.append(this.ammoFill);
@@ -292,10 +291,17 @@ export class Hud {
     this.lastAmmo = key;
     const magPct = magSize > 0 ? mag / magSize : 0;
     this.ammoFill.style.transform = `scaleX(${magPct})`;
-    this.ammoText.textContent = `${Math.round(magPct * 100)}%`;
-    this.ammoBig.innerHTML = `${mag}<small> / ${reserve}</small>`;
-    this.ammoPanel.classList.toggle('empty', mag <= 0 && reserve <= 0);
-    this.ammoPanel.classList.toggle('low', magSize > 0 && mag / magSize <= 0.25 && mag > 0);
+    // Approximate magazine state only — never exact round counts on HUD.
+    let label = 'EMPTY';
+    if (magSize <= 0 || mag <= 0) label = 'EMPTY';
+    else if (magPct >= 0.95) label = 'FULL';
+    else if (magPct >= 0.65) label = 'HIGH';
+    else if (magPct >= 0.35) label = 'MEDIUM';
+    else label = 'LOW';
+    this.ammoText.textContent = `${reserve} MAG`;
+    this.ammoBig.innerHTML = `${label}<small> · ${barsForApprox(label)}</small>`;
+    this.ammoPanel.classList.toggle('empty', mag <= 0);
+    this.ammoPanel.classList.toggle('low', magPct > 0 && magPct <= 0.25);
     if (this.loadout[this.lastSlot]) {
       this.loadout[this.lastSlot]!.mag = mag;
       this.loadout[this.lastSlot]!.reserve = reserve;
@@ -317,7 +323,7 @@ export class Hud {
     this.loadout = slots.slice();
     if (key === this.loadoutKey) return;
     this.loadoutKey = key;
-    for (let i = 0; i < TOOL_GUN_UI_SLOT; i++) {
+    for (let i = 0; i < BUILD_PLAN_UI_SLOT; i++) {
       const info = slots[i];
       const name = this.slotNames[i];
       const icon = this.slotIcons[i];
@@ -329,14 +335,21 @@ export class Hud {
       if (wName) wName.textContent = info && info.id ? shortWeaponName(info.name) : '—';
       if (wIcon) wIcon.innerHTML = slotGlyph(info?.id || 'empty');
     }
-    const toolName = this.slotNames[TOOL_GUN_UI_SLOT];
-    const toolIcon = this.slotIcons[TOOL_GUN_UI_SLOT];
-    if (toolName) toolName.textContent = 'Tool Gun';
-    if (toolIcon) toolIcon.innerHTML = slotGlyph('toolgun');
-    const wToolName = this.wheelNames[TOOL_GUN_UI_SLOT];
-    const wToolIcon = this.wheelIcons[TOOL_GUN_UI_SLOT];
-    if (wToolName) wToolName.textContent = 'Tool Gun';
-    if (wToolIcon) wToolIcon.innerHTML = slotGlyph('toolgun');
+    const labels: Array<[number, string, string]> = [
+      [BUILD_PLAN_UI_SLOT, 'Build', 'build'],
+      [HAMMER_UI_SLOT, 'Hammer', 'hammer'],
+      [TOOL_GUN_UI_SLOT, 'Tool Gun', 'toolgun'],
+    ];
+    for (const [slot, label, glyph] of labels) {
+      const name = this.slotNames[slot];
+      const icon = this.slotIcons[slot];
+      if (name) name.textContent = label;
+      if (icon) icon.innerHTML = slotGlyph(glyph);
+      const wName = this.wheelNames[slot];
+      const wIcon = this.wheelIcons[slot];
+      if (wName) wName.textContent = label;
+      if (wIcon) wIcon.innerHTML = slotGlyph(glyph);
+    }
   }
 
   setActiveSlot(slot: number): void {
@@ -699,10 +712,21 @@ export class Hud {
     this.wheelCenterBlurb.textContent = info?.blurb ?? (tool ? 'Sandbox manipulator.' : weaponBlurb(info?.id ?? ''));
     if (tool) {
       this.wheelCenterAmmo.textContent = 'Slot 6';
-    } else if (info && info.mag !== undefined) {
-      this.wheelCenterAmmo.textContent = `${info.mag}  /  ${info.reserve ?? 0}`;
+    } else if (slot === BUILD_PLAN_UI_SLOT) {
+      this.wheelCenterAmmo.textContent = 'Slot 4';
+    } else if (slot === HAMMER_UI_SLOT) {
+      this.wheelCenterAmmo.textContent = 'Slot 5';
+    } else if (info && info.mag !== undefined && info.magSize) {
+      const pct = info.magSize > 0 ? info.mag / info.magSize : 0;
+      let label = 'EMPTY';
+      if (info.mag <= 0) label = 'EMPTY';
+      else if (pct >= 0.95) label = 'FULL';
+      else if (pct >= 0.65) label = 'HIGH';
+      else if (pct >= 0.35) label = 'MEDIUM';
+      else label = 'LOW';
+      this.wheelCenterAmmo.textContent = `${label} · ${info.reserve ?? 0} MAG`;
     } else if (info?.magSize) {
-      this.wheelCenterAmmo.textContent = `${info.magSize} mag`;
+      this.wheelCenterAmmo.textContent = 'READY';
     } else {
       this.wheelCenterAmmo.textContent = '';
     }
@@ -771,12 +795,31 @@ function weaponBlurb(id: string): string {
   }
 }
 
+function barsForApprox(label: string): string {
+  switch (label) {
+    case 'FULL':
+      return '████████';
+    case 'HIGH':
+      return '██████░░';
+    case 'MEDIUM':
+      return '████░░░░';
+    case 'LOW':
+      return '██░░░░░░';
+    default:
+      return '░░░░░░░░';
+  }
+}
+
 function slotGlyph(id: string): string {
   const common =
     'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
   switch (id) {
     case 'toolgun':
       return `<svg ${common}><path d="M14 7l3-3 3 3-3 3"/><path d="M11 10L4 17v3h3l7-7"/><circle cx="16.5" cy="7.5" r="1"/></svg>`;
+    case 'build':
+      return `<svg ${common}><path d="M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/></svg>`;
+    case 'hammer':
+      return `<svg ${common}><path d="M14 5l5 5-2 2-5-5z"/><path d="M8 12l4 4"/><path d="M6 20l6-6"/></svg>`;
     case 'empty':
     case '':
       return `<svg ${common}><rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="3 2"/></svg>`;

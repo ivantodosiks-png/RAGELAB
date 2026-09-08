@@ -102,6 +102,8 @@ export class SandboxController {
   menuOpen = false;
   selection: SpawnEntry = DEFAULT_SPAWN_ENTRY;
   onCannotSpawnWeapon: (() => void) | null = null;
+  /** Tool Gun ammo spawn → inventory (handled by GameSession). */
+  onSpawnAmmo: ((caliber: string) => void) | null = null;
   private readonly propBodies: RAPIER.RigidBody[] = [];
   private readonly doorBodies: RAPIER.RigidBody[] = [];
   private playerProxy: RAPIER.RigidBody;
@@ -310,6 +312,11 @@ export class SandboxController {
 
   private handleToolGun(aim: { origin: Vec3; dir: Vec3 }, camera: THREE.Camera): boolean {
     const entry = this.selection;
+    if (entry.category === 'ammo') {
+      const caliber = entry.id.startsWith('ammo:') ? entry.id.slice(5) : '';
+      if (caliber) this.onSpawnAmmo?.(caliber);
+      return true;
+    }
     if (entry.category === 'weapons') {
       const kind = weaponKindFromEntry(entry.id);
       const point = this.groundPoint(aim.origin, aim.dir);

@@ -12,8 +12,11 @@ import {
   RESPAWN_DELAY_MS,
   buttonDown,
   buttonPressed,
+  addAmmoStack,
+  ammoDefForCaliber,
+  isCaliberId,
   canReload,
-  completeReload,
+  canSwapMagazine,
   decaySpread,
   distanceSq,
   encodeJson,
@@ -293,6 +296,7 @@ export class Room {
       players: this.identities(),
       scores: this.scores(),
       loadout: entity.loadout,
+      inventory: entity.inventorySnapshot(),
       worldState: {
         doorsOpen: this.world.doors.filter((d) => d.target > 0.5).map((d) => d.def.id),
         switchesOn: [...this.world.switches.entries()]
@@ -392,6 +396,19 @@ export class Room {
       p: playerId,
       name: entity.identity.username,
       msg: text,
+    });
+  }
+
+  handleSpawnAmmo(playerId: number, caliber: string, amount?: number): void {
+    const roomPlayer = this.players.get(playerId);
+    if (!roomPlayer) return;
+    if (!isCaliberId(caliber)) return;
+    const def = ammoDefForCaliber(caliber);
+    const qty = Math.max(1, Math.min(300, amount ?? def.defaultStack));
+    addAmmoStack(roomPlayer.entity.inventory, caliber, qty);
+    roomPlayer.pendingEvents.push({
+      t: 'inventorySync',
+      inventory: roomPlayer.entity.inventorySnapshot(),
     });
   }
 
@@ -610,12 +627,17 @@ export class Room {
     decaySpread(weapon, def, dtSec);
 
     if (weapon.reloadEndsAt > 0 && this.timeMs >= weapon.reloadEndsAt) {
-      completeReload(weapon, def);
+      if (entity.trySwapMagazine()) {
+        this.eventSink.to(entity.id, {
+          t: 'inventorySync',
+          inventory: entity.inventorySnapshot(),
+        });
+      }
       weapon.reloadEndsAt = 0;
     }
 
     const reloadPressed = buttonPressed(command.buttons, entity.previousButtons, Button.Reload);
-    if (reloadPressed && canReload(weapon, def, this.timeMs)) {
+    if (reloadPressed && canReload(weapon, def, this.timeMs) && canSwapMagazine(entity.inventory, def.id, true)) {
       const ms = reloadDurationMs(def, weapon.ammoInMag);
       weapon.reloadEndsAt = this.timeMs + ms;
       this.broadcastEvents.push({ t: 'reload', p: entity.id, w: def.id, ms });
@@ -646,8 +668,10 @@ export class Room {
       if (verdict === FireDenyReason.Ok) {
         resolveShot(this.combat, entity);
       } else if (verdict === FireDenyReason.NoAmmo && firePressed) {
-        // Auto-reload on an empty trigger pull, like modern shooters.
-        if (canReload(weapon, def, this.timeMs)) {
+        if (
+          canReload(weapon, def, this.timeMs) &&
+          canSwapMagazine(entity.inventory, def.id, true)
+        ) {
           const ms = reloadDurationMs(def, weapon.ammoInMag);
           weapon.reloadEndsAt = this.timeMs + ms;
           this.broadcastEvents.push({ t: 'reload', p: entity.id, w: def.id, ms });
@@ -704,6 +728,13 @@ export class Room {
     const spawn = this.pickSpawn(entity.identity.team);
     entity.resetForRespawn(spawn.position, spawn.yaw, this.timeMs);
     grantSpawnProtection(entity, this.timeMs);
+    const roomPlayer = this.players.get(entity.id);
+    if (roomPlayer) {
+      roomPlayer.pendingEvents.push({
+        t: 'inventorySync',
+        inventory: entity.inventorySnapshot(),
+      });
+    }
     this.broadcastEvents.push({
       t: 'respawn',
       p: entity.id,

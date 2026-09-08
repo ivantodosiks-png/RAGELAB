@@ -1,6 +1,7 @@
 import type { PlayerId } from './player';
 import type { WeaponId } from './weapons';
 import type { SurfaceId } from './map';
+import type { PlayerInventoryState } from '../inventory/types';
 
 /**
  * Discrete, low-frequency things that happened during a tick. Batched into one
@@ -104,6 +105,7 @@ export type GameEvent =
   | { t: 'join'; p: PlayerId; name: string }
   | { t: 'leave'; p: PlayerId; name: string }
   | { t: 'matchEnd'; winner: PlayerId | null }
-  | { t: 'matchStart' };
+  | { t: 'matchStart' }
+  | { t: 'inventorySync'; inventory: PlayerInventoryState };
 
 export type GameEventType = GameEvent['t'];

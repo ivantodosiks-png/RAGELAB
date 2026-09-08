@@ -185,6 +185,11 @@ export class WeaponController {
     this.audio.play(this.def.audio.reload as SoundKey, { volume: 0.55 });
   }
 
+  /** Invoked when a local reload timer finishes (mag-swap hook). */
+  onReloadComplete: (() => void) | null = null;
+  /** Invoked after a predicted shot consumes a round. */
+  onRoundFired: (() => void) | null = null;
+
   update(dt: number, ctx: WeaponFrameContext): void {
     this.didFire = false;
     if (this.emptyHands) {
@@ -199,6 +204,7 @@ export class WeaponController {
     if (this.state.reloadEndsAt > 0 && nowMs >= this.state.reloadEndsAt) {
       completeReload(this.state, this.def);
       this.state.reloadEndsAt = 0;
+      this.onReloadComplete?.();
     }
 
     const aiming = !this.blockAim && buttonDown(ctx.buttons, Button.Aim) && ctx.alive && !ctx.carrying;
@@ -266,6 +272,7 @@ export class WeaponController {
     this.camera.addRecoil(def.recoil.vertical * 0.35, horizontal * 0.4, def.recoil.cameraPunch);
     this.viewModel.kick(def.recoil.viewKick);
     this.didFire = true;
+    this.onRoundFired?.();
     this.viewModel.triggerFlash(def.visual.muzzleFlashScale);
     this.viewModel.root.updateMatrixWorld(true);
 

@@ -24,6 +24,8 @@ export const Op = {
   LeaveRoom: 9,
   /** JSON: {} - host/admin starts the match from the waiting lobby. */
   StartMatch: 10,
+  /** JSON: { caliber, amount? } - Tool Gun / admin spawn ammo into inventory. */
+  SpawnAmmo: 11,
 
   // ── server -> client ──
   /** JSON: WelcomePayload */

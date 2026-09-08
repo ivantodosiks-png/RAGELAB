@@ -7,6 +7,13 @@ import {
   createMovementState,
   createWeaponState,
   getWeapon,
+  grantStartingMagazines,
+  createEmptyInventory,
+  syncWeaponAmmoFromMag,
+  consumeChamberedRound,
+  swapMagazine,
+  canSwapMagazine,
+  cloneInventory,
   qAngle,
   qPos,
   qVel,
@@ -14,6 +21,7 @@ import {
   type InputCommand,
   type MovementState,
   type PlayerIdentity,
+  type PlayerInventoryState,
   type QuantPlayer,
   type Vec3,
   type WeaponId,
@@ -83,6 +91,7 @@ export class PlayerEntity {
   loadout: WeaponId[] = [...DEFAULT_LOADOUT];
   currentSlot = 0;
   weapons = new Map<WeaponId, WeaponRuntimeState>();
+  inventory: PlayerInventoryState = createEmptyInventory();
 
   /** Prop currently held with the interact key. */
   carrying: number | null = null;
@@ -125,6 +134,7 @@ export class PlayerEntity {
     for (const weaponId of this.loadout) {
       this.weapons.set(weaponId, createWeaponState(getWeapon(weaponId), nowMs));
     }
+    this.resetInventoryMags();
 
     this.quant = {
       id,
@@ -221,6 +231,51 @@ export class PlayerEntity {
     for (const weaponId of this.loadout) {
       this.weapons.set(weaponId, createWeaponState(getWeapon(weaponId), nowMs));
     }
+    this.resetInventoryMags();
+  }
+
+  /** Fresh starter magazines for current loadout (clears prior mag/ammo items). */
+  resetInventoryMags(): void {
+    this.inventory = createEmptyInventory();
+    grantStartingMagazines(this.inventory, this.loadout);
+    this.syncAllWeaponAmmo();
+  }
+
+  syncAllWeaponAmmo(): void {
+    for (const weaponId of this.loadout) {
+      const state = this.weapons.get(weaponId);
+      if (!state) continue;
+      const sync = syncWeaponAmmoFromMag(this.inventory, weaponId);
+      state.ammoInMag = sync.ammoInMag;
+      state.ammoReserve = sync.ammoReserve;
+    }
+  }
+
+  syncCurrentWeaponAmmo(): void {
+    const id = this.weaponId;
+    const state = this.weapons.get(id);
+    if (!state) return;
+    const sync = syncWeaponAmmoFromMag(this.inventory, id);
+    state.ammoInMag = sync.ammoInMag;
+    state.ammoReserve = sync.ammoReserve;
+  }
+
+  tryConsumeRound(): boolean {
+    const ok = consumeChamberedRound(this.inventory, this.weaponId);
+    if (ok) this.syncCurrentWeaponAmmo();
+    return ok;
+  }
+
+  trySwapMagazine(): boolean {
+    if (!canSwapMagazine(this.inventory, this.weaponId, true)) return false;
+    const next = swapMagazine(this.inventory, this.weaponId);
+    if (!next) return false;
+    this.syncCurrentWeaponAmmo();
+    return true;
+  }
+
+  inventorySnapshot(): PlayerInventoryState {
+    return cloneInventory(this.inventory);
   }
 
   dispose(): void {

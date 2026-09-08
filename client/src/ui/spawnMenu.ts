@@ -23,6 +23,7 @@ const TABS: Array<[SpawnCategory, string]> = [
   ['interactive', 'INTERACTIVE'],
   ['tools', 'TOOLS'],
   ['weapons', 'WEAPONS'],
+  ['ammo', 'AMMO'],
 ];
 
 const CATEGORY_LABEL: Record<SpawnCategory, string> = {
@@ -33,6 +34,7 @@ const CATEGORY_LABEL: Record<SpawnCategory, string> = {
   interactive: 'GADGET',
   tools: 'TOOL',
   weapons: 'WEAPON',
+  ammo: 'AMMO',
 };
 
 export class SpawnMenu {

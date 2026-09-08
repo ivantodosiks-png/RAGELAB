@@ -65,7 +65,10 @@ export function resolveShot(ctx: CombatContext, shooter: PlayerEntity): void {
   const state = shooter.weapon;
   const input = shooter.lastInput;
 
-  state.ammoInMag -= 1;
+  if (!shooter.tryConsumeRound()) {
+    // evaluateFire already checked ammo; keep state consistent.
+    state.ammoInMag = Math.max(0, state.ammoInMag - 1);
+  }
   state.lastShotAt = ctx.nowMs;
   state.shotCounter = (state.shotCounter + 1) & 0xffff;
   if (def.fireMode === 'burst') {

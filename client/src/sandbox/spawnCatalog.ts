@@ -1,8 +1,8 @@
-﻿import { PROP_KINDS, isWeaponId, getWeapon, type PropKind } from '@ragelab/shared';
+﻿import { PROP_KINDS, isWeaponId, getWeapon, listAmmoSpawnOptions, type PropKind } from '@ragelab/shared';
 import { SANDBOX_WEAPON_KINDS, type SandboxWeaponKind } from '../weapons/weaponAssets';
 import type { SandboxTool } from './types';
 
-export type SpawnCategory = 'npc' | 'props' | 'fun' | 'physics' | 'interactive' | 'tools' | 'weapons';
+export type SpawnCategory = 'npc' | 'props' | 'fun' | 'physics' | 'interactive' | 'tools' | 'weapons' | 'ammo';
 
 /** NPC spawn UI is unfinished — hide the tab and reject Tool Gun NPC spawns. */
 export const NPC_MENU_ENABLED = false;
@@ -208,7 +208,23 @@ export const WEAPON_ENTRIES: SpawnEntry[] = SANDBOX_WEAPON_KINDS.map((id) => {
   };
 });
 
-export const SPAWN_CATALOG: SpawnEntry[] = [...NPC_ENTRIES, ...PROP_ENTRIES, ...TOOL_ENTRIES, ...WEAPON_ENTRIES];
+export const AMMO_ENTRIES: SpawnEntry[] = listAmmoSpawnOptions().map((opt) => ({
+  id: `ammo:${opt.caliber}`,
+  category: 'ammo' as const,
+  name: opt.name,
+  info: `LMB → +${opt.amount} rounds into inventory`,
+  spawnable: true,
+  swatch: 0xc9a227,
+  glyph: 'AMMO',
+}));
+
+export const SPAWN_CATALOG: SpawnEntry[] = [
+  ...NPC_ENTRIES,
+  ...PROP_ENTRIES,
+  ...TOOL_ENTRIES,
+  ...WEAPON_ENTRIES,
+  ...AMMO_ENTRIES,
+];
 
 export const DEFAULT_SPAWN_ENTRY = NPC_MENU_ENABLED ? NPC_ENTRIES[0]! : PROP_ENTRIES[0]!;
 

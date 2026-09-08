@@ -24,6 +24,7 @@ import {
   type LobbyStatePayload,
   type MapDefinition,
   type PlayerIdentity,
+  type PlayerInventoryState,
   type PlayerScore,
   type RoomPhaseId,
   type Vec3,
@@ -32,6 +33,17 @@ import {
   animationStateFor,
   isMapId,
   isWeaponId,
+  createEmptyInventory,
+  grantStartingMagazines,
+  syncWeaponAmmoFromMag,
+  swapMagazine,
+  addAmmoStack,
+  isCaliberId,
+  ammoDefForCaliber,
+  getChamberedMagazine,
+  magFillLabel,
+  magFillLevel,
+  consumeChamberedRound,
 } from '@ragelab/shared';
 import { GameRenderer } from '../renderer/renderer';
 import { ClientPhysicsWorld } from '../physics/clientWorld';
@@ -40,7 +52,8 @@ import { MapDecor } from '../maps/mapDecor';
 import { pickMapSpawn, pickTeamSpawn } from '../maps/spawnLayout';
 import { LocalPlayer } from '../player/localPlayer';
 import { LocalCharacter, clipFromAnimation } from '../player/localCharacter';
-import { InputController, TOOL_GUN_UI_SLOT } from '../player/inputController';
+import { InputController, BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
+import { InventoryPanel } from '../ui/inventoryPanel';
 import { CameraRig } from '../player/cameraRig';
 import { NetClient, type ConnectOptions } from '../networking/netClient';
 import { SnapshotInterpolator } from '../networking/snapshotInterpolator';
@@ -110,6 +123,8 @@ export class GameSession {
   private sandbox!: SandboxController;
   private spawnMenu!: SpawnMenu;
   private toolGunView!: ToolGunView;
+  private inventoryPanel!: InventoryPanel;
+  private inventory: PlayerInventoryState = createEmptyInventory();
   private localCharacter: LocalCharacter | null = null;
 
   private localId = 0;
@@ -330,7 +345,15 @@ export class GameSession {
   private buildWorld(rapier: typeof RAPIER, welcome: WelcomePayload): void {
     this.localId = welcome.playerId;
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : [...DEFAULT_LOADOUT];
-    this.input.loadoutSize = this.loadout.length;
+    this.input.loadoutSize = Math.min(3, Math.max(1, this.loadout.length));
+    this.applyInventory(
+      welcome.inventory ??
+        (() => {
+          const inv = createEmptyInventory();
+          grantStartingMagazines(inv, this.loadout.filter(Boolean) as WeaponId[]);
+          return inv;
+        })(),
+    );
     this.map = getMap(welcome.room.mapId);
     this.localTeam = welcome.players.find((p) => p.id === welcome.playerId)?.team ?? 0;
     const spawn = pickTeamSpawn(this.map, this.localTeam) ?? pickMapSpawn(this.map, 'player')!;
@@ -359,7 +382,26 @@ export class GameSession {
       this.input,
       this.renderer.camera,
     );
+    this.weapon.onReloadComplete = () => {
+      if (this.offline) this.performOfflineMagSwap();
+    };
+    this.weapon.onRoundFired = () => {
+      if (!this.weapon.hasWeapon) return;
+      consumeChamberedRound(this.inventory, this.weapon.weaponId);
+      const sync = syncWeaponAmmoFromMag(this.inventory, this.weapon.weaponId);
+      this.weapon.syncFromServer(sync.ammoInMag, sync.ammoReserve, performance.now());
+      this.inventoryPanel?.setInventory(this.inventory);
+    };
     this.renderer.viewModelScene.add(this.weapon.viewModel.root);
+    {
+      const id = this.loadout[0];
+      if (id) {
+        const sync = syncWeaponAmmoFromMag(this.inventory, id);
+        this.weapon.syncFromServer(sync.ammoInMag, sync.ammoReserve, performance.now());
+        this.local.ammoInMag = sync.ammoInMag;
+        this.local.ammoReserve = sync.ammoReserve;
+      }
+    }
 
     this.sandbox = new SandboxController(rapier, this.map);
     this.renderer.scene.add(this.sandbox.root);
@@ -392,6 +434,9 @@ export class GameSession {
       this.ui.hud.showToast('Scene cleared');
     };
     this.sandbox.setSelection(this.spawnMenu.selected);
+    this.sandbox.onSpawnAmmo = (caliber) => this.spawnAmmoToInventory(caliber);
+    this.inventoryPanel = new InventoryPanel(this.ui.hud.root);
+    this.inventoryPanel.setInventory(this.inventory);
     this.ui.hud.setLoadout(this.loadoutRows());
     this.ui.hud.setActiveSlot(this.input.uiSlot);
 
@@ -453,6 +498,11 @@ export class GameSession {
       ],
       scores: [{ id: 1, kills: 0, deaths: 0, score: 0, pingMs: 0 }],
       loadout: [...DEFAULT_LOADOUT],
+      inventory: (() => {
+        const inv = createEmptyInventory();
+        grantStartingMagazines(inv, [...DEFAULT_LOADOUT]);
+        return inv;
+      })(),
       worldState: { doorsOpen: [], switchesOn: [], pickupsTaken: [] },
     };
   }
@@ -677,6 +727,27 @@ export class GameSession {
       this.input.releaseLock();
       this.ui.hud.openChat();
     }
+    if (this.input.consumeEdge('inventory') && !this.paused && !this.ui.hud.chatting) {
+      const open = this.inventoryPanel.toggle();
+      this.input.inventoryOpen = open;
+      this.input.freezeSlots = open || Boolean(this.spawnMenu?.isOpen);
+      if (open) {
+        this.input.closeWeaponWheel();
+        this.ui.hud.cancelWeaponWheel();
+        this.input.releaseLock();
+      } else {
+        this.input.requestLock();
+      }
+    }
+    if (this.input.consumeEdge('menu') && this.inventoryPanel?.isOpen) {
+      this.inventoryPanel.setOpen(false);
+      this.input.inventoryOpen = false;
+      this.input.freezeSlots = Boolean(this.spawnMenu?.isOpen);
+      this.input.requestLock();
+    }
+    if (this.input.consumeInspectMag() && !this.paused && this.local.alive) {
+      this.inspectChamberedMag();
+    }
 
     if (!this.input.isActionHeld('weaponWheel')) this.wheelIgnoreHold = false;
     const canWheel =
@@ -701,7 +772,7 @@ export class GameSession {
     const predicted = this.local.update(dtMs, () => this.input.sample(), this.input.yaw, this.input.pitch, commands);
     const latest = commands.length > 0 ? commands[commands.length - 1]! : null;
     const localButtons = latest ? latest.buttons : this.lastButtons;
-    if (this.input.toolGunEquipped || this.sandbox.menuOpen || !this.loadout[this.input.firearmSlot]) {
+    if (this.input.toolGunEquipped || this.input.specialToolEquipped || this.sandbox.menuOpen || !this.loadout[this.input.firearmSlot]) {
       for (const command of commands) {
         command.buttons &= ~(Button.Fire | Button.Aim);
         command.weaponSlot = this.input.firearmSlot;
@@ -987,11 +1058,19 @@ export class GameSession {
           this.camera.reset();
           this.weapon.equip(this.loadout[0]!, performance.now());
           this.ui.hud.hideDeath();
+          if (this.offline) {
+            const inv = createEmptyInventory();
+            grantStartingMagazines(inv, this.loadout.filter(Boolean) as WeaponId[]);
+            this.applyInventory(inv);
+          }
         }
         break;
       case 'reload':
         if (event.p === this.localId) this.weapon.onServerReload(event.ms, performance.now());
         else this.audio.playAt(getWeapon(event.w).audio.reload as SoundKey, this.playerPos(event.p), 0.45, 30);
+        break;
+      case 'inventorySync':
+        this.applyInventory(event.inventory);
         break;
       case 'explosion':
         this.effects.explosion(vec(event.pos), event.radius, performance.now());
@@ -1052,13 +1131,22 @@ export class GameSession {
       this.audio.play('equip', { volume: 0.62 });
       return;
     }
+    if (slot === BUILD_PLAN_UI_SLOT || slot === HAMMER_UI_SLOT) {
+      this.closeSpawnMenu();
+      this.sandbox.setTool('none');
+      this.weapon.unequip();
+      this.ui.hud.setWeapon(slot === BUILD_PLAN_UI_SLOT ? 'BUILD PLAN' : 'HAMMER');
+      this.ui.hud.setAmmo(0, 0, 1);
+      this.audio.play('equip', { volume: 0.5 });
+      return;
+    }
     this.closeSpawnMenu();
     this.sandbox.setTool('none');
     this.syncHeldWeapon(now);
   }
 
   private syncHeldWeapon(now: number): void {
-    if (this.input.toolGunEquipped) return;
+    if (this.input.specialToolEquipped) return;
     const id = this.loadout[this.input.firearmSlot];
     if (!id) {
       this.weapon.unequip();
@@ -1191,7 +1279,7 @@ export class GameSession {
         !this.spawnMenu?.isOpen &&
         !scopedOut,
     );
-    this.ui.hud.setScoreboard(this.scoreRows(), this.input.isActionHeld('scoreboard') && !this.ui.hud.chatting);
+    this.ui.hud.setScoreboard(this.scoreRows(), false);
     this.ui.hud.setDebug(
       `tick ack ${this.net?.ackTick ?? 0}\n` +
         `rtt ${this.offline ? 'offline' : (this.net?.rttMs ?? 0).toFixed(0)} ms\n` +
@@ -1202,6 +1290,54 @@ export class GameSession {
       settingsStore.graphics.debugOverlay,
     );
     this.ui.hud.update(dt, this.offline ? now : this.net?.serverNowMs() ?? now);
+  }
+
+  private applyInventory(inv: PlayerInventoryState): void {
+    this.inventory = inv;
+    this.inventoryPanel?.setInventory(inv);
+    const weaponId = this.weapon.hasWeapon ? this.weapon.weaponId : this.loadout[this.input.firearmSlot];
+    if (weaponId) {
+      const sync = syncWeaponAmmoFromMag(inv, weaponId);
+      this.weapon.syncFromServer(sync.ammoInMag, sync.ammoReserve, performance.now());
+      this.local.ammoInMag = sync.ammoInMag;
+      this.local.ammoReserve = sync.ammoReserve;
+    }
+  }
+
+  private spawnAmmoToInventory(caliber: string): void {
+    if (!isCaliberId(caliber)) return;
+    if (this.offline) {
+      const def = ammoDefForCaliber(caliber);
+      addAmmoStack(this.inventory, caliber, def.defaultStack);
+      this.applyInventory(this.inventory);
+      this.ui.hud.showToast(`+${def.defaultStack} ${def.name}`);
+      return;
+    }
+    this.net?.sendSpawnAmmo(caliber);
+    this.ui.hud.showToast('Spawning ammo…');
+  }
+
+  private inspectChamberedMag(): void {
+    const weaponId = this.weapon.hasWeapon ? this.weapon.weaponId : null;
+    if (!weaponId) {
+      this.ui.hud.showToast('No weapon');
+      return;
+    }
+    const mag = getChamberedMagazine(this.inventory, weaponId);
+    if (!mag) {
+      this.ui.hud.showToast('No magazine');
+      return;
+    }
+    const level = magFillLevel(mag.currentAmmo, mag.capacity);
+    this.ui.hud.showToast(`MAGAZINE · ${magFillLabel(level)}`);
+  }
+
+  private performOfflineMagSwap(): void {
+    if (!this.weapon.hasWeapon) return;
+    // Online: server swap + inventorySync / snapshot is authoritative.
+    // Still apply local swap for instant feedback; inventorySync reconciles.
+    if (!swapMagazine(this.inventory, this.weapon.weaponId)) return;
+    this.applyInventory(this.inventory);
   }
 
   private loadoutRows() {

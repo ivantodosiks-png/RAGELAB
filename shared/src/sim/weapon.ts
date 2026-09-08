@@ -6,8 +6,8 @@ import { msPerShot } from '../types/weapons';
 export function createWeaponState(def: WeaponDefinition, nowMs: number): WeaponRuntimeState {
   return {
     weaponId: def.id,
-    ammoInMag: def.magazineSize,
-    ammoReserve: def.reserveAmmo,
+    ammoInMag: 0,
+    ammoReserve: 0,
     lastShotAt: -100000,
     reloadEndsAt: 0,
     equipEndsAt: nowMs + def.equipMs,
@@ -164,18 +164,21 @@ export function reloadDurationMs(def: WeaponDefinition, ammoInMag: number): numb
 
 export function canReload(
   state: WeaponRuntimeState,
-  def: WeaponDefinition,
+  _def: WeaponDefinition,
   nowMs: number,
 ): boolean {
   if (state.reloadEndsAt > nowMs) return false;
   if (state.equipEndsAt > nowMs) return false;
-  if (state.ammoInMag >= def.magazineSize) return false;
+  // Physical magazine system: ammoReserve = count of spare magazines.
   return state.ammoReserve > 0;
 }
 
+/**
+ * Legacy top-off from abstract reserve. Unused when inventory magazines are
+ * active — the room / inventory layer performs a magazine swap instead.
+ */
 export function completeReload(state: WeaponRuntimeState, def: WeaponDefinition): void {
-  const needed = def.magazineSize - state.ammoInMag;
-  const taken = Math.min(needed, state.ammoReserve);
-  state.ammoInMag += taken;
-  state.ammoReserve -= taken;
+  void def;
+  // No-op for mag-swap: authoritative ammo comes from MagazineInstance.
+  void state;
 }

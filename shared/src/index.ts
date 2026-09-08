@@ -31,3 +31,5 @@ export * from './sim/hitbox';
 export * from './sim/npcDamage';
 
 export * from './settings/defaults';
+
+export * from './inventory/index';

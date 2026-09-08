@@ -2,6 +2,8 @@ import type { GameEvent } from '../types/events';
 import type { PlayerId, PlayerIdentity, PlayerScore } from '../types/player';
 import type { GameModeId, RoomConfig, RoomPhaseId, RoomSummary } from '../types/room';
 import type { WeaponId } from '../types/weapons';
+import type { CaliberId } from '../inventory/calibers';
+import type { PlayerInventoryState } from '../inventory/types';
 
 // ── client -> server JSON payloads ──────────────────────────────────────────
 
@@ -38,6 +40,11 @@ export interface CreateRoomPayload {
   config: Partial<RoomConfig>;
 }
 
+export interface SpawnAmmoPayload {
+  caliber: CaliberId;
+  amount?: number;
+}
+
 // ── server -> client JSON payloads ──────────────────────────────────────────
 
 export interface WelcomePayload {
@@ -63,6 +70,7 @@ export interface WelcomePayload {
   players: PlayerIdentity[];
   scores: PlayerScore[];
   loadout: WeaponId[];
+  inventory?: PlayerInventoryState;
   /** Doors that start open, and pickups already consumed. */
   worldState: {
     doorsOpen: string[];
@@ -115,4 +123,4 @@ export interface KickedPayload {
 }
 
 /** Bumped whenever the wire format changes incompatibly. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;

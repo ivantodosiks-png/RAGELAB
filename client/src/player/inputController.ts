@@ -1,5 +1,9 @@
 import { Button, clamp, wrapAngle, type ControlSettings } from '@ragelab/shared';
 
+/** Local HUD slot for the Build Plan. Never sent as a weapon index. */
+export const BUILD_PLAN_UI_SLOT = 3;
+/** Local HUD slot for the Hammer. */
+export const HAMMER_UI_SLOT = 4;
 /** Local HUD slot for the Tool Gun. Never sent to the server as a weapon index. */
 export const TOOL_GUN_UI_SLOT = 5;
 
@@ -27,15 +31,17 @@ export class InputController {
   pitch = 0;
 
   /**
-   * HUD slot 0–5. Slots 0–4 are firearms; slot 5 is the Tool Gun.
+   * HUD slot 0–5. Slots 0–2 firearms; 3 build plan; 4 hammer; 5 tool gun.
    * `sample().weaponSlot` always reports a firearm index for the network.
    */
   uiSlot = 0;
   firearmSlot = 0;
-  loadoutSize = 5;
+  loadoutSize = 3;
   uiSlotCount = TOOL_GUN_UI_SLOT + 1;
   /** While the spawn menu is open, number keys / wheel must not switch tools. */
   freezeSlots = false;
+  /** Inventory panel open — blocks fire and scoreboard hold. */
+  inventoryOpen = false;
   /** Radial weapon wheel: look is frozen, mouse drives the selector. */
   weaponWheelOpen = false;
   wheelCursorX = 0;
@@ -53,6 +59,13 @@ export class InputController {
     if (event.repeat) return;
     if (isTypingTarget(event.target)) return;
     this.pressed.add(event.code);
+    if (
+      event.code === 'KeyT' &&
+      (this.pressed.has('AltLeft') || this.pressed.has('AltRight') || event.altKey)
+    ) {
+      this.uiEdges.add('inspectMag');
+      event.preventDefault();
+    }
     this.handleActionEdge(event.code);
     if (this.locked && shouldBlockBrowserDefault(event)) {
       event.preventDefault();
@@ -224,14 +237,24 @@ export class InputController {
         case 'weapon1':
         case 'weapon2':
         case 'weapon3':
-        case 'weapon4':
-        case 'weapon5':
           if (this.freezeSlots) break;
           this.selectFirearm(Number(action.slice(6)) - 1);
+          break;
+        case 'weapon4':
+          if (this.freezeSlots) break;
+          this.uiSlot = BUILD_PLAN_UI_SLOT;
+          break;
+        case 'weapon5':
+          if (this.freezeSlots) break;
+          this.uiSlot = HAMMER_UI_SLOT;
           break;
         case 'weapon6':
           if (this.freezeSlots) break;
           this.uiSlot = TOOL_GUN_UI_SLOT;
+          break;
+        case 'scoreboard':
+          // Edge used for inventory toggle (TAB).
+          this.uiEdges.add('inventory');
           break;
         case 'weaponWheel':
           break;
@@ -264,6 +287,23 @@ export class InputController {
     return this.uiSlot === TOOL_GUN_UI_SLOT;
   }
 
+  get buildPlanEquipped(): boolean {
+    return this.uiSlot === BUILD_PLAN_UI_SLOT;
+  }
+
+  get hammerEquipped(): boolean {
+    return this.uiSlot === HAMMER_UI_SLOT;
+  }
+
+  get specialToolEquipped(): boolean {
+    return this.toolGunEquipped || this.buildPlanEquipped || this.hammerEquipped;
+  }
+
+  /** ALT + T magazine inspect edge. */
+  consumeInspectMag(): boolean {
+    return this.consumeEdge('inspectMag');
+  }
+
   openWeaponWheel(): void {
     this.weaponWheelOpen = true;
     this.wheelCursorX = 0;
@@ -277,8 +317,8 @@ export class InputController {
   }
 
   selectUiSlot(slot: number): void {
-    if (slot === TOOL_GUN_UI_SLOT) {
-      this.uiSlot = TOOL_GUN_UI_SLOT;
+    if (slot === TOOL_GUN_UI_SLOT || slot === BUILD_PLAN_UI_SLOT || slot === HAMMER_UI_SLOT) {
+      this.uiSlot = slot;
       return;
     }
     this.selectFirearm(slot);
@@ -317,8 +357,8 @@ export class InputController {
     if (this.controls.toggleCrouch ? this.toggleCrouch : this.isDown('crouch')) {
       buttons |= Button.Crouch;
     }
-    if (!this.weaponWheelOpen && this.isDown('fire')) buttons |= Button.Fire;
-    if (!this.weaponWheelOpen && this.aimingNow()) buttons |= Button.Aim;
+    if (!this.weaponWheelOpen && !this.inventoryOpen && this.isDown('fire')) buttons |= Button.Fire;
+    if (!this.weaponWheelOpen && !this.inventoryOpen && this.aimingNow()) buttons |= Button.Aim;
     if (this.isDown('reload')) buttons |= Button.Reload;
     if (this.isDown('interact')) buttons |= Button.Interact;
     if (this.isDown('dropProp')) buttons |= Button.Drop;

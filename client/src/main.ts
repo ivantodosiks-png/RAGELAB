@@ -1,6 +1,7 @@
 import './ui/styles.css';
 import './ui/menuTheme.css';
 import './ui/hudTheme.css';
+import './ui/inventoryTheme.css';
 import { authService } from './supabase/auth';
 import { GAME_SERVER_URL, supabaseConfigured } from './supabase/client';
 import { UiApp, type JoinRequest } from './ui/app';
