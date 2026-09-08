@@ -695,8 +695,8 @@
 
 .tk-map-board {
   position: relative;
-  min-height: 280px;
-  height: clamp(240px, 36vh, 340px);
+  min-height: 200px;
+  height: clamp(200px, 28vh, 280px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   background:
     radial-gradient(70% 60% at 48% 42%, rgba(48, 56, 38, 0.5), rgba(10, 12, 9, 0.96)),
@@ -998,14 +998,14 @@
   background: rgba(224, 122, 47, 0.92);
   color: #120c06;
   font-family: var(--tk-display);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: 0.2em;
-  padding: 12px 28px;
+  letter-spacing: 0.18em;
+  padding: 12px 20px;
   cursor: pointer;
-  min-width: 180px;
+  min-width: 0;
   width: 100%;
-  max-width: 420px;
+  max-width: none;
 }
 
 .tk-deploy:hover {
@@ -1020,46 +1020,54 @@
 .tk-deploy-flow {
   max-width: 920px;
   margin: 0 auto;
-  padding-top: 40px;
+  padding: 28px 20px 56px;
+  box-sizing: border-box;
 }
 
 .tk-deploy-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: min(860px, 94vw);
+  align-items: stretch;
+}
+
+.tk-deploy-col {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
+  gap: 10px;
+  padding: 16px 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 10, 8, 0.78);
+  text-align: left;
+}
+
+.tk-deploy-col-title {
+  margin: 0;
+  font-family: var(--tk-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: rgba(236, 236, 230, 0.9);
 }
 
 .tk-deploy-hint {
   margin: 0;
-  max-width: 420px;
   color: var(--mm-muted);
   font-size: 12px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   line-height: 1.4;
-  text-align: center;
+  text-align: left;
+  max-width: none;
 }
 
 .tk-connect-block {
-  width: 100%;
-  max-width: 420px;
-  margin-top: 10px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.tk-connect-title {
-  margin: 0;
-  font-family: var(--tk-display);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  color: rgba(236, 236, 230, 0.88);
+  width: auto;
+  max-width: none;
+  margin-top: 0;
+  padding-top: 16px;
+  border-top: 0;
+  align-items: stretch;
 }
 
 .tk-connect-row {
@@ -1067,6 +1075,7 @@
   gap: 8px;
   width: 100%;
   align-items: stretch;
+  margin-top: auto;
 }
 
 .tk-connect-input {
@@ -1077,12 +1086,12 @@
   background: rgba(0, 0, 0, 0.55);
   color: #f0eee6;
   font-family: var(--tk-display);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   text-align: center;
   text-transform: uppercase;
-  padding: 12px 14px;
+  padding: 12px 10px;
   outline: none;
 }
 
@@ -1091,8 +1100,11 @@
 }
 
 .tk-connect-btn {
-  flex-shrink: 0;
-  min-width: 120px;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 118px;
+  padding-left: 14px;
+  padding-right: 14px;
 }
 
 .tk-secondary {
@@ -1496,8 +1508,12 @@
   }
 
   .tk-map-board {
-    min-height: 220px;
-    height: 240px;
+    min-height: 180px;
+    height: 200px;
+  }
+
+  .tk-deploy-actions {
+    grid-template-columns: 1fr;
   }
 
   .tk-map-detail {

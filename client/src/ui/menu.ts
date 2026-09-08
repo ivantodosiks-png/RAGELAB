@@ -400,6 +400,9 @@ export class MainMenu {
 
     const actions = el('div', 'tk-deploy-actions');
 
+    const hostCol = el('div', 'tk-deploy-col');
+    hostCol.append(el('h3', 'tk-deploy-col-title', 'HOST'));
+    hostCol.append(el('p', 'tk-deploy-hint', 'Create a lobby and share the code.'));
     const create = el(
       'button',
       'tk-deploy',
@@ -418,16 +421,11 @@ export class MainMenu {
         team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
       });
     });
-    actions.append(create);
-    actions.append(
-      el('p', 'tk-deploy-hint', 'Host receives a code. Friends join with Connect.'),
-    );
+    hostCol.append(create);
 
-    const connect = el('div', 'tk-connect-block');
-    connect.append(el('h3', 'tk-connect-title', 'CONNECT'));
-    connect.append(
-      el('p', 'tk-deploy-hint', 'Enter the 6-character code from the host lobby.'),
-    );
+    const connectCol = el('div', 'tk-deploy-col tk-connect-block');
+    connectCol.append(el('h3', 'tk-deploy-col-title', 'CONNECT'));
+    connectCol.append(el('p', 'tk-deploy-hint', 'Enter the host’s 6-character lobby code.'));
 
     const row = el('div', 'tk-connect-row');
     const input = el('input', 'tk-connect-input') as HTMLInputElement;
@@ -445,7 +443,7 @@ export class MainMenu {
       input.value = formatLobbyCodeInput(raw);
     });
 
-    const join = el('button', 'tk-secondary tk-connect-btn', 'CONNECT');
+    const join = el('button', 'tk-deploy tk-connect-btn', 'CONNECT');
     join.type = 'button';
     const doJoin = () => {
       const code = this.pendingJoinCode.replace(/\s/g, '');
@@ -468,9 +466,9 @@ export class MainMenu {
       }
     });
     row.append(input, join);
-    connect.append(row);
-    actions.append(connect);
+    connectCol.append(row);
 
+    actions.append(hostCol, connectCol);
     view.append(actions);
 
     const back = el('button', 'tk-back', 'BACK');
