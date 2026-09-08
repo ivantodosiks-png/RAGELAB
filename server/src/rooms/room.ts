@@ -479,7 +479,7 @@ export class Room {
       if (exceptConnection && member.connection === exceptConnection) continue;
       member.connection.detachFromRoom();
       const entity = this.removePlayer(playerId);
-      member.connection.kick('Сессия лобби открыта на другом устройстве.');
+      member.connection.kick('Lobby session opened on another device.');
       return entity;
     }
     return null;

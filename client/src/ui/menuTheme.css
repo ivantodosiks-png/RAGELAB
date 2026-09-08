@@ -30,6 +30,29 @@
   inset: 0;
   pointer-events: none;
   z-index: 1;
+  overflow: hidden;
+}
+
+.mm-forest {
+  position: absolute;
+  inset: -4%;
+  background:
+    #070a06
+    url('/menu/forest.gif') center / cover no-repeat;
+  filter: blur(10px) saturate(0.75) brightness(0.72);
+  transform: scale(1.08);
+  opacity: 0.95;
+}
+
+.mm-forest-fallback {
+  position: absolute;
+  inset: -4%;
+  background:
+    #070a06
+    url('/menu/forest.jpg') center / cover no-repeat;
+  filter: blur(12px) saturate(0.7) brightness(0.68);
+  transform: scale(1.1);
+  z-index: -1;
 }
 
 .mm-vignette {
@@ -44,8 +67,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(40% 30% at 70% 20%, rgba(60, 80, 40, 0.18), transparent 70%),
-    radial-gradient(35% 28% at 20% 80%, rgba(40, 50, 30, 0.2), transparent 70%);
+    radial-gradient(40% 30% at 70% 20%, rgba(60, 80, 40, 0.12), transparent 70%),
+    radial-gradient(35% 28% at 20% 80%, rgba(40, 50, 30, 0.14), transparent 70%);
 }
 
 .mm-grain {
@@ -54,15 +77,6 @@
   opacity: 0.07;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode: overlay;
-}
-
-.mm-pine {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(18% 22% at 92% 8%, rgba(20, 28, 14, 0.85), transparent 70%),
-    radial-gradient(22% 26% at 6% 92%, rgba(18, 24, 12, 0.8), transparent 72%);
-  filter: blur(0.5px);
 }
 
 .mm-intro {
@@ -278,33 +292,52 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 18px 18px;
+  margin-bottom: 28px;
+  position: relative;
+  perspective: 900px;
 }
 
-.tk-sign-wires {
+.tk-sign-board {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 28px 8px;
+  transform-origin: 50% -28px;
+  animation: tk-board-sway 5.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55));
+}
+
+.tk-sign-hooks {
   position: absolute;
-  top: -22px;
-  left: 18%;
-  right: 18%;
-  height: 24px;
+  top: -36px;
+  left: 16%;
+  right: 16%;
+  height: 40px;
   pointer-events: none;
 }
 
-.tk-sign-wire {
+.tk-sign-hook {
   position: absolute;
   top: 0;
-  width: 1px;
-  height: 26px;
-  background: linear-gradient(180deg, rgba(200, 200, 190, 0.1), rgba(220, 220, 210, 0.65));
+  width: 2px;
+  height: 40px;
+  background: linear-gradient(180deg, rgba(190, 190, 180, 0.15), rgba(230, 230, 220, 0.85));
+  border-radius: 1px;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.12);
 }
 
-.tk-sign-wire--l {
+.tk-sign-hook--l {
   left: 0;
+  transform: rotate(3deg);
+  transform-origin: top center;
 }
 
-.tk-sign-wire--r {
+.tk-sign-hook--r {
   right: 0;
+  transform: rotate(-3deg);
+  transform-origin: top center;
 }
 
 .tk-sign-escape {
@@ -314,31 +347,39 @@
   letter-spacing: 0.42em;
   color: rgba(236, 236, 230, 0.78);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  margin-bottom: 2px;
 }
 
 .tk-sign-russia {
   display: inline-flex;
   align-items: flex-start;
-  gap: 2px;
+  gap: 0.02em;
   font-family: var(--tk-display);
   font-size: clamp(52px, 10vw, 96px);
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   line-height: 1;
-  color: #f2f2ea;
-  text-shadow: 0 0 22px rgba(255, 170, 60, 0.22), 0 10px 30px rgba(0, 0, 0, 0.55);
+  color: #f4f1e6;
+  min-height: 1.55em;
+  padding-top: 0.15em;
 }
 
 .tk-sign-russia i {
   font-style: normal;
   display: inline-block;
   position: relative;
+  transform-origin: 50% 0;
+  will-change: transform;
 }
 
 .tk-sign-russia i.is-hang {
-  transform: translateY(var(--drop, 8px)) rotate(var(--tilt, -6deg));
-  color: #e8dcc8;
-  animation: tk-letter-sway 3.6s ease-in-out infinite;
+  color: #efe6d4;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 22px rgba(0, 0, 0, 0.65),
+    0 0 24px rgba(255, 170, 60, 0.18);
+  padding-top: var(--len, 24px);
+  animation: tk-letter-pendulum var(--dur, 3.6s) cubic-bezier(0.37, 0.01, 0.28, 1) infinite;
   animation-delay: var(--delay, 0s);
 }
 
@@ -346,20 +387,52 @@
   content: '';
   position: absolute;
   left: 50%;
-  top: -20px;
-  width: 1px;
-  height: 18px;
-  background: linear-gradient(180deg, rgba(210, 210, 200, 0.12), rgba(220, 220, 210, 0.75));
+  top: 0;
+  width: 1.5px;
+  height: var(--len, 24px);
+  background: linear-gradient(180deg, rgba(210, 210, 200, 0.08), rgba(230, 230, 220, 0.9));
   transform: translateX(-50%);
+  border-radius: 1px;
 }
 
-@keyframes tk-letter-sway {
+.tk-sign-russia i.is-hang::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--len, 24px) - 3px);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(200, 200, 190, 0.55);
+  transform: translateX(-50%);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes tk-board-sway {
   0%,
   100% {
-    transform: translateY(var(--drop, 8px)) rotate(var(--tilt, -6deg));
+    transform: rotate(-1.6deg) translateY(0);
   }
   50% {
-    transform: translateY(calc(var(--drop, 8px) + 3px)) rotate(calc(var(--tilt, -6deg) * -1));
+    transform: rotate(1.8deg) translateY(2px);
+  }
+}
+
+@keyframes tk-letter-pendulum {
+  0% {
+    transform: rotate(var(--tilt, -6deg));
+  }
+  25% {
+    transform: rotate(calc(var(--tilt, -6deg) * -1.35));
+  }
+  50% {
+    transform: rotate(calc(var(--tilt, -6deg) * 0.85));
+  }
+  75% {
+    transform: rotate(calc(var(--tilt, -6deg) * -0.55));
+  }
+  100% {
+    transform: rotate(var(--tilt, -6deg));
   }
 }
 

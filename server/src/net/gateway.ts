@@ -396,20 +396,20 @@ function clientIp(request: IncomingMessage): string {
 function describeJoinError(code: string): string {
   switch (code) {
     case 'room_not_found':
-      return 'Лобби не найдено. Проверьте код.';
+      return 'Lobby not found. Check the code.';
     case 'room_full':
-      return 'Лобби заполнено.';
+      return 'Lobby is full.';
     case 'room_closed':
-      return 'Лобби закрыто.';
+      return 'Lobby is closed.';
     case 'bad_password':
-      return 'Неверный пароль лобби.';
+      return 'Wrong lobby password.';
     case 'not_admin':
-      return 'Только администратор может создать лобби.';
+      return 'Only an admin can create a lobby.';
     case 'already_in_room':
-      return 'Вы уже находитесь в другом лобби.';
+      return 'You are already in another lobby.';
     case 'not_in_room':
-      return 'Сначала войдите в лобби.';
+      return 'Join a lobby first.';
     default:
-      return 'Не удалось подключиться к лобби.';
+      return 'Could not connect to the lobby.';
   }
 }

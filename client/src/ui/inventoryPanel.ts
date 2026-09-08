@@ -58,8 +58,8 @@ export class InventoryPanel {
     this.root = el('div', 'inv-panel');
     this.root.hidden = true;
     const card = el('div', 'inv-card');
-    card.append(el('div', 'inv-kicker', 'ITEMS'), el('h2', 'inv-title', 'ИНВЕНТАРЬ'));
-    card.append(el('p', 'inv-hint', 'ЛКМ — перетащить · R — повернуть'));
+    card.append(el('div', 'inv-kicker', 'ITEMS'), el('h2', 'inv-title', 'INVENTORY'));
+    card.append(el('p', 'inv-hint', 'LMB — drag · R — rotate'));
     this.board = el('div', 'inv-board');
     this.tip = el('div', 'inv-tip');
     this.tip.hidden = true;
@@ -123,7 +123,7 @@ export class InventoryPanel {
     this.containerEls.clear();
 
     const equipped = el('div', 'inv-equipped');
-    equipped.append(el('div', 'inv-section-title', 'В ОРУЖИИ'));
+    equipped.append(el('div', 'inv-section-title', 'CHAMBERED'));
     const eqRow = el('div', 'inv-equipped-row');
     const chamberedIds = new Set(Object.values(this.inventory.chambered).filter(Boolean) as string[]);
     for (const [weaponId, magId] of Object.entries(this.inventory.chambered)) {

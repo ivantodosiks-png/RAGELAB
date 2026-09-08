@@ -108,7 +108,13 @@ export class MainMenu {
     this.root.tabIndex = 0;
 
     const fx = el('div', 'mm-fx');
-    fx.append(el('div', 'mm-vignette'), el('div', 'mm-glow'), el('div', 'mm-grain'), el('div', 'mm-pine'));
+    fx.append(
+      el('div', 'mm-forest-fallback'),
+      el('div', 'mm-forest'),
+      el('div', 'mm-vignette'),
+      el('div', 'mm-glow'),
+      el('div', 'mm-grain'),
+    );
     this.root.append(fx);
 
     const intro = el('div', 'mm-intro');
@@ -272,30 +278,37 @@ export class MainMenu {
 
     const logo = el('div', 'tk-logo tk-sign');
     logo.innerHTML = `
-      <div class="tk-sign-wires" aria-hidden="true">
-        <span class="tk-sign-wire tk-sign-wire--l"></span>
-        <span class="tk-sign-wire tk-sign-wire--r"></span>
-      </div>
-      <span class="tk-sign-escape">ESCAPE FROM</span>
-      <span class="tk-sign-russia" aria-label="RUSSIA">
-        <i class="is-fixed">R</i><i class="is-fixed">U</i><i class="is-fixed">S</i><i class="is-hang" style="--tilt:-8deg;--drop:8px;--delay:0s">S</i><i class="is-hang" style="--tilt:6deg;--drop:16px;--delay:0.12s">I</i><i class="is-hang" style="--tilt:-12deg;--drop:11px;--delay:0.28s">A</i>
-      </span>`;
+      <div class="tk-sign-board">
+        <div class="tk-sign-hooks" aria-hidden="true">
+          <span class="tk-sign-hook tk-sign-hook--l"></span>
+          <span class="tk-sign-hook tk-sign-hook--r"></span>
+        </div>
+        <span class="tk-sign-escape">ESCAPE FROM</span>
+        <span class="tk-sign-russia" aria-label="RUSSIA">
+          <i class="is-hang" style="--tilt:-5deg;--len:22px;--delay:0s;--dur:3.1s">R</i>
+          <i class="is-hang" style="--tilt:4deg;--len:28px;--delay:0.18s;--dur:3.7s">U</i>
+          <i class="is-hang" style="--tilt:-7deg;--len:18px;--delay:0.35s;--dur:2.9s">S</i>
+          <i class="is-hang" style="--tilt:6deg;--len:34px;--delay:0.08s;--dur:4.2s">S</i>
+          <i class="is-hang" style="--tilt:-4deg;--len:26px;--delay:0.48s;--dur:3.4s">I</i>
+          <i class="is-hang" style="--tilt:8deg;--len:30px;--delay:0.22s;--dur:3.9s">A</i>
+        </span>
+      </div>`;
     view.append(logo);
 
     const warn = el('div', 'tk-warn');
     warn.innerHTML = `
       <span class="tk-warn-ico" aria-hidden="true">!</span>
-      <span>Это тестовая сборка. Возможны вайпы, изменения баланса и незавершённые системы.</span>`;
+      <span>This is a test build. Wipes, balance changes, and unfinished systems are expected.</span>`;
     view.append(warn);
 
     const nav = el('nav', 'tk-nav');
     nav.append(
-      navLink('ПОБЕГ', () => this.show('raid'), true),
-      navLink('ПЕРСОНАЖ', () => this.show('character')),
-      navLink('ИНВЕНТАРЬ', () => this.flashLocked('Инвентарь'), false, true),
-      navLink('ТОРГОВЛЯ', () => this.flashLocked('Торговля'), false, true),
-      navLink('ВЫХОД', () => {
-        if (window.confirm('Выйти из RAGELAB?')) this.callbacks.quit();
+      navLink('ESCAPE', () => this.show('raid'), true),
+      navLink('CHARACTER', () => this.show('character')),
+      navLink('INVENTORY', () => this.flashLocked('Inventory'), false, true),
+      navLink('TRADING', () => this.flashLocked('Trading'), false, true),
+      navLink('QUIT', () => {
+        if (window.confirm('Quit RAGELAB?')) this.callbacks.quit();
       }),
     );
     view.append(nav);
@@ -308,9 +321,9 @@ export class MainMenu {
 
   private renderRaidSelect(): void {
     const view = el('div', 'tk-flow');
-    view.append(el('p', 'tk-flow-kicker', 'РЕЙД'));
-    view.append(el('h2', 'tk-flow-title', 'ВЫБОР ФРАКЦИИ'));
-    view.append(el('p', 'tk-flow-lead', 'Выберите, кем выйти в рейд. Дикий пока недоступен.'));
+    view.append(el('p', 'tk-flow-kicker', 'RAID'));
+    view.append(el('h2', 'tk-flow-title', 'SELECT FACTION'));
+    view.append(el('p', 'tk-flow-lead', 'Choose how you enter the raid. Scav is locked for now.'));
 
     const grid = el('div', 'tk-faction-grid');
 
@@ -319,8 +332,8 @@ export class MainMenu {
     pmc.innerHTML = `
       <div class="tk-faction-art tk-faction-art--pmc" aria-hidden="true"></div>
       <div class="tk-faction-meta">
-        <strong>ЧВК</strong>
-        <span>Оператор · полный комплект</span>
+        <strong>PMC</strong>
+        <span>Operator · full kit</span>
       </div>`;
     pmc.addEventListener('click', () => this.show('map'));
 
@@ -329,16 +342,16 @@ export class MainMenu {
     scav.innerHTML = `
       <div class="tk-faction-art tk-faction-art--scav" aria-hidden="true"></div>
       <div class="tk-faction-meta">
-        <strong>ДИКИЙ</strong>
-        <span>ЗАБЛОКИРОВАНО · скоро</span>
+        <strong>SCAV</strong>
+        <span>LOCKED · coming soon</span>
       </div>
       <em class="tk-lock-badge">LOCKED</em>`;
-    scav.addEventListener('click', () => this.flashLocked('Дикий'));
+    scav.addEventListener('click', () => this.flashLocked('Scav'));
 
     grid.append(pmc, scav);
     view.append(grid);
 
-    const back = el('button', 'tk-back', 'НАЗАД');
+    const back = el('button', 'tk-back', 'BACK');
     back.type = 'button';
     back.addEventListener('click', () => this.show('home'));
     view.append(back);
@@ -347,7 +360,7 @@ export class MainMenu {
 
   private renderMapSelect(): void {
     const view = el('div', 'tk-flow tk-map-flow');
-    view.append(el('h2', 'tk-flow-title', 'КАРТА'));
+    view.append(el('h2', 'tk-flow-title', 'MAP'));
 
     const board = el('div', 'tk-map-board');
     const pins = el('div', 'tk-map-pins');
@@ -381,7 +394,7 @@ export class MainMenu {
     const selected = getMap(this.selectedMapId);
     bar.append(el('span', 'tk-map-selected', selected.name));
 
-    const deploy = el('button', 'tk-deploy', 'В РЕЙД');
+    const deploy = el('button', 'tk-deploy', 'DEPLOY');
     deploy.type = 'button';
     deploy.addEventListener('click', () => {
       const mapId = this.selectedMapId;
@@ -394,7 +407,7 @@ export class MainMenu {
     bar.append(deploy);
 
     if (this.isAdmin || this.canHostOnline) {
-      const create = el('button', 'tk-secondary', this.createBusy ? '…' : 'ЛОББИ');
+      const create = el('button', 'tk-secondary', this.createBusy ? '…' : 'LOBBY');
       create.type = 'button';
       create.disabled = this.createBusy;
       create.addEventListener('click', () => {
@@ -413,7 +426,7 @@ export class MainMenu {
 
     view.append(bar);
 
-    const back = el('button', 'tk-back', 'НАЗАД');
+    const back = el('button', 'tk-back', 'BACK');
     back.type = 'button';
     back.addEventListener('click', () => this.show('raid'));
     view.append(back);
@@ -424,11 +437,11 @@ export class MainMenu {
     const view = el('div', 'tk-char');
     const tabs = el('div', 'tk-char-tabs');
     const tabDefs: Array<{ id: string; label: string; locked?: boolean }> = [
-      { id: 'general', label: 'ОБЩЕЕ' },
-      { id: 'items', label: 'ВЕЩИ', locked: true },
-      { id: 'health', label: 'ЗДОРОВЬЕ', locked: true },
-      { id: 'skills', label: 'УМЕНИЯ', locked: true },
-      { id: 'map', label: 'КАРТА', locked: true },
+      { id: 'general', label: 'OVERVIEW' },
+      { id: 'items', label: 'ITEMS', locked: true },
+      { id: 'health', label: 'HEALTH', locked: true },
+      { id: 'skills', label: 'SKILLS', locked: true },
+      { id: 'map', label: 'MAP', locked: true },
     ];
     for (const t of tabDefs) {
       const btn = el('button', t.id === 'general' ? 'is-on' : '', t.label);
@@ -472,12 +485,12 @@ export class MainMenu {
 
     const icons = el('div', 'tk-stat-icons');
     for (const row of [
-      { n: String(matches), l: 'РЕЙДЫ' },
-      { n: String(wins), l: 'ВЫЖИЛ' },
-      { n: String(s?.deaths ?? 0), l: 'ПОГИБ' },
-      { n: String(kills), l: 'УБИЙСТВА' },
+      { n: String(matches), l: 'RAIDS' },
+      { n: String(wins), l: 'SURVIVED' },
+      { n: String(s?.deaths ?? 0), l: 'KIA' },
+      { n: String(kills), l: 'KILLS' },
       { n: kd, l: 'K/D' },
-      { n: `${surv}%`, l: 'ВЫЖИВАНИЕ' },
+      { n: `${surv}%`, l: 'SURVIVAL' },
     ]) {
       const cell = el('div', 'tk-stat-icon');
       cell.innerHTML = `<b>${row.n}</b><span>${row.l}</span>`;
@@ -487,16 +500,16 @@ export class MainMenu {
 
     const list = el('div', 'tk-stat-list');
     list.innerHTML = `
-      <h4>ОБЩАЯ СТАТИСТИКА</h4>
-      <div class="tk-stat-row"><span>Позывной</span><b>${escapeHtml(this.operatorName())}</b></div>
-      <div class="tk-stat-row"><span>Фракция</span><b>ЧВК</b></div>
-      <div class="tk-stat-row"><span>Уровень</span><b>${level}</b></div>
-      <div class="tk-stat-row"><span>Матчи</span><b>${matches}</b></div>
-      <div class="tk-stat-row"><span>Хедшоты</span><b>${s?.headshots ?? 0}</b></div>
-      <div class="tk-stat-row"><span>Статус</span><b>${this.signedIn ? 'Аккаунт' : 'Гость'}</b></div>`;
+      <h4>OVERALL STATS</h4>
+      <div class="tk-stat-row"><span>Callsign</span><b>${escapeHtml(this.operatorName())}</b></div>
+      <div class="tk-stat-row"><span>Faction</span><b>PMC</b></div>
+      <div class="tk-stat-row"><span>Level</span><b>${level}</b></div>
+      <div class="tk-stat-row"><span>Matches</span><b>${matches}</b></div>
+      <div class="tk-stat-row"><span>Headshots</span><b>${s?.headshots ?? 0}</b></div>
+      <div class="tk-stat-row"><span>Status</span><b>${this.signedIn ? 'Account' : 'Guest'}</b></div>`;
     right.append(list);
 
-    const account = el('button', 'tk-secondary', this.signedIn ? 'АККАУНТ' : 'ВОЙТИ');
+    const account = el('button', 'tk-secondary', this.signedIn ? 'ACCOUNT' : 'SIGN IN');
     account.type = 'button';
     account.addEventListener('click', () => this.show('auth'));
     right.append(account);
@@ -504,7 +517,7 @@ export class MainMenu {
     body.append(left, right);
     view.append(body);
 
-    const back = el('button', 'tk-back', 'НАЗАД');
+    const back = el('button', 'tk-back', 'BACK');
     back.type = 'button';
     back.addEventListener('click', () => this.show('home'));
     view.append(back);
@@ -533,7 +546,7 @@ export class MainMenu {
     });
     const tableHost = el('div', 'mm-admin-table');
     card.append(notice, search.wrap, refresh, tableHost);
-    const back = el('button', 'tk-back', 'НАЗАД');
+    const back = el('button', 'tk-back', 'BACK');
     back.type = 'button';
     back.addEventListener('click', () => this.show('home'));
     card.append(back);
@@ -688,7 +701,7 @@ export class MainMenu {
       );
     }
     card.append(body);
-    const back = el('button', 'tk-back', 'НАЗАД');
+    const back = el('button', 'tk-back', 'BACK');
     back.type = 'button';
     back.addEventListener('click', () => this.show('home'));
     card.append(back);
@@ -723,7 +736,7 @@ export class MainMenu {
     card.append(el('h2', '', this.signedIn ? 'Account' : 'Sign in'));
     if (!this.supabaseReady) {
       card.append(el('p', 'lead', 'Supabase is not configured. Guest play still works.'));
-      const back = el('button', 'tk-back', 'НАЗАД');
+      const back = el('button', 'tk-back', 'BACK');
       back.addEventListener('click', () => this.show('character'));
       card.append(back);
       this.stage.append(card);
@@ -733,7 +746,7 @@ export class MainMenu {
       card.append(el('p', 'lead', `Signed in as ${this.username}.`));
       const out = el('button', 'rl-btn', 'Sign out');
       out.addEventListener('click', () => this.callbacks.signOut());
-      const back = el('button', 'tk-back', 'НАЗАД');
+      const back = el('button', 'tk-back', 'BACK');
       back.addEventListener('click', () => this.show('character'));
       card.append(out, back);
       this.stage.append(card);
@@ -775,7 +788,7 @@ export class MainMenu {
     });
     reg.append(username.wrap, email2.wrap, password2.wrap, signUp);
 
-    const back = el('button', 'tk-back', 'НАЗАД');
+    const back = el('button', 'tk-back', 'BACK');
     back.addEventListener('click', () => this.show('character'));
     card.append(login, el('p', 'lead', 'Or create an account'), reg, back);
     this.stage.append(card);
