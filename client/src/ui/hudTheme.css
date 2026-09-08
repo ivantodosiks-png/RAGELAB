@@ -407,6 +407,19 @@ input[type='range'] {
   border-radius: var(--hud-radius);
 }
 
+/* Health bar replaced by limb silhouette; keep stamina strip above body panel */
+.hud-vitals .vital-kicker,
+.hud-vitals .vital-meta:not(.stamina-meta),
+.hud-vitals .bar:not(.stamina) {
+  display: none;
+}
+
+.hud-vitals {
+  bottom: 168px;
+  width: min(168px, 28vw);
+  padding: 10px 12px 12px;
+}
+
 .hud-tips {
   position: absolute;
   left: max(18px, env(safe-area-inset-left, 0px));
@@ -1608,8 +1621,8 @@ input[type='range'] {
     min-height: 48px;
   }
   .hud-vitals {
-    width: min(180px, 42vw);
-    bottom: 78px;
+    width: min(140px, 36vw);
+    bottom: 140px;
   }
   .toolgun-hud {
     bottom: 148px;

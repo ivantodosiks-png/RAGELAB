@@ -8,6 +8,8 @@ import {
   distanceSq,
   getWeapon,
   isWeaponId,
+  healBodyParts,
+  cloneBodyParts,
   type GameEvent,
   type Vec3,
 } from '@ragelab/shared';
@@ -248,6 +250,12 @@ export function updatePickups(
         respawnAt: nowMs + def.respawnMs,
       };
       events.broadcast(event);
+      if (def.kind === 'health') {
+        events.to(player.id, {
+          t: 'bodyParts',
+          parts: cloneBodyParts(player.bodyParts),
+        });
+      }
     }
   }
 }
@@ -262,7 +270,9 @@ function applyPickup(
   switch (kind) {
     case 'health': {
       if (player.health >= MAX_HEALTH) return false;
-      player.health = Math.min(MAX_HEALTH, player.health + (amount || 25));
+      const heal = amount || 25;
+      player.health = Math.min(MAX_HEALTH, player.health + heal);
+      healBodyParts(player.bodyParts, heal);
       return true;
     }
     case 'ammo': {

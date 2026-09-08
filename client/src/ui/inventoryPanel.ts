@@ -9,12 +9,15 @@ import {
   magFillLevel,
   moveInventoryItem,
   normalizeInventoryPlacements,
+  type BodyPartId,
+  type BodyPartState,
   type InventoryContainerId,
   type InventoryItem,
   type PlayerInventoryState,
 } from '@ragelab/shared';
 import { el } from '../ui/dom';
 import { itemIconHtml } from './inventoryIcons';
+import { BodyStatusView } from './bodyStatus';
 
 /** Base cell size in px — scaled via CSS --inv-cell on smaller screens. */
 const CELL = 52;
@@ -61,6 +64,9 @@ export class InventoryPanel {
   private containerEls = new Map<InventoryContainerId, HTMLElement>();
   private lastPointerX = 0;
   private lastPointerY = 0;
+  private bodyView: BodyStatusView | null = null;
+  private pendingParts: BodyPartState | null = null;
+  private pendingHit: BodyPartId | null = null;
 
   onMoveItem:
     | ((payload: {
@@ -110,6 +116,18 @@ export class InventoryPanel {
     this.inventory = inv;
     normalizeInventoryPlacements(this.inventory);
     if (this.open) this.render();
+  }
+
+  setBodyParts(parts: BodyPartState, hit?: BodyPartId | null): void {
+    this.pendingParts = parts;
+    this.pendingHit = hit ?? null;
+    if (this.bodyView) this.bodyView.setParts(parts, hit);
+  }
+
+  resetBodyParts(): void {
+    this.bodyView?.reset();
+    this.pendingParts = null;
+    this.pendingHit = null;
   }
 
   toggle(): boolean {
@@ -167,48 +185,10 @@ export class InventoryPanel {
       stage.append(box);
     }
 
-    const figure = el('div', 'inv-figure');
-    figure.innerHTML = `
-      <div class="inv-op" aria-hidden="true">
-        <div class="inv-op-glow"></div>
-        <div class="inv-op-shadow"></div>
-        <div class="inv-op-body">
-          <div class="inv-op-helmet">
-            <span class="inv-op-visor"></span>
-            <span class="inv-op-nvg"></span>
-          </div>
-          <div class="inv-op-neck"></div>
-          <div class="inv-op-torso">
-            <span class="inv-op-plate"></span>
-            <span class="inv-op-pouches"></span>
-            <span class="inv-op-radio"></span>
-          </div>
-          <div class="inv-op-arm inv-op-arm--l">
-            <span class="inv-op-sleeve"></span>
-            <span class="inv-op-glove"></span>
-          </div>
-          <div class="inv-op-arm inv-op-arm--r">
-            <span class="inv-op-sleeve"></span>
-            <span class="inv-op-glove"></span>
-          </div>
-          <div class="inv-op-belt"></div>
-          <div class="inv-op-leg inv-op-leg--l">
-            <span class="inv-op-knee"></span>
-            <span class="inv-op-boot"></span>
-          </div>
-          <div class="inv-op-leg inv-op-leg--r">
-            <span class="inv-op-knee"></span>
-            <span class="inv-op-boot"></span>
-          </div>
-          <div class="inv-op-rifle">
-            <span class="inv-op-rifle-stock"></span>
-            <span class="inv-op-rifle-body"></span>
-            <span class="inv-op-rifle-mag"></span>
-            <span class="inv-op-rifle-barrel"></span>
-          </div>
-        </div>
-        <div class="inv-op-tag">OPERATOR</div>
-      </div>`;
+    const figure = el('div', 'inv-figure inv-figure--body');
+    this.bodyView = new BodyStatusView('detail');
+    if (this.pendingParts) this.bodyView.setParts(this.pendingParts, this.pendingHit);
+    figure.append(this.bodyView.root);
     stage.append(figure);
 
     col.append(stage);

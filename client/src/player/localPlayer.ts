@@ -6,12 +6,16 @@ import {
   TICK_DT_MS,
   clamp,
   createMovementState,
+  createFullBodyParts,
+  cloneBodyParts,
+  resetBodyParts,
   dqPos,
   dqVel,
   distance,
   getWeapon,
   stepMovement,
   weaponFromIndex,
+  type BodyPartState,
   type InputCommand,
   type MovementState,
   type QuantPlayer,
@@ -75,6 +79,7 @@ export class LocalPlayer {
 
   /** Mirrors the authoritative values from the last snapshot. */
   health = 100;
+  bodyParts: BodyPartState = createFullBodyParts();
   alive = true;
   weaponId: WeaponId = 'pistol';
   ammoInMag = 0;
@@ -342,6 +347,14 @@ export class LocalPlayer {
     this.pending.length = 0;
     this.physics.character.teleport(position);
     this.alive = true;
+  }
+
+  applyBodyParts(parts: BodyPartState): void {
+    this.bodyParts = cloneBodyParts(parts);
+  }
+
+  resetBodyHealth(): void {
+    resetBodyParts(this.bodyParts);
   }
 
   /** Distance from the predicted position to a world point. */

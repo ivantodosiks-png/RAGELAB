@@ -3,6 +3,8 @@ import { TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
 import { settingsStore } from '../settings/settingsStore';
 import { BodycamOverlay } from './bodycamOverlay';
+import { BodyStatusView } from './bodyStatus';
+import type { BodyPartId, BodyPartState } from '@ragelab/shared';
 
 export interface HudScoreRow {
   id: number;
@@ -77,6 +79,7 @@ export class Hud {
   private readonly bodycam: BodycamOverlay;
   private readonly tips: HTMLElement;
   private readonly magStatus: HTMLElement;
+  private readonly bodyStatus: BodyStatusView;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -145,6 +148,8 @@ export class Hud {
     this.staminaFill = el('span');
     stBar.append(this.staminaFill);
     this.vitals.append(hpKicker, hpLabel, hpBar, stLabel, stBar);
+
+    this.bodyStatus = new BodyStatusView('hud');
 
     this.tips = this.buildTips();
     this.magStatus = el('div', 'hud-mag-status');
@@ -218,6 +223,7 @@ export class Hud {
       this.toolGunHud,
       this.hitmarker,
       this.vitals,
+      this.bodyStatus.root,
       this.tips,
       this.magStatus,
       this.ammoPanel,
@@ -290,6 +296,18 @@ export class Hud {
     this.healthFill.style.transform = `scaleX(${t})`;
     this.healthText.textContent = String(rounded);
     this.vitals.classList.toggle('critical', t <= 0.28);
+  }
+
+  setBodyParts(parts: BodyPartState, hit?: BodyPartId | null): void {
+    this.bodyStatus.setParts(parts, hit);
+  }
+
+  resetBodyParts(): void {
+    this.bodyStatus.reset();
+  }
+
+  getBodyParts(): BodyPartState {
+    return this.bodyStatus.state;
   }
 
   setStamina(current: number, max = 1): void {
@@ -714,6 +732,7 @@ export class Hud {
   }
 
   update(dt: number, nowMs: number): void {
+    this.bodyStatus.tick(dt);
     if (this.hitTimer > 0) {
       this.hitTimer -= dt;
       if (this.hitTimer <= 0) {

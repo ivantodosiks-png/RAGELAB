@@ -29,6 +29,7 @@ export * from './physics/index';
 export * from './sim/movement';
 export * from './sim/weapon';
 export * from './sim/hitbox';
+export * from './sim/bodyParts';
 export * from './sim/npcDamage';
 
 export * from './settings/defaults';

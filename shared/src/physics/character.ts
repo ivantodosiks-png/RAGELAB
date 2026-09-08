@@ -51,7 +51,7 @@ export class RapierCharacter implements CharacterCollisionAdapter {
     this.controller.setMaxSlopeClimbAngle((MAX_SLOPE_CLIMB_DEG * Math.PI) / 180);
     this.controller.setMinSlopeSlideAngle((MAX_SLOPE_CLIMB_DEG * Math.PI) / 180);
     this.controller.enableAutostep(STEP_HEIGHT, PLAYER_RADIUS * 0.6, true);
-    this.controller.enableSnapToGround(0.35);
+    this.controller.enableSnapToGround(0.55);
     this.controller.setApplyImpulsesToDynamicBodies(true);
     this.controller.setCharacterMass(80);
 

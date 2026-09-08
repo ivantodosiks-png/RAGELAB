@@ -2,6 +2,7 @@ import type { PlayerId } from './player';
 import type { WeaponId } from './weapons';
 import type { SurfaceId } from './map';
 import type { PlayerInventoryState } from '../inventory/types';
+import type { BodyPartId, BodyPartState } from '../sim/bodyParts';
 
 /**
  * Discrete, low-frequency things that happened during a tick. Batched into one
@@ -47,6 +48,10 @@ export type GameEvent =
       /** Direction the damage came from, for the directional indicator. */
       from: [number, number, number];
       health: number;
+      /** Body part that took the hit. */
+      part: BodyPartId;
+      /** Full limb HP snapshot for HUD / TAB. */
+      parts: BodyPartState;
     }
   | {
       t: 'kill';
@@ -106,6 +111,12 @@ export type GameEvent =
   | { t: 'leave'; p: PlayerId; name: string }
   | { t: 'matchEnd'; winner: PlayerId | null }
   | { t: 'matchStart' }
-  | { t: 'inventorySync'; inventory: PlayerInventoryState };
+  | { t: 'inventorySync'; inventory: PlayerInventoryState }
+  | {
+      /** Authoritative limb HP (heal / respawn / reconcile). */
+      t: 'bodyParts';
+      parts: BodyPartState;
+      hit?: BodyPartId;
+    };
 
 export type GameEventType = GameEvent['t'];

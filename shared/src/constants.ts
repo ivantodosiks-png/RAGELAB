@@ -91,7 +91,8 @@ export const FALL_DAMAGE_PER_SPEED = 5.5;
 export const MAX_HEALTH = 100;
 export const RESPAWN_DELAY_MS = 3_000;
 export const SPAWN_PROTECTION_MS = 1_500;
-export const HEADSHOT_MULTIPLIER = 2.0;
+/** Headshots are intended to be lethal on typical firearm damage. */
+export const HEADSHOT_MULTIPLIER = 5.0;
 export const LEGSHOT_MULTIPLIER = 0.8;
 
 // ── Sandbox interaction ─────────────────────────────────────────────────────

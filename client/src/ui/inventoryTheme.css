@@ -118,10 +118,14 @@
 
 .inv-figure {
   position: absolute;
-  inset: 6% 18% 8%;
+  inset: 6% 10% 8%;
   display: grid;
   place-items: center;
   pointer-events: none;
+}
+
+.inv-figure--body {
+  inset: 8% 6% 8%;
 }
 
 .inv-op {

@@ -19,8 +19,8 @@ import { buildWeaponMesh, muzzleOffsetFor } from '../weapons/weaponMeshes';
 import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual } from '../weapons/weaponAssets';
 import {
   instantiateCharacter,
-  kindFromSeed,
-  preloadAllCharacters,
+  PLAYER_CHARACTER_KIND,
+  preloadPlayerCharacter,
   type SkinnedCharacter,
 } from '../characters/skinnedHumanoid';
 import { clipFromAnimation, lookFromIdentity } from '../player/localCharacter';
@@ -33,12 +33,8 @@ interface Limb {
 }
 
 /**
- * Procedural humanoid used for remote players.
- *
- * Deliberately geometric: no external model to download, one shared geometry
- * set across every avatar, and the whole thing is four draw calls. Animation is
- * driven entirely from replicated state (velocity + flags), so no animation
- * data needs to cross the wire.
+ * Procedural capsule fallback for remote players until the operator GLB loads.
+ * Live path upgrades to Mixamo Vanguard (`operator.glb`) for every player.
  */
 export class PlayerAvatar {
   readonly root = new THREE.Group();
@@ -171,7 +167,7 @@ export class PlayerAvatar {
     this.healthBar.position.y = PLAYER_HEIGHT_STAND + 0.25;
     this.root.add(this.healthBar);
 
-    void preloadAllCharacters().then(() => this.attachSkinned(identity));
+    void preloadPlayerCharacter().then(() => this.attachSkinned(identity));
   }
 
   setIdentity(identity: PlayerIdentity): void {
@@ -285,10 +281,9 @@ export class PlayerAvatar {
   private attachSkinned(identity: PlayerIdentity | undefined): void {
     if (this.skinned) return;
     const look = lookFromIdentity(identity);
-    const preferred = kindFromSeed(identity?.id ?? this.playerId);
     const inst =
-      instantiateCharacter(preferred, look) ??
-      instantiateCharacter(preferred === 'man' ? 'woman' : 'man', look);
+      instantiateCharacter(PLAYER_CHARACTER_KIND, look) ??
+      instantiateCharacter('man', look);
     if (!inst || !inst.ready) return;
     inst.root.traverse((obj) => {
       obj.layers.set(0);

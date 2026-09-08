@@ -3,6 +3,7 @@ import './ui/menuTheme.css';
 import './ui/hudTheme.css';
 import './ui/inventoryTheme.css';
 import './ui/bodycamTheme.css';
+import './ui/bodyStatus.css';
 import { authService } from './supabase/auth';
 import { GAME_SERVER_URL, supabaseConfigured } from './supabase/client';
 import { UiApp, type JoinRequest } from './ui/app';

@@ -13,6 +13,9 @@ import {
   raycastPlayer,
   zoneMultiplier,
   HitZone,
+  cloneBodyParts,
+  damageBodyPart,
+  type BodyPartId,
   type HitZoneId,
   type GameEvent,
   type Vec3,
@@ -124,6 +127,7 @@ export function resolveShot(ctx: CombatContext, shooter: PlayerEntity): void {
     let bestT = worldHit ? worldHit.t : def.range;
     let victim: PlayerEntity | null = null;
     let victimZone: HitZoneId = HitZone.Body;
+    let victimPart: BodyPartId = 'chest';
     let victimPoint: Vec3 | null = null;
     let victimNormal: Vec3 | null = null;
 
@@ -139,11 +143,12 @@ export function resolveShot(ctx: CombatContext, shooter: PlayerEntity): void {
         crouching = scratchPose.crouching;
       }
 
-      const hit = raycastPlayer(scratchOrigin, dir, pos, crouching, bestT);
+      const hit = raycastPlayer(scratchOrigin, dir, pos, crouching, bestT, target.yaw);
       if (!hit || hit.t >= bestT) continue;
       bestT = hit.t;
       victim = target;
       victimZone = hit.zone;
+      victimPart = hit.part;
       victimPoint = hit.point;
       victimNormal = hit.normal;
     }
@@ -163,7 +168,7 @@ export function resolveShot(ctx: CombatContext, shooter: PlayerEntity): void {
         n: [victimNormal.x, victimNormal.y, victimNormal.z],
       });
 
-      applyDamage(ctx, victim, damage, shooter, def.id, headshot, dir);
+      applyDamage(ctx, victim, damage, shooter, def.id, headshot, dir, victimPart);
     } else if (worldHit && worldHit.t <= bestT) {
       ctx.events.broadcast({
         t: 'impact',
@@ -207,6 +212,7 @@ export function applyDamage(
   cause: KillCause,
   headshot: boolean,
   fromDirection: Vec3 | null,
+  part: BodyPartId = 'chest',
 ): void {
   if (!victim.alive || amount <= 0) return;
   if (victim.spawnProtectedUntil > ctx.nowMs) return;
@@ -214,8 +220,16 @@ export function applyDamage(
     if (attacker.identity.team === victim.identity.team) return;
   }
 
-  const dealt = Math.min(amount, victim.health);
-  victim.health -= amount;
+  // Head hits on the operator mesh are lethal (matches HUD head zone).
+  let applied = amount;
+  if (part === 'head') {
+    applied = Math.max(amount, victim.health);
+  }
+
+  const dealt = Math.min(applied, victim.health);
+  victim.health -= applied;
+  damageBodyPart(victim.bodyParts, part, dealt);
+  if (victim.bodyParts.head <= 0) victim.health = 0;
 
   if (attacker) {
     attacker.stats.damageDealt += dealt;
@@ -235,6 +249,8 @@ export function applyDamage(
     amount: Math.round(dealt),
     from: [-dir.x, -dir.y, -dir.z],
     health: Math.max(0, Math.round(victim.health)),
+    part,
+    parts: cloneBodyParts(victim.bodyParts),
   });
 
   if (victim.health <= 0) {
@@ -320,6 +336,7 @@ export function resolveExplosion(ctx: CombatContext, blast: PendingExplosion): v
       'explosion',
       false,
       { x: -dx * inv, y: -dy * inv, z: -dz * inv },
+      'chest',
     );
 
     // Blast knockback on the character.

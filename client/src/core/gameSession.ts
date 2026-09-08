@@ -752,6 +752,7 @@ export class GameSession {
       this.input.freezeSlots = open || Boolean(this.spawnMenu?.isOpen);
       this.ui.hud.root.classList.toggle('hud-inventory-open', open);
       if (open) {
+        this.inventoryPanel.setBodyParts(this.local.bodyParts);
         this.input.closeWeaponWheel();
         this.ui.hud.cancelWeaponWheel();
         this.input.releaseLock();
@@ -937,6 +938,7 @@ export class GameSession {
       this.input.yaw,
       clipFromAnimation(animationStateFor({ flags: localFlags, velocity: predicted.velocity }), predicted.speed),
       this.local.alive,
+      predicted.crouching,
     );
     this.playRemoteFootsteps(dt);
     MapMeshBuilder.animatePickups(this.mapBuilder.root, now / 1000);
@@ -1045,6 +1047,11 @@ export class GameSession {
         const dz = event.from[2] - this.local.renderPosition.z;
         const ang = Math.atan2(dx, dz) - this.input.yaw;
         this.ui.hud.showHurt(ang);
+        this.local.health = event.health;
+        this.local.applyBodyParts(event.parts);
+        this.ui.hud.setHealth(event.health, MAX_HEALTH);
+        this.ui.hud.setBodyParts(event.parts, event.part);
+        this.inventoryPanel?.setBodyParts(event.parts, event.part);
         break;
       }
       case 'kill': {
@@ -1065,6 +1072,9 @@ export class GameSession {
       case 'respawn':
         if (event.p === this.localId) {
           this.local.teleport(vec(event.pos));
+          this.local.resetBodyHealth();
+          this.ui.hud.resetBodyParts();
+          this.inventoryPanel?.resetBodyParts();
           this.input.setAim(event.yaw, 0);
           this.input.resetToggles();
           this.camera.reset();
@@ -1078,6 +1088,11 @@ export class GameSession {
             this.applyInventory(inv);
           }
         }
+        break;
+      case 'bodyParts':
+        this.local.applyBodyParts(event.parts);
+        this.ui.hud.setBodyParts(event.parts, event.hit ?? null);
+        this.inventoryPanel?.setBodyParts(event.parts, event.hit ?? null);
         break;
       case 'reload':
         if (event.p === this.localId) this.weapon.onServerReload(event.ms, performance.now());
@@ -1217,6 +1232,9 @@ export class GameSession {
     if (!spawn) return;
     const pos = { x: spawn.position[0], y: spawn.position[1], z: spawn.position[2] };
     this.local.health = MAX_HEALTH;
+    this.local.resetBodyHealth();
+    this.ui.hud.resetBodyParts();
+    this.inventoryPanel?.resetBodyParts();
     this.local.teleport(pos);
     this.input.setAim(spawn.yaw, 0);
     this.input.resetToggles();

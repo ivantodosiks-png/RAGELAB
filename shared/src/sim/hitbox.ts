@@ -2,13 +2,18 @@ import {
   EYE_HEIGHT_CROUCH,
   EYE_HEIGHT_STAND,
   HEADSHOT_MULTIPLIER,
-  HEAD_HITBOX_RADIUS,
   LEGSHOT_MULTIPLIER,
   PLAYER_HEIGHT_CROUCH,
   PLAYER_HEIGHT_STAND,
   PLAYER_RADIUS,
 } from '../constants';
 import type { Vec3 } from '../math';
+import {
+  OPERATOR_PART_CAPSULES,
+  hitZoneForPart,
+  type BodyPartId,
+  type OperatorPartCapsule,
+} from './bodyParts';
 
 export const HitZone = {
   Body: 0,
@@ -23,17 +28,26 @@ export function zoneMultiplier(zone: HitZoneId): number {
   return 1;
 }
 
+export function zoneForPart(part: BodyPartId): HitZoneId {
+  const z = hitZoneForPart(part);
+  if (z === 'head') return HitZone.Head;
+  if (z === 'legs') return HitZone.Legs;
+  return HitZone.Body;
+}
+
 export interface RayHit {
   /** Distance along the ray. */
   t: number;
   zone: HitZoneId;
+  /** Fine body-part for limb HP UI — matches operator capsules. */
+  part: BodyPartId;
   point: Vec3;
   normal: Vec3;
 }
 
 /**
- * Ray vs. vertical capsule. `basePosition` is the player's feet position (the
- * same origin used by the movement code). Returns the nearest hit or null.
+ * Ray vs. operator body-part capsules. `basePosition` is feet (movement origin).
+ * Left/right limbs are separate volumes so legL / legR (and arms) resolve correctly.
  */
 export function raycastPlayer(
   origin: Vec3,
@@ -41,33 +55,103 @@ export function raycastPlayer(
   basePosition: Vec3,
   crouching: boolean,
   maxDistance: number,
+  yaw = 0,
 ): RayHit | null {
   const height = crouching ? PLAYER_HEIGHT_CROUCH : PLAYER_HEIGHT_STAND;
-  const r = PLAYER_RADIUS;
-  const bottomY = basePosition.y + r;
-  const topY = basePosition.y + height - r;
+  const sy = height / PLAYER_HEIGHT_STAND;
+  const rightX = Math.cos(yaw);
+  const rightZ = -Math.sin(yaw);
+  const fwdX = -Math.sin(yaw);
+  const fwdZ = -Math.cos(yaw);
 
-  const hit = rayVerticalCapsule(
-    origin,
-    dir,
-    basePosition.x,
-    basePosition.z,
-    bottomY,
-    topY,
-    r,
-    maxDistance,
-  );
+  let best: RayHit | null = null;
+  let bestPriority = 99;
+
+  for (const cap of OPERATOR_PART_CAPSULES) {
+    const hit = raycastLocalCapsule(
+      origin,
+      dir,
+      basePosition,
+      cap,
+      sy,
+      rightX,
+      rightZ,
+      fwdX,
+      fwdZ,
+      maxDistance,
+    );
+    if (!hit) continue;
+    const priority = partPriority(cap.part);
+    if (
+      !best ||
+      hit.t < best.t - 0.04 ||
+      (Math.abs(hit.t - best.t) <= 0.04 && priority < bestPriority)
+    ) {
+      best = hit;
+      bestPriority = priority;
+    }
+  }
+
+  // Soft outer shell so grazing shots still register when missing thin limbs.
+  if (!best) {
+    const r = PLAYER_RADIUS * (crouching ? 0.92 : 1);
+    const shell = rayVerticalCapsule(
+      origin,
+      dir,
+      basePosition.x,
+      basePosition.z,
+      basePosition.y + r * 0.35,
+      basePosition.y + height - r * 0.2,
+      r,
+      maxDistance,
+    );
+    if (!shell) return null;
+    const eye = crouching ? EYE_HEIGHT_CROUCH : EYE_HEIGHT_STAND;
+    const rel = shell.point.y - basePosition.y;
+    let part: BodyPartId = 'chest';
+    if (rel >= eye - 0.16) part = 'head';
+    else if (rel <= height * 0.42) {
+      const dx = shell.point.x - basePosition.x;
+      const dz = shell.point.z - basePosition.z;
+      const localRight = dx * rightX + dz * rightZ;
+      part = localRight >= 0 ? 'legR' : 'legL';
+    } else if (rel < height * 0.58) part = 'stomach';
+    shell.part = part;
+    shell.zone = zoneForPart(part);
+    return shell;
+  }
+
+  return best;
+}
+
+/** Lower = more specific. Resolves head/limb vs torso capsule overlap. */
+function partPriority(part: BodyPartId): number {
+  if (part === 'head') return 0;
+  if (part === 'armL' || part === 'armR' || part === 'legL' || part === 'legR') return 1;
+  return 2;
+}
+
+function raycastLocalCapsule(
+  origin: Vec3,
+  dir: Vec3,
+  feet: Vec3,
+  cap: OperatorPartCapsule,
+  sy: number,
+  rightX: number,
+  rightZ: number,
+  fwdX: number,
+  fwdZ: number,
+  maxDistance: number,
+): RayHit | null {
+  const cx = feet.x + rightX * cap.lx + fwdX * cap.lz;
+  const cz = feet.z + rightZ * cap.lx + fwdZ * cap.lz;
+  const y0 = feet.y + cap.y0 * sy;
+  const y1 = feet.y + cap.y1 * sy;
+  const radius = cap.radius * (sy < 0.9 ? 1.05 : 1);
+  const hit = rayVerticalCapsule(origin, dir, cx, cz, y0, y1, radius, maxDistance);
   if (!hit) return null;
-
-  const eye = crouching ? EYE_HEIGHT_CROUCH : EYE_HEIGHT_STAND;
-  const headMinY = basePosition.y + eye - HEAD_HITBOX_RADIUS;
-  const legMaxY = basePosition.y + height * 0.42;
-
-  let zone: HitZoneId = HitZone.Body;
-  if (hit.point.y >= headMinY) zone = HitZone.Head;
-  else if (hit.point.y <= legMaxY) zone = HitZone.Legs;
-
-  hit.zone = zone;
+  hit.part = cap.part;
+  hit.zone = zoneForPart(cap.part);
   return hit;
 }
 
@@ -90,7 +174,6 @@ export function rayVerticalCapsule(
   const ox = origin.x - cx;
   const oz = origin.z - cz;
 
-  // ── Infinite cylinder (XZ plane quadratic) ──
   const a = dir.x * dir.x + dir.z * dir.z;
   let best = Infinity;
   let bx = 0;
@@ -122,7 +205,6 @@ export function rayVerticalCapsule(
     }
   }
 
-  // ── Spherical caps ──
   for (const capY of [bottomY, topY]) {
     const oy = origin.y - capY;
     const b = 2 * (ox * dir.x + oy * dir.y + oz * dir.z);
@@ -134,7 +216,6 @@ export function rayVerticalCapsule(
     for (const t of [(-b - sq) / (2 * aa), (-b + sq) / (2 * aa)]) {
       if (t < 0 || t > maxDistance || t >= best) continue;
       const y = origin.y + dir.y * t;
-      // Only the outer hemisphere belongs to the capsule.
       if (capY === bottomY && y > bottomY) continue;
       if (capY === topY && y < topY) continue;
       best = t;
@@ -152,6 +233,7 @@ export function rayVerticalCapsule(
   return {
     t: best,
     zone: HitZone.Body,
+    part: 'chest',
     point: { x: bx, y: by, z: bz },
     normal: { x: nx, y: ny, z: nz },
   };

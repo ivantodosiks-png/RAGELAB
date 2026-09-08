@@ -8,15 +8,18 @@ import type { NpcLook } from '../sandbox/npcModel';
 const BASE = import.meta.env.BASE_URL;
 
 /**
- * Civilian humans (Ready Player Me man + Mixamo Michelle). Faces, hair, clothes,
- * and locomotion clips. KayKit fantasy classes are gone. Facing is applied on an
- * un-animated parent so Mixamo +Z bind cannot overwrite game yaw (-Z).
+ * Shared characters: Mixamo Vanguard operator (players) + civilian humanoids (NPCs).
+ * Facing is applied on an un-animated parent so Mixamo bind cannot overwrite game yaw (−Z).
  */
-export const CHARACTER_KINDS = ['man', 'woman'] as const;
+export const CHARACTER_KINDS = ['operator', 'man', 'woman'] as const;
 export type CharacterKind = (typeof CHARACTER_KINDS)[number];
 export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'getup';
 
+/** Primary player mesh — Mixamo Vanguard tactical operator (three.js Soldier.glb). */
+export const PLAYER_CHARACTER_KIND: CharacterKind = 'operator';
+
 const KIND_FILE: Record<CharacterKind, string> = {
+  operator: 'operator.glb',
   man: 'man.glb',
   woman: 'woman.glb',
 };
@@ -25,8 +28,8 @@ const CLIP_ALIASES: Record<LocoClip, string[]> = {
   idle: ['idle', 'standing_idle', 'unarmed_idle'],
   walk: ['walk', 'walking_a', 'walking_b'],
   run: ['run', 'running_a'],
-  jump: ['jump', 'jump_start', 'walk_jump'],
-  fall: ['fall', 'falling_idle', 'jump_idle'],
+  jump: ['jump', 'jump_start', 'walk_jump', 'idle'],
+  fall: ['fall', 'falling_idle', 'jump_idle', 'idle'],
   getup: ['getup', 'lie_standup', 'standup'],
 };
 
@@ -61,18 +64,16 @@ export function characterUrl(kind: CharacterKind): string {
 }
 
 export function randomCharacterKind(rng: () => number): CharacterKind {
-  return CHARACTER_KINDS[Math.floor(rng() * CHARACTER_KINDS.length)]!;
+  // Sandbox NPCs keep civilian variety; players always use PLAYER_CHARACTER_KIND.
+  const npc = ['man', 'woman'] as const;
+  return npc[Math.floor(rng() * npc.length)]!;
 }
 
-export function kindFromSeed(seed: number): CharacterKind {
-  // Player id 1 (lobby host) previously always mapped to `woman`, whose Mixamo
-  // bind pose was frustum-culled and looked "invisible". Start at man, then
-  // alternate so both models still get used.
-  const i = ((Math.abs(seed) - 1) % CHARACTER_KINDS.length + CHARACTER_KINDS.length) % CHARACTER_KINDS.length;
-  return CHARACTER_KINDS[i]!;
+export function kindFromSeed(_seed: number): CharacterKind {
+  return PLAYER_CHARACTER_KIND;
 }
 
-export async function preloadCharacter(kind: CharacterKind = 'man'): Promise<GLTF | null> {
+export async function preloadCharacter(kind: CharacterKind = PLAYER_CHARACTER_KIND): Promise<GLTF | null> {
   try {
     return await assetManager.loadGltf(characterUrl(kind));
   } catch {
@@ -82,6 +83,10 @@ export async function preloadCharacter(kind: CharacterKind = 'man'): Promise<GLT
 
 export async function preloadAllCharacters(): Promise<void> {
   await Promise.all(CHARACTER_KINDS.map((kind) => preloadCharacter(kind)));
+}
+
+export async function preloadPlayerCharacter(): Promise<GLTF | null> {
+  return preloadCharacter(PLAYER_CHARACTER_KIND);
 }
 
 export function peekCharacter(kind: CharacterKind): GLTF | null {
@@ -315,7 +320,8 @@ function groundToOrigin(rig: THREE.Object3D): void {
   rig.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(rig);
   if (!Number.isFinite(box.min.y)) return;
-  rig.position.y -= box.min.y;
+  // Slight sink so boot soles sit flush on the movement feet plane (no float gap).
+  rig.position.y -= box.min.y + 0.012;
 }
 
 function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {

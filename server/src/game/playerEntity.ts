@@ -19,6 +19,9 @@ import {
   qPos,
   qVel,
   weaponIndex,
+  createFullBodyParts,
+  resetBodyParts,
+  type BodyPartState,
   type InputCommand,
   type MovementState,
   type PlayerIdentity,
@@ -85,6 +88,8 @@ export class PlayerEntity {
   readonly character: RapierCharacter;
 
   health = MAX_HEALTH;
+  /** Per-limb HP for HUD / TAB — parallel to overall health. */
+  bodyParts: BodyPartState = createFullBodyParts();
   alive = true;
   respawnAt = 0;
   spawnProtectedUntil = 0;
@@ -209,6 +214,7 @@ export class PlayerEntity {
 
   resetForRespawn(spawn: Vec3, yaw: number, nowMs: number): void {
     this.health = MAX_HEALTH;
+    resetBodyParts(this.bodyParts);
     this.alive = true;
     this.respawnAt = 0;
     this.killedBy = null;

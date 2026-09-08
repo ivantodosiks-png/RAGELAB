@@ -762,6 +762,10 @@ export class Room {
         t: 'inventorySync',
         inventory: entity.inventorySnapshot(),
       });
+      roomPlayer.pendingEvents.push({
+        t: 'bodyParts',
+        parts: { ...entity.bodyParts },
+      });
     }
     this.broadcastEvents.push({
       t: 'respawn',

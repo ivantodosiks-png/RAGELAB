@@ -1,9 +1,15 @@
 import * as THREE from 'three';
-import { AnimationState, type AnimationStateId, type PlayerIdentity } from '@ragelab/shared';
+import {
+  AnimationState,
+  PLAYER_HEIGHT_CROUCH,
+  PLAYER_HEIGHT_STAND,
+  type AnimationStateId,
+  type PlayerIdentity,
+} from '@ragelab/shared';
 import {
   instantiateCharacter,
-  kindFromSeed,
-  preloadAllCharacters,
+  PLAYER_CHARACTER_KIND,
+  preloadPlayerCharacter,
   type LocoClip,
   type SkinnedCharacter,
 } from '../characters/skinnedHumanoid';
@@ -22,18 +28,16 @@ export class LocalCharacter {
   readonly root = new THREE.Group();
   private character: SkinnedCharacter | null = null;
   private look: NpcLook;
-  private seed = 1;
+  private crouchBlend = 0;
 
   constructor(identity: PlayerIdentity | undefined) {
     this.root.name = 'localCharacter';
     this.look = lookFromIdentity(identity);
-    this.seed = identity?.id ?? 1;
-    void preloadAllCharacters().then(() => this.attach());
+    void preloadPlayerCharacter().then(() => this.attach());
   }
 
   setIdentity(identity: PlayerIdentity): void {
     this.look = lookFromIdentity(identity);
-    this.seed = identity.id;
     this.character?.dispose();
     this.character = null;
     this.attach();
@@ -45,13 +49,19 @@ export class LocalCharacter {
     yaw: number,
     clip: LocoClip,
     alive: boolean,
+    crouching = false,
   ): void {
     this.root.visible = alive;
     if (!alive) return;
     this.root.position.set(feet.x, feet.y, feet.z);
     this.root.rotation.y = yaw;
-    this.character?.play(clip);
-    this.character?.update(dt, 0);
+    this.crouchBlend += ((crouching ? 1 : 0) - this.crouchBlend) * Math.min(1, dt * 14);
+    const scaleY = 1 + (PLAYER_HEIGHT_CROUCH / PLAYER_HEIGHT_STAND - 1) * this.crouchBlend;
+    if (this.character) {
+      this.character.root.scale.y = scaleY;
+      this.character.play(clip);
+      this.character.update(dt, 0);
+    }
   }
 
   dispose(): void {
@@ -62,10 +72,9 @@ export class LocalCharacter {
 
   private attach(): void {
     if (this.character) return;
-    const preferred = kindFromSeed(this.seed);
     const inst =
-      instantiateCharacter(preferred, this.look) ??
-      instantiateCharacter(preferred === 'man' ? 'woman' : 'man', this.look);
+      instantiateCharacter(PLAYER_CHARACTER_KIND, this.look) ??
+      instantiateCharacter('man', this.look);
     if (!inst || !inst.ready) return;
     inst.setFirstPersonBody(false);
     setLayerRecursive(inst.root, LAYER_LOCAL_BODY);
