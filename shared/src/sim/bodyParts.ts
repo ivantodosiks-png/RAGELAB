@@ -1,4 +1,4 @@
-/** Per-limb HP + operator hit-volume layout (Mixamo Vanguard / Soldier proportions). */
+/** Per-limb HP + operator hit-volume layout (madtrollstudio Soldier proportions). */
 
 export const BodyPart = {
   Head: 'head',
@@ -48,7 +48,7 @@ export type BodyPartState = Record<BodyPartId, number>;
 /**
  * Vertical capsule in local operator space (feet origin).
  * +X = right, +Y = up, −Z = forward at yaw 0 — matches game facing.
- * Dimensions tuned to Mixamo Vanguard / three.js Soldier.glb at 1.8 m height.
+ * Tuned to madtrollstudio Soldier (static low-poly) scaled to ~1.8 m.
  */
 export interface OperatorPartCapsule {
   part: BodyPartId;
@@ -63,15 +63,18 @@ export interface OperatorPartCapsule {
   radius: number;
 }
 
-/** Authoritative hit volumes for the shared operator mesh. */
+/**
+ * Authoritative hit volumes matching the madtrollstudio Soldier silhouette.
+ * Left/right limbs are separate so HUD / TAB highlight the correct side.
+ */
 export const OPERATOR_PART_CAPSULES: readonly OperatorPartCapsule[] = [
-  { part: BodyPart.Head, lx: 0, lz: 0.02, y0: 1.5, y1: 1.76, radius: 0.14 },
-  { part: BodyPart.Chest, lx: 0, lz: 0.03, y0: 1.12, y1: 1.48, radius: 0.19 },
-  { part: BodyPart.Stomach, lx: 0, lz: 0.03, y0: 0.8, y1: 1.12, radius: 0.17 },
-  { part: BodyPart.ArmL, lx: -0.36, lz: 0, y0: 0.88, y1: 1.42, radius: 0.1 },
-  { part: BodyPart.ArmR, lx: 0.36, lz: 0, y0: 0.88, y1: 1.42, radius: 0.1 },
-  { part: BodyPart.LegL, lx: -0.13, lz: 0.01, y0: 0.02, y1: 0.84, radius: 0.12 },
-  { part: BodyPart.LegR, lx: 0.13, lz: 0.01, y0: 0.02, y1: 0.84, radius: 0.12 },
+  { part: BodyPart.Head, lx: 0, lz: 0.04, y0: 1.48, y1: 1.78, radius: 0.15 },
+  { part: BodyPart.Chest, lx: 0, lz: 0.05, y0: 1.1, y1: 1.48, radius: 0.22 },
+  { part: BodyPart.Stomach, lx: 0, lz: 0.04, y0: 0.78, y1: 1.1, radius: 0.19 },
+  { part: BodyPart.ArmL, lx: -0.38, lz: 0.02, y0: 0.86, y1: 1.4, radius: 0.11 },
+  { part: BodyPart.ArmR, lx: 0.38, lz: 0.02, y0: 0.86, y1: 1.4, radius: 0.11 },
+  { part: BodyPart.LegL, lx: -0.14, lz: 0.02, y0: 0.02, y1: 0.82, radius: 0.125 },
+  { part: BodyPart.LegR, lx: 0.14, lz: 0.02, y0: 0.02, y1: 0.82, radius: 0.125 },
 ];
 
 export function createFullBodyParts(): BodyPartState {

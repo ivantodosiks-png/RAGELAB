@@ -345,7 +345,7 @@ export class GameSession {
   private buildWorld(rapier: typeof RAPIER, welcome: WelcomePayload): void {
     this.localId = welcome.playerId;
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : [...DEFAULT_LOADOUT];
-    this.input.loadoutSize = Math.min(3, Math.max(1, this.loadout.length));
+    this.input.loadoutSize = Math.min(2, Math.max(1, this.loadout.length));
     this.applyInventory(
       welcome.inventory ??
         (() => {
@@ -596,7 +596,7 @@ export class GameSession {
     }
     this.localId = welcome.playerId;
     this.loadout = welcome.loadout.length > 0 ? welcome.loadout : this.loadout;
-    this.input.loadoutSize = this.loadout.length;
+    this.input.loadoutSize = Math.min(2, Math.max(1, this.loadout.length));
     this.ui.hud.setLoadout(this.loadoutRows());
     this.interp.reset();
     this.identities.clear();

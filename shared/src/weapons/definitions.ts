@@ -959,7 +959,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
 export const WEAPON_IDS: WeaponId[] = Object.keys(WEAPON_DEFINITIONS);
 
 /** The loadout every player spawns with, in slot order (hotbar 1–3). */
-export const DEFAULT_LOADOUT: WeaponId[] = ['pistol', 'smg', 'rifle'];
+export const DEFAULT_LOADOUT: WeaponId[] = ['pistol', 'rifle'];
 
 export function getWeapon(id: WeaponId): WeaponDefinition {
   const def = WEAPON_DEFINITIONS[id];

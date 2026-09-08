@@ -26,7 +26,7 @@ export interface HudSlotInfo {
 
 export type ToolGunKind = 'NPC' | 'Prop' | 'Tool' | 'Weapon';
 
-const WHEEL_SLOTS = 4;
+const WHEEL_SLOTS = TOOL_GUN_UI_SLOT + 1;
 const WHEEL_DEADZONE = 36;
 const TIPS_DISMISS_KEY = 'ragelab.hud.tips.dismissed';
 
@@ -58,6 +58,7 @@ export class Hud {
   private readonly toolGunHud: HTMLElement;
   private readonly toolGunSelected: HTMLElement;
   private readonly toolGunHint: HTMLElement;
+  private readonly combat: HTMLElement;
   private readonly weaponBar: HTMLElement;
   private readonly slotNodes: HTMLElement[] = [];
   private readonly slotIcons: HTMLElement[] = [];
@@ -74,6 +75,7 @@ export class Hud {
   private readonly vitals: HTMLElement;
   private readonly staminaFill: HTMLElement;
   private readonly staminaText: HTMLElement;
+  private readonly staminaTrack: HTMLElement;
   private readonly lobbyChip: HTMLButtonElement;
   private readonly scope: HTMLElement;
   private readonly bodycam: BodycamOverlay;
@@ -102,7 +104,6 @@ export class Hud {
   private lastLobby = '';
   private lobbyCode = '';
   private lobbyWsUrl: string | undefined;
-  private slotPopTimer = 0;
   private loadoutKey = '';
   private loadout: HudSlotInfo[] = [];
   private wheelHighlight = 0;
@@ -142,14 +143,33 @@ export class Hud {
     const hpBar = el('div', 'bar');
     this.healthFill = el('span');
     hpBar.append(this.healthFill);
-    const stLabel = el('div', 'vital-meta stamina-meta');
-    stLabel.append(el('span', '', 'Stamina'), (this.staminaText = el('span', '', '100')));
-    const stBar = el('div', 'bar stamina');
-    this.staminaFill = el('span');
-    stBar.append(this.staminaFill);
-    this.vitals.append(hpKicker, hpLabel, hpBar, stLabel, stBar);
+    this.staminaText = el('span', 'hud-stamina-value', '');
+    this.vitals.append(hpKicker, hpLabel, hpBar);
 
     this.bodyStatus = new BodyStatusView('hud');
+    this.staminaTrack = el('div', 'hud-stamina');
+    this.staminaFill = el('span');
+    this.staminaTrack.append(this.staminaFill);
+
+    const bodyCol = el('div', 'hud-combat-body');
+    bodyCol.append(this.bodyStatus.root, this.staminaTrack);
+
+    this.weaponBar = el('div', 'weapon-bar');
+    for (let i = 0; i < WHEEL_SLOTS; i++) {
+      const slot = el('div', 'weapon-slot');
+      const num = el('div', 'slot-num', String(i + 1));
+      const icon = el('div', 'slot-icon');
+      icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : i === 0 ? 'pistol' : 'rifle');
+      const name = el('div', 'slot-name', i === TOOL_GUN_UI_SLOT ? 'TOOL' : '—');
+      slot.append(num, icon, name);
+      this.weaponBar.append(slot);
+      this.slotNodes.push(slot);
+      this.slotIcons.push(icon);
+      this.slotNames.push(name);
+    }
+
+    this.combat = el('div', 'hud-combat');
+    this.combat.append(bodyCol, this.weaponBar);
 
     this.tips = this.buildTips();
     this.magStatus = el('div', 'hud-mag-status');
@@ -157,22 +177,7 @@ export class Hud {
 
     this.ammoPanel = el('div', 'hud-weapon');
     this.ammoName = el('div', 'name', '—');
-    // Minimal HUD: right panel hidden via CSS. No ammo / LOW / mag strip.
     this.ammoPanel.append(this.ammoName);
-
-    this.weaponBar = el('div', 'weapon-bar');
-    for (let i = 0; i < WHEEL_SLOTS; i++) {
-      const slot = el('div', 'weapon-slot');
-      const num = el('div', 'slot-num', String(i + 1));
-      const icon = el('div', 'slot-icon');
-      icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : 'pistol');
-      const name = el('div', 'slot-name', i === TOOL_GUN_UI_SLOT ? 'Tool Gun' : '—');
-      slot.append(num, icon, name);
-      this.weaponBar.append(slot);
-      this.slotNodes.push(slot);
-      this.slotIcons.push(icon);
-      this.slotNames.push(name);
-    }
 
     this.wheel = this.buildWheel();
     this.wheelCenterIcon = this.wheel.querySelector('.ww-center-icon') as HTMLElement;
@@ -223,11 +228,10 @@ export class Hud {
       this.toolGunHud,
       this.hitmarker,
       this.vitals,
-      this.bodyStatus.root,
+      this.combat,
       this.tips,
       this.magStatus,
       this.ammoPanel,
-      this.weaponBar,
       this.wheel,
       this.killfeed,
       this.chatLog,
@@ -317,7 +321,7 @@ export class Hud {
     this.lastStamina = rounded;
     this.staminaFill.style.transform = `scaleX(${t})`;
     this.staminaText.textContent = String(rounded);
-    this.vitals.classList.toggle('winded', t <= 0.22);
+    this.staminaTrack.classList.toggle('winded', t <= 0.22);
   }
 
   setAmmo(mag: number, reserve: number, magSize: number): void {
@@ -365,7 +369,7 @@ export class Hud {
     }
     const name = this.slotNames[TOOL_GUN_UI_SLOT];
     const icon = this.slotIcons[TOOL_GUN_UI_SLOT];
-    if (name) name.textContent = 'Tool Gun';
+    if (name) name.textContent = 'TOOL';
     if (icon) icon.innerHTML = slotGlyph('toolgun');
     const wName = this.wheelNames[TOOL_GUN_UI_SLOT];
     const wIcon = this.wheelIcons[TOOL_GUN_UI_SLOT];
@@ -379,9 +383,6 @@ export class Hud {
     for (let i = 0; i < this.slotNodes.length; i++) {
       this.slotNodes[i]!.classList.toggle('selected', i === slot);
     }
-    this.weaponBar.classList.add('switching');
-    window.clearTimeout(this.slotPopTimer);
-    this.slotPopTimer = window.setTimeout(() => this.weaponBar.classList.remove('switching'), 200);
     if (this.wheelOpen) this.setWheelHighlight(slot);
   }
 
@@ -435,7 +436,7 @@ export class Hud {
     this.wheelHighlight = activeSlot;
     this.wheel.classList.add('open');
     this.crosshair.classList.add('is-hidden');
-    this.vitals.classList.add('dim');
+    this.combat.classList.add('dim');
     this.ammoPanel.classList.add('dim');
     this.weaponBar.classList.add('dim');
     this.setWheelHighlight(activeSlot);
@@ -448,6 +449,7 @@ export class Hud {
     this.wheel.classList.remove('open');
     this.crosshair.classList.add('is-hidden');
     this.vitals.classList.remove('dim');
+    this.combat.classList.remove('dim');
     this.ammoPanel.classList.remove('dim');
     this.weaponBar.classList.remove('dim');
     const slot = this.wheelCancel || !commit ? -1 : this.wheelHighlight;
@@ -634,7 +636,7 @@ export class Hud {
       ['ENTER', 'Chat'],
       ['R', 'Reload'],
       ['E', 'Interact / pickup'],
-      ['1–4', 'Weapons / Tool Gun'],
+      ['1–3', 'Weapons / Tool Gun'],
     ] as const) {
       const li = el('li');
       li.innerHTML = `<kbd>${row[0]}</kbd><span>${row[1]}</span>`;
@@ -773,12 +775,12 @@ export class Hud {
     const cursor = el('div', 'ww-cursor');
     disc.append(cursor);
     for (let i = 0; i < WHEEL_SLOTS; i++) {
-      const deg = -90 + i * 60;
+      const deg = -90 + i * (360 / WHEEL_SLOTS);
       const slot = el('div', 'ww-slot');
       slot.style.setProperty('--deg', `${deg}deg`);
       const num = el('div', 'ww-num', String(i + 1));
       const icon = el('div', 'ww-icon');
-      icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : 'pistol');
+      icon.innerHTML = slotGlyph(i === TOOL_GUN_UI_SLOT ? 'toolgun' : i === 0 ? 'pistol' : 'rifle');
       const name = el('div', 'ww-name', i === TOOL_GUN_UI_SLOT ? 'Tool Gun' : '—');
       slot.append(num, icon, name);
       disc.append(slot);

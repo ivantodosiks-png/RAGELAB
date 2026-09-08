@@ -1,8 +1,7 @@
 /* Shared limb HP silhouette — HUD + TAB inventory */
 
 .body-status {
-  --bs-outline: rgba(210, 214, 198, 0.55);
-  --bs-gap: 2px;
+  --bs-outline: rgba(190, 196, 178, 0.4);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -11,114 +10,110 @@
 }
 
 .body-status--hud {
-  position: absolute;
-  left: max(18px, env(safe-area-inset-left, 0px));
-  bottom: max(18px, env(safe-area-inset-bottom, 0px));
-  z-index: 6;
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 10px 12px 12px;
-  border-radius: 4px;
-  background: rgba(6, 8, 6, 0.62);
-  border: 1px solid rgba(180, 190, 160, 0.14);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .body-status-tag {
-  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  color: rgba(196, 204, 170, 0.5);
-  line-height: 1;
+  display: none;
 }
 
 .body-status-sil {
   position: relative;
-  width: 72px;
-  height: 118px;
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45));
+  width: 52px;
+  height: 86px;
+  filter: none;
 }
 
 .bs-part {
   position: absolute;
   box-sizing: border-box;
   border: 1px solid var(--bs-outline);
-  background: rgb(88, 118, 78);
-  transition: background 0.12s linear, opacity 0.12s linear, box-shadow 0.12s linear;
+  background: rgb(78, 96, 72);
+  transition: background 0.1s linear, opacity 0.1s linear, border-color 0.1s linear;
 }
 
 .bs-part.is-hit {
-  box-shadow: 0 0 0 1px rgba(255, 220, 160, 0.85), 0 0 10px rgba(255, 120, 60, 0.45);
-  border-color: rgba(255, 230, 190, 0.95);
+  box-shadow: none;
+  border-color: rgba(230, 210, 150, 0.85);
+  filter: brightness(1.25);
 }
 
 .bs-part.is-destroyed {
-  border-color: rgba(120, 70, 70, 0.45);
+  border-color: rgba(100, 60, 60, 0.4);
 }
 
 .bs-head {
   left: 50%;
   top: 0;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
+  width: 13px;
+  height: 13px;
+  margin-left: -6.5px;
   border-radius: 45% 45% 38% 38%;
 }
 
 .bs-chest {
   left: 50%;
-  top: 20px;
-  width: 34px;
-  height: 26px;
-  margin-left: -17px;
-  border-radius: 3px 3px 2px 2px;
+  top: 14px;
+  width: 24px;
+  height: 19px;
+  margin-left: -12px;
+  border-radius: 2px;
 }
 
 .bs-stomach {
   left: 50%;
-  top: 46px;
-  width: 30px;
-  height: 18px;
-  margin-left: -15px;
-  border-radius: 2px 2px 4px 4px;
+  top: 33px;
+  width: 21px;
+  height: 13px;
+  margin-left: -10.5px;
+  border-radius: 2px;
 }
 
 .bs-armL {
-  left: 4px;
-  top: 22px;
-  width: 12px;
-  height: 40px;
-  border-radius: 3px;
+  left: 3px;
+  top: 15px;
+  width: 9px;
+  height: 29px;
+  border-radius: 2px;
 }
 
 .bs-armR {
-  right: 4px;
-  top: 22px;
-  width: 12px;
-  height: 40px;
-  border-radius: 3px;
+  right: 3px;
+  top: 15px;
+  width: 9px;
+  height: 29px;
+  border-radius: 2px;
 }
 
 .bs-legL {
   left: 50%;
-  top: 66px;
-  width: 14px;
-  height: 50px;
-  margin-left: -16px;
-  border-radius: 2px 2px 3px 3px;
+  top: 47px;
+  width: 10px;
+  height: 37px;
+  margin-left: -12px;
+  border-radius: 2px;
 }
 
 .bs-legR {
   left: 50%;
-  top: 66px;
-  width: 14px;
-  height: 50px;
+  top: 47px;
+  width: 10px;
+  height: 37px;
   margin-left: 2px;
-  border-radius: 2px 2px 3px 3px;
+  border-radius: 2px;
 }
 
 /* Detail (TAB) — larger silhouette + HP list */
@@ -236,52 +231,4 @@
   color: rgba(220, 224, 210, 0.9);
   font-weight: 500;
   letter-spacing: 0.03em;
-}
-
-@media (max-width: 900px) {
-  .body-status--hud {
-    bottom: max(14px, env(safe-area-inset-bottom, 0px));
-    padding: 8px 10px 10px;
-  }
-
-  .body-status--hud .body-status-sil {
-    width: 58px;
-    height: 96px;
-  }
-
-  .body-status--hud .bs-chest {
-    top: 16px;
-    width: 28px;
-    height: 22px;
-    margin-left: -14px;
-  }
-
-  .body-status--hud .bs-stomach {
-    top: 38px;
-    width: 24px;
-    height: 14px;
-    margin-left: -12px;
-  }
-
-  .body-status--hud .bs-armL,
-  .body-status--hud .bs-armR {
-    top: 18px;
-    width: 10px;
-    height: 32px;
-  }
-
-  .body-status--hud .bs-legL,
-  .body-status--hud .bs-legR {
-    top: 54px;
-    width: 11px;
-    height: 40px;
-  }
-
-  .body-status--hud .bs-legL {
-    margin-left: -13px;
-  }
-
-  .body-status--hud .bs-legR {
-    margin-left: 2px;
-  }
 }

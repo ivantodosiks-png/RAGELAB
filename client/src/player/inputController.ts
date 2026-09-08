@@ -1,7 +1,7 @@
 import { Button, clamp, wrapAngle, type ControlSettings } from '@ragelab/shared';
 
 /** Local HUD slot for the Tool Gun. Never sent to the server as a weapon index. */
-export const TOOL_GUN_UI_SLOT = 3;
+export const TOOL_GUN_UI_SLOT = 2;
 
 export interface AimState {
   yaw: number;
@@ -27,12 +27,12 @@ export class InputController {
   pitch = 0;
 
   /**
-   * HUD slot 0–3. Slots 0–2 firearms; 3 tool gun.
+   * HUD slot 0–2. Slots 0–1 firearms; 2 tool gun.
    * `sample().weaponSlot` always reports a firearm index for the network.
    */
   uiSlot = 0;
   firearmSlot = 0;
-  loadoutSize = 3;
+  loadoutSize = 2;
   uiSlotCount = TOOL_GUN_UI_SLOT + 1;
   /** While the spawn menu is open, number keys / wheel must not switch tools. */
   freezeSlots = false;
@@ -232,10 +232,10 @@ export class InputController {
           break;
         case 'weapon1':
         case 'weapon2':
-        case 'weapon3':
           if (this.freezeSlots) break;
           this.selectFirearm(Number(action.slice(6)) - 1);
           break;
+        case 'weapon3':
         case 'weapon4':
           if (this.freezeSlots) break;
           this.uiSlot = TOOL_GUN_UI_SLOT;

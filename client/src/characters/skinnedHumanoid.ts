@@ -8,14 +8,14 @@ import type { NpcLook } from '../sandbox/npcModel';
 const BASE = import.meta.env.BASE_URL;
 
 /**
- * Shared characters: Mixamo Vanguard operator (players) + civilian humanoids (NPCs).
+ * Shared characters: madtrollstudio Soldier (players) + civilian humanoids (NPCs).
  * Facing is applied on an un-animated parent so Mixamo bind cannot overwrite game yaw (−Z).
  */
 export const CHARACTER_KINDS = ['operator', 'man', 'woman'] as const;
 export type CharacterKind = (typeof CHARACTER_KINDS)[number];
 export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'getup';
 
-/** Primary player mesh — Mixamo Vanguard tactical operator (three.js Soldier.glb). */
+/** Primary player mesh — Soldier by madtrollstudio (CC-BY). */
 export const PLAYER_CHARACTER_KIND: CharacterKind = 'operator';
 
 const KIND_FILE: Record<CharacterKind, string> = {
@@ -100,6 +100,7 @@ export class SkinnedCharacter {
   readonly extras: THREE.Object3D[] = [];
   kind: CharacterKind;
   private readonly facing = new THREE.Group();
+  private meshRoot: THREE.Object3D | null = null;
   private mixer: THREE.AnimationMixer | null = null;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: LocoClip | 'none' = 'none';
@@ -107,6 +108,8 @@ export class SkinnedCharacter {
   private readonly headMeshes: THREE.Object3D[] = [];
   private readonly walkNames: string[];
   private readonly animRate: number;
+  private groundY = 0;
+  private locoPhase = 0;
 
   constructor(kind: CharacterKind, look: NpcLook) {
     this.kind = kind;
@@ -122,27 +125,24 @@ export class SkinnedCharacter {
 
     const cloned = cloneSkinned(gltf.scene) as THREE.Group;
     hideGear(cloned);
-    // Mixamo (Michelle/woman) ships with hips ≈ −90° X — spine along −Z.
-    // Upright first, then fit height, or the bbox treats body length as height
-    // and parks the mesh under the floor.
+    // Mixamo / FBX Z-up static meshes: upright first, then fit height.
     cloned.updateMatrixWorld(true);
     ensureUpright(cloned);
     fitHeight(cloned, 1.78 * (look.heightScale ?? 1));
     this.facing.add(cloned);
+    this.meshRoot = cloned;
 
     cloned.updateMatrixWorld(true);
     this.facing.rotation.y = detectModelYawOffset(cloned);
     cloned.updateMatrixWorld(true);
-    // Re-ground after yaw so feet stay on y=0.
     groundToOrigin(cloned);
+    this.groundY = cloned.position.y;
 
     cloned.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        // Skinned bind-pose bounds drift from animated poses — culling hides
-        // players (especially Mixamo Michelle / woman) for remote viewers.
         mesh.frustumCulled = false;
         const src = mesh.material;
         const list = Array.isArray(src) ? src : [src];
@@ -172,6 +172,15 @@ export class SkinnedCharacter {
       }
     });
 
+    // Static soldiers (madtrollstudio) have no skeleton — synthetic sockets for weapons.
+    if (!this.bones.handR) {
+      const hand = new THREE.Object3D();
+      hand.name = 'synth:handR';
+      hand.position.set(0.22, 1.02, -0.12);
+      cloned.add(hand);
+      this.bones.handR = hand;
+    }
+
     if (gltf.animations.length > 0) {
       this.mixer = new THREE.AnimationMixer(cloned);
       for (const clip of gltf.animations) {
@@ -181,9 +190,11 @@ export class SkinnedCharacter {
         this.actions.set(clip.name.toLowerCase(), action);
       }
       this.play('idle', 0);
-      // Sample bind→idle once so feet aren't measured on a T-pose that floats.
       this.mixer.update(1 / 60);
       groundToOrigin(cloned);
+      this.groundY = cloned.position.y;
+    } else {
+      this.current = 'idle';
     }
   }
 
@@ -206,7 +217,10 @@ export class SkinnedCharacter {
   }
 
   play(clip: LocoClip, fade = 0.18, timeScale = 1): void {
-    if (!this.mixer) return;
+    if (!this.mixer) {
+      this.current = clip;
+      return;
+    }
     const scale = timeScale * this.animRate;
     if (this.current === clip) {
       const running = this.actionFor(clip);
@@ -214,7 +228,10 @@ export class SkinnedCharacter {
       return;
     }
     const next = this.actionFor(clip) ?? this.actionFor('idle');
-    if (!next) return;
+    if (!next) {
+      this.current = clip;
+      return;
+    }
     const prev = this.current === 'none' ? null : this.actionFor(this.current);
     next.reset().setEffectiveWeight(1).fadeIn(fade).play();
     next.timeScale = scale;
@@ -251,9 +268,21 @@ export class SkinnedCharacter {
   }
 
   update(dt: number, camDist = 0): void {
-    if (!this.mixer) return;
-    const step = camDist > 70 ? dt * 0.35 : camDist > 42 ? dt * 0.65 : dt;
-    this.mixer.update(step);
+    if (this.mixer) {
+      const step = camDist > 70 ? dt * 0.35 : camDist > 42 ? dt * 0.65 : dt;
+      this.mixer.update(step);
+      return;
+    }
+    // Static mesh locomotion: light bob so walk/run still read at a glance.
+    if (!this.meshRoot) return;
+    const moving = this.current === 'walk' || this.current === 'run';
+    const rate = (this.current === 'run' ? 11 : 7.2) * this.animRate;
+    const amp = this.current === 'run' ? 0.035 : this.current === 'walk' ? 0.022 : 0;
+    if (moving) this.locoPhase += dt * rate;
+    const bob = moving ? Math.abs(Math.sin(this.locoPhase)) * amp : 0;
+    this.meshRoot.position.y = this.groundY + bob;
+    const lean = this.current === 'run' ? 0.06 : this.current === 'walk' ? 0.03 : 0;
+    this.meshRoot.rotation.x = lean;
   }
 
   setHighlight(_color: number, _intensity: number): void {
@@ -299,21 +328,39 @@ function detectModelYawOffset(rig: THREE.Object3D): number {
   return Math.PI - Math.atan2(tmpFwd.x, tmpFwd.z);
 }
 
-/** Rotate the rig so hips→head points roughly +Y (fixes Mixamo −90° X bind). */
+/** Rotate the rig so the body points roughly +Y (Mixamo bind or FBX Z-up static). */
 function ensureUpright(rig: THREE.Object3D): void {
   const hips = findBone(rig, ['hips', 'pelvis']);
   const head = findBone(rig, ['head']);
-  if (!hips || !head) return;
-  hips.getWorldPosition(tmpA);
-  head.getWorldPosition(tmpB);
-  tmpUp.subVectors(tmpB, tmpA);
-  if (tmpUp.lengthSq() < 1e-8) return;
-  tmpUp.normalize();
-  if (tmpUp.y >= 0.75) return;
-  tmpFwd.set(0, 1, 0);
-  const q = new THREE.Quaternion().setFromUnitVectors(tmpUp, tmpFwd);
-  rig.quaternion.premultiply(q);
+  if (hips && head) {
+    hips.getWorldPosition(tmpA);
+    head.getWorldPosition(tmpB);
+    tmpUp.subVectors(tmpB, tmpA);
+    if (tmpUp.lengthSq() > 1e-8) {
+      tmpUp.normalize();
+      if (tmpUp.y < 0.75) {
+        tmpFwd.set(0, 1, 0);
+        const q = new THREE.Quaternion().setFromUnitVectors(tmpUp, tmpFwd);
+        rig.quaternion.premultiply(q);
+        rig.updateMatrixWorld(true);
+      }
+      return;
+    }
+  }
+
+  // Static mesh fallback (madtrollstudio Soldier): longest axis becomes height.
   rig.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(rig);
+  const size = box.getSize(tmpA);
+  if (!Number.isFinite(size.x)) return;
+  if (size.z >= size.y && size.z >= size.x * 0.9) {
+    // Z-up → Y-up
+    rig.rotateX(-Math.PI / 2);
+    rig.updateMatrixWorld(true);
+  } else if (size.x >= size.y && size.x >= size.z * 0.9) {
+    rig.rotateZ(Math.PI / 2);
+    rig.updateMatrixWorld(true);
+  }
 }
 
 function groundToOrigin(rig: THREE.Object3D): void {
@@ -380,8 +427,9 @@ function normalizeBone(name: string): string {
 function fitHeight(root: THREE.Object3D, target: number): void {
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
-  if (size.y < 0.1) return;
-  root.scale.multiplyScalar(target / size.y);
+  const h = Math.max(size.y, 1e-4);
+  if (h < 1e-4) return;
+  root.scale.multiplyScalar(target / h);
   root.updateMatrixWorld(true);
   const next = new THREE.Box3().setFromObject(root);
   root.position.y -= next.min.y;

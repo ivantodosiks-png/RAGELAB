@@ -29,7 +29,7 @@ export function bodyPartFillColor(ratio: number): string {
 
 /**
  * Shared limb-HP silhouette used by in-game HUD and TAB inventory.
- * Zones mirror OPERATOR_PART_CAPSULES on the shared operator mesh
+ * Zones mirror OPERATOR_PART_CAPSULES on the madtrollstudio Soldier mesh
  * (head / chest / stomach / armL / armR / legL / legR).
  */
 export class BodyStatusView {
@@ -71,8 +71,6 @@ export class BodyStatusView {
       this.root.append(this.list);
     } else {
       this.list = null;
-      const tag = el('div', 'body-status-tag', 'STATUS');
-      this.root.append(tag);
     }
 
     this.paint(null, true);
