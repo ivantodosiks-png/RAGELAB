@@ -700,9 +700,11 @@ export class Hud {
     this.toastTimer = 2.4;
   }
 
-  /** Tarkov-style mag check: FULL / HALF / LOW / EMPTY — bottom-right, fade only. */
+  /** Mag check: large MAGAZINE CHECK + FULL / HALF / LOW / EMPTY — raised bottom-right. */
   showMagStatus(status: 'FULL' | 'HALF' | 'LOW' | 'EMPTY'): void {
-    this.magStatus.textContent = status;
+    this.magStatus.innerHTML =
+      `<span class="hud-mag-status-title">MAGAZINE CHECK</span>` +
+      `<span class="hud-mag-status-value">${status}</span>`;
     this.magStatus.classList.remove('is-out');
     // Retrigger fade-in if already visible.
     this.magStatus.classList.remove('is-on');

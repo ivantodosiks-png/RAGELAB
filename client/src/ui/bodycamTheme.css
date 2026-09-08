@@ -66,16 +66,16 @@
 
 .bc-rec {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left, 0px));
-  top: max(12px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  top: max(14px, env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: rgba(236, 236, 232, 0.78);
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  gap: 10px;
+  color: rgba(236, 236, 232, 0.9);
+  font-size: clamp(18px, 2.4vw, 24px);
+  letter-spacing: 0.2em;
+  font-weight: 800;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
   z-index: 22;
 }
 
@@ -91,24 +91,26 @@
 }
 
 .bc-rec-dot {
-  width: 7px;
-  height: 7px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: #e53935;
-  box-shadow: 0 0 5px rgba(229, 57, 53, 0.55);
+  box-shadow: 0 0 8px rgba(229, 57, 53, 0.65);
   animation: bc-rec-blink 1.35s steps(1) infinite;
+  flex-shrink: 0;
 }
 
 .bc-rec-label {
-  letter-spacing: 0.22em;
+  letter-spacing: 0.28em;
 }
 
 .bc-rec-timer {
-  margin-left: 2px;
+  margin-left: 4px;
+  font-size: 0.72em;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  color: rgba(236, 236, 232, 0.55);
-  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(236, 236, 232, 0.62);
+  font-weight: 700;
 }
 
 .bc-stamp {
