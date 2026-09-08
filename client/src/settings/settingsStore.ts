@@ -80,7 +80,14 @@ export class SettingsStore {
   }
 
   patchGraphics(patch: Partial<GraphicsSettings>): void {
-    this.current.graphics = { ...this.current.graphics, ...patch };
+    this.current.graphics = {
+      ...this.current.graphics,
+      ...patch,
+      bodycam: {
+        ...this.current.graphics.bodycam,
+        ...(patch.bodycam ?? {}),
+      },
+    };
     this.afterChange();
     this.events.emit('graphicsChanged', this.current.graphics);
   }

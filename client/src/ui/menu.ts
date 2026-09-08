@@ -693,10 +693,42 @@ export class MainMenu {
         body.append(row);
       }
     } else {
+      const bc = g.bodycam;
       body.append(
         checkbox('Show FPS', g.showFps, (v) => this.callbacks.patchGraphics({ showFps: v })),
         checkbox('Show ping', g.showPing, (v) => this.callbacks.patchGraphics({ showPing: v })),
         checkbox('Debug overlay', g.debugOverlay, (v) => this.callbacks.patchGraphics({ debugOverlay: v })),
+        el('p', 'lead', 'Bodycam'),
+        checkbox('Bodycam overlay', bc.enabled, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { enabled: v } }),
+        ),
+        checkbox('REC indicator', bc.showRec, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { showRec: v } }),
+        ),
+        slider('Lens size', bc.lensSize, 0.45, 0.95, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { lensSize: v } }),
+        ),
+        slider('Lens X', bc.offsetX, 0.3, 0.7, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { offsetX: v } }),
+        ),
+        slider('Lens Y', bc.offsetY, 0.3, 0.7, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { offsetY: v } }),
+        ),
+        slider('Outside dim', bc.dimStrength, 0, 0.9, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { dimStrength: v } }),
+        ),
+        slider('Fisheye', bc.fisheye, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { fisheye: v } }),
+        ),
+        slider('Noise', bc.noise, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { noise: v } }),
+        ),
+        slider('Chromatic aberration', bc.chromaticAberration, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { chromaticAberration: v } }),
+        ),
+        slider('Edge blur', bc.edgeBlur, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { edgeBlur: v } }),
+        ),
       );
     }
     card.append(body);

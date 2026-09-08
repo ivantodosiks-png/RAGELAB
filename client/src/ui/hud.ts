@@ -2,6 +2,7 @@ import { el } from './dom';
 import { BUILD_PLAN_UI_SLOT, HAMMER_UI_SLOT, TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
 import { settingsStore } from '../settings/settingsStore';
+import { BodycamOverlay } from './bodycamOverlay';
 
 export interface HudScoreRow {
   id: number;
@@ -72,6 +73,7 @@ export class Hud {
   private readonly staminaText: HTMLElement;
   private readonly lobbyChip: HTMLButtonElement;
   private readonly scope: HTMLElement;
+  private readonly bodycam: BodycamOverlay;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -103,6 +105,7 @@ export class Hud {
   constructor(host: HTMLElement) {
     this.root = el('div', 'hud');
     host.append(this.root);
+    this.bodycam = new BodycamOverlay(settingsStore.graphics.bodycam);
 
     this.crosshair = el('div', 'crosshair is-hidden');
 
@@ -200,6 +203,7 @@ export class Hud {
     // Content is built only when ESC opens pause — never leave Resume/Main menu on screen.
 
     this.root.append(
+      this.bodycam.root,
       this.hurt,
       this.dirHit,
       this.scope,
@@ -255,6 +259,12 @@ export class Hud {
   setVisible(visible: boolean): void {
     this.root.style.display = visible ? '' : 'none';
     this.root.classList.toggle('hud-ready', visible);
+    this.bodycam.setVisible(visible);
+    if (visible) this.bodycam.resetRecTimer();
+  }
+
+  applyBodycamSettings(): void {
+    this.bodycam.apply(settingsStore.graphics.bodycam);
   }
 
   setHealth(current: number, max = 100): void {

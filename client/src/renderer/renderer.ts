@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { QualityLevel, type GraphicsSettings, type MapDefinition } from '@ragelab/shared';
 import { LAYER_WORLD } from './layers';
+import { BodycamPass } from './bodycamPass';
 
 /**
  * Owns the WebGL renderer, scene, camera and environment. Quality settings are
@@ -20,6 +21,8 @@ export class GameRenderer {
   private readonly sky: THREE.Mesh;
   private readonly dynamicLights: THREE.PointLight[] = [];
   private readonly lightsBySwitch = new Map<string, THREE.PointLight[]>();
+  private readonly bodycamPass = new BodycamPass();
+  private bodycamClock = 0;
 
   private settings: GraphicsSettings;
   private targetPixelRatio = 1;
@@ -232,6 +235,7 @@ export class GameRenderer {
           ? 1.25
           : 1.5;
     this.targetPixelRatio = Math.min(dpr, Math.max(0.5, settings.resolutionScale) * dpr, qualityCap);
+    this.bodycamPass.applySettings(settings.bodycam);
     this.resize();
   }
 
@@ -254,15 +258,22 @@ export class GameRenderer {
     this.camera.updateProjectionMatrix();
     this.viewModelCamera.aspect = width / height;
     this.viewModelCamera.updateProjectionMatrix();
+    this.bodycamPass.resize(width, height, this.targetPixelRatio);
+    this.bodycamPass.applySettings(this.settings.bodycam);
   }
 
   render(): void {
     this.sky.position.copy(this.camera.position);
-    this.renderer.clear();
+    this.bodycamClock += 0.016;
+    const usePass = this.bodycamPass.needsPass(this.settings.bodycam);
+    if (usePass) this.bodycamPass.begin(this.renderer);
+    else this.renderer.clear();
+
     this.renderer.render(this.scene, this.camera);
-    // View model on top, depth-cleared so it is never occluded by geometry.
     this.renderer.clearDepth();
     this.renderer.render(this.viewModelScene, this.viewModelCamera);
+
+    if (usePass) this.bodycamPass.end(this.renderer, this.bodycamClock);
   }
 
   get drawCalls(): number {
@@ -276,6 +287,7 @@ export class GameRenderer {
   dispose(): void {
     for (const light of this.dynamicLights) light.dispose();
     this.dynamicLights.length = 0;
+    this.bodycamPass.dispose();
     // Keep the canvas WebGL-capable — MenuBackdrop reuses #viewport after leave.
     this.renderer.dispose();
   }

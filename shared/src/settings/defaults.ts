@@ -57,6 +57,19 @@ export const ACTION_LABELS: Record<string, string> = {
   sandbox: 'Cursor mode',
 };
 
+export const DEFAULT_BODYCAM = {
+  enabled: true,
+  lensSize: 0.78,
+  offsetX: 0.5,
+  offsetY: 0.52,
+  dimStrength: 0.58,
+  fisheye: 0.28,
+  noise: 0.22,
+  chromaticAberration: 0.18,
+  edgeBlur: 0.35,
+  showRec: true,
+} as const;
+
 export const DEFAULT_SETTINGS: UserSettings = {
   graphics: {
     quality: QualityLevel.High,
@@ -72,6 +85,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
     showFps: true,
     showPing: true,
     debugOverlay: false,
+    bodycam: { ...DEFAULT_BODYCAM },
   },
   audio: {
     master: 0.8,
@@ -153,7 +167,14 @@ export function mergeSettings(base: UserSettings, patch: unknown): UserSettings 
     bindings.crouch = 'KeyC';
   }
   return {
-    graphics: { ...base.graphics, ...(p.graphics ?? {}) },
+    graphics: {
+      ...base.graphics,
+      ...(p.graphics ?? {}),
+      bodycam: {
+        ...base.graphics.bodycam,
+        ...(p.graphics?.bodycam ?? {}),
+      },
+    },
     audio: { ...base.audio, ...(p.audio ?? {}) },
     controls: {
       ...base.controls,

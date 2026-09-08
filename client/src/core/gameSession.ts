@@ -614,6 +614,7 @@ export class GameSession {
         this.renderer.applySettings(g);
         this.camera.setBaseFov(g.fov);
         this.effects.applySettings(g);
+        this.ui.hud.applyBodycamSettings();
       }),
     );
     this.unsubs.push(settingsStore.events.on('audioChanged', (a) => this.audio.applySettings(a)));

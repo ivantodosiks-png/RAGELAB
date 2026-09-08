@@ -2,6 +2,7 @@ import './ui/styles.css';
 import './ui/menuTheme.css';
 import './ui/hudTheme.css';
 import './ui/inventoryTheme.css';
+import './ui/bodycamTheme.css';
 import { authService } from './supabase/auth';
 import { GAME_SERVER_URL, supabaseConfigured } from './supabase/client';
 import { UiApp, type JoinRequest } from './ui/app';
@@ -18,17 +19,9 @@ const ui = new UiApp(uiRoot);
 let session: GameSession | null = null;
 let joining = false;
 
-function clearMenuCanvas(): void {
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#070a06';
-    ctx.fillRect(0, 0, canvas.width || canvas.clientWidth, canvas.height || canvas.clientHeight);
-  }
-}
-
 function startMenuWorld(): void {
-  // CSS forest photo only — skip Three.js menu world (was a major lag source).
-  clearMenuCanvas();
+  // Menu backdrop is CSS-only. Do NOT call canvas.getContext('2d') —
+  // that permanently blocks WebGL on this canvas.
 }
 
 function stopMenuWorld(): void {
