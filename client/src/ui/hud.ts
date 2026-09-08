@@ -54,10 +54,6 @@ export class Hud {
   private readonly pause: HTMLElement;
   private readonly toast: HTMLElement;
   private readonly crosshair: HTMLElement;
-  private readonly hairN: HTMLElement;
-  private readonly hairE: HTMLElement;
-  private readonly hairS: HTMLElement;
-  private readonly hairW: HTMLElement;
   private readonly toolGunHud: HTMLElement;
   private readonly toolGunSelected: HTMLElement;
   private readonly toolGunHint: HTMLElement;
@@ -111,13 +107,7 @@ export class Hud {
     this.root = el('div', 'hud');
     host.append(this.root);
 
-    this.crosshair = el('div', 'crosshair');
-    this.crosshair.append(el('i', 'ch-dot'));
-    this.hairN = el('i', 'ch-tick n');
-    this.hairE = el('i', 'ch-tick e');
-    this.hairS = el('i', 'ch-tick s');
-    this.hairW = el('i', 'ch-tick w');
-    this.crosshair.append(this.hairN, this.hairE, this.hairS, this.hairW);
+    this.crosshair = el('div', 'crosshair is-hidden');
 
     this.scope = el('div', 'scope');
     this.scope.innerHTML =
@@ -389,11 +379,11 @@ export class Hud {
     this.crosshair.classList.toggle('moving', moving);
     this.crosshair.classList.toggle('hover', hover);
     this.crosshair.classList.toggle('ready', spawnReady);
-    this.crosshair.classList.toggle('is-hidden', this.wheelOpen);
+    this.crosshair.classList.add('is-hidden');
   }
 
-  setCrosshairVisible(visible: boolean): void {
-    this.crosshair.classList.toggle('is-hidden', !visible);
+  setCrosshairVisible(_visible: boolean): void {
+    this.crosshair.classList.add('is-hidden');
   }
 
   setScope(amount: number, kind: 'none' | 'optic' | 'ads'): void {
@@ -422,7 +412,7 @@ export class Hud {
   closeWeaponWheel(commit: boolean): number {
     this.wheelOpen = false;
     this.wheel.classList.remove('open');
-    this.crosshair.classList.remove('is-hidden');
+    this.crosshair.classList.add('is-hidden');
     this.vitals.classList.remove('dim');
     this.ammoPanel.classList.remove('dim');
     this.weaponBar.classList.remove('dim');

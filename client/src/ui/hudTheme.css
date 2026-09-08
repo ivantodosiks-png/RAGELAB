@@ -302,15 +302,7 @@ input[type='range'] {
 .scope-lens .sr-hash.w { left: 28%; }
 
 .crosshair {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 44px;
-  height: 44px;
-  transform: translate(-50%, -50%);
-  --gap: 6px;
-  transition: opacity 0.12s ease;
-  z-index: 11;
+  display: none !important;
 }
 
 .crosshair i {
@@ -340,10 +332,7 @@ input[type='range'] {
 }
 
 .crosshair .ch-tick {
-  position: absolute;
-  background: rgba(243, 247, 236, 0.92);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.55);
-  transition: background 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  display: none;
 }
 
 .crosshair .ch-tick.n,
