@@ -26,7 +26,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   nextWeapon: 'WheelUp',
   prevWeapon: 'WheelDown',
   scoreboard: 'Tab',
-  chat: 'KeyT',
+  chat: 'Enter',
   menu: 'Escape',
   debug: 'F3',
   sandbox: 'KeyB',
@@ -151,6 +151,10 @@ export function mergeSettings(base: UserSettings, patch: unknown): UserSettings 
   // Ctrl+W closes the browser tab. Migrate the old default crouch off Control.
   if (bindings.crouch === 'ControlLeft' || bindings.crouch === 'ControlRight') {
     bindings.crouch = 'KeyC';
+  }
+  // Chat used to be T (conflicts with Alt+T mag inspect) — move to Enter.
+  if (bindings.chat === 'KeyT') {
+    bindings.chat = 'Enter';
   }
   return {
     graphics: {

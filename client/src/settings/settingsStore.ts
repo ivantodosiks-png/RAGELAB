@@ -69,7 +69,8 @@ export class SettingsStore {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
       }
       const oldCrouch = parsed?.controls?.bindings?.crouch;
-      if (oldCrouch === 'ControlLeft' || oldCrouch === 'ControlRight') {
+      const chatMigrated = parsed?.controls?.bindings?.chat === 'KeyT';
+      if (oldCrouch === 'ControlLeft' || oldCrouch === 'ControlRight' || chatMigrated) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
       }
       return merged;

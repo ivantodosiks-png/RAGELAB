@@ -20,5 +20,6 @@ export function formatCode(code: string): string {
     .replace(/^Mouse/, 'Mouse ')
     .replace('ControlLeft', 'Ctrl')
     .replace('ShiftLeft', 'Shift')
-    .replace('Space', 'Space');
+    .replace('Space', 'Space')
+    .replace('Enter', 'Enter');
 }

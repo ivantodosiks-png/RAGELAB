@@ -26,6 +26,7 @@ export type ToolGunKind = 'NPC' | 'Prop' | 'Tool' | 'Weapon';
 
 const WHEEL_SLOTS = 4;
 const WHEEL_DEADZONE = 36;
+const TIPS_DISMISS_KEY = 'ragelab.hud.tips.dismissed';
 
 export class Hud {
   readonly root: HTMLElement;
@@ -74,6 +75,7 @@ export class Hud {
   private readonly lobbyChip: HTMLButtonElement;
   private readonly scope: HTMLElement;
   private readonly bodycam: BodycamOverlay;
+  private readonly tips: HTMLElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
@@ -141,6 +143,8 @@ export class Hud {
     this.staminaFill = el('span');
     stBar.append(this.staminaFill);
     this.vitals.append(hpKicker, hpLabel, hpBar, stLabel, stBar);
+
+    this.tips = this.buildTips();
 
     this.ammoPanel = el('div', 'hud-weapon');
     this.ammoName = el('div', 'name', '—');
@@ -210,6 +214,7 @@ export class Hud {
       this.toolGunHud,
       this.hitmarker,
       this.vitals,
+      this.tips,
       this.ammoPanel,
       this.weaponBar,
       this.wheel,
@@ -239,6 +244,8 @@ export class Hud {
       }
       event.stopPropagation();
     });
+
+    this.refreshTipsVisibility();
   }
 
   onResume: (() => void) | null = null;
@@ -262,6 +269,7 @@ export class Hud {
     if (visible) {
       this.bodycam.clearDeath();
       this.bodycam.resetRecTimer();
+      this.refreshTipsVisibility();
     }
   }
 
@@ -573,6 +581,55 @@ export class Hud {
     this.death.classList.remove('show');
     this.bodycam.clearDeath();
     this.bodycam.resetRecTimer();
+  }
+
+  private buildTips(): HTMLElement {
+    const panel = el('aside', 'hud-tips');
+    panel.setAttribute('aria-label', 'Controls tip');
+
+    const head = el('div', 'hud-tips-head');
+    head.append(el('span', 'hud-tips-title', 'TIPS'));
+    const close = el('button', 'hud-tips-close', '×');
+    close.type = 'button';
+    close.title = 'Hide tips';
+    close.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        localStorage.setItem(TIPS_DISMISS_KEY, '1');
+      } catch {
+        /* ignore */
+      }
+      this.refreshTipsVisibility();
+    });
+    head.append(close);
+
+    const list = el('ul', 'hud-tips-list');
+    for (const row of [
+      ['ALT + T', 'Check magazine'],
+      ['TAB', 'Inventory'],
+      ['ENTER', 'Chat'],
+      ['R', 'Reload'],
+      ['E', 'Interact / pickup'],
+      ['1–4', 'Weapons / Tool Gun'],
+    ] as const) {
+      const li = el('li');
+      li.innerHTML = `<kbd>${row[0]}</kbd><span>${row[1]}</span>`;
+      list.append(li);
+    }
+
+    panel.append(head, list);
+    return panel;
+  }
+
+  private refreshTipsVisibility(): void {
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(TIPS_DISMISS_KEY) === '1';
+    } catch {
+      dismissed = false;
+    }
+    this.tips.hidden = dismissed;
   }
 
   private updateDeath(now: number): void {

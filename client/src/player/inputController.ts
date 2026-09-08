@@ -370,6 +370,7 @@ const GAMEPLAY_KEYS = new Set([
   'KeyQ',
   'KeyE',
   'KeyG',
+  'Enter',
   'ControlLeft',
   'ControlRight',
   'ShiftLeft',
@@ -382,6 +383,7 @@ const GAMEPLAY_KEYS = new Set([
   'Digit4',
   'Digit5',
   'Digit6',
+  'KeyT',
   'F3',
   'KeyB',
 ]);
