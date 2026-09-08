@@ -35,12 +35,12 @@
 
 .mm-forest {
   position: absolute;
-  inset: -4%;
+  inset: -2%;
   background:
-    #0a1208
-    url('/menu/forest.jpg') center / cover no-repeat;
-  filter: blur(14px) saturate(0.85) brightness(0.68) hue-rotate(-4deg);
-  transform: scale(1.12);
+    #1a2418
+    url('/menu/hamar-bg.png') center / cover no-repeat;
+  filter: saturate(1.15) brightness(1.05) contrast(1.05);
+  transform: scale(1.04);
   opacity: 1;
 }
 
@@ -52,93 +52,24 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(65% 55% at 50% 40%, transparent 10%, rgba(0, 0, 0, 0.72) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 28%, transparent 55%, rgba(0, 0, 0, 0.75) 100%);
+    radial-gradient(70% 60% at 50% 42%, transparent 18%, rgba(0, 0, 0, 0.42) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, transparent 26%, transparent 58%, rgba(0, 0, 0, 0.55) 100%);
 }
 
 .mm-glow {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(40% 30% at 70% 20%, rgba(60, 80, 40, 0.12), transparent 70%),
-    radial-gradient(35% 28% at 20% 80%, rgba(40, 50, 30, 0.14), transparent 70%);
+    radial-gradient(42% 34% at 72% 22%, rgba(255, 180, 90, 0.14), transparent 70%),
+    radial-gradient(38% 30% at 18% 78%, rgba(60, 110, 90, 0.16), transparent 70%);
 }
 
 .mm-grain {
   position: absolute;
   inset: 0;
-  opacity: 0.07;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode: overlay;
-}
-
-.mm-intro {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  background: #030403;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.mm-root.is-intro .mm-intro {
-  opacity: 1;
-  visibility: visible;
-  animation: mm-intro-fade 1.4s var(--mm-ease) forwards;
-}
-
-.mm-intro-mark {
-  font-family: var(--tk-display);
-  font-size: clamp(42px, 8vw, 84px);
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-align: center;
-}
-
-.mm-intro-mark span {
-  color: #c8c8bc;
-}
-
-.mm-intro-sub {
-  text-align: center;
-  letter-spacing: 0.45em;
-  color: var(--mm-muted);
-  font-size: 12px;
-  margin: 10px 0 0;
-}
-
-.mm-intro-bar {
-  width: 120px;
-  height: 2px;
-  margin: 22px auto 0;
-  background: linear-gradient(90deg, transparent, var(--mm-warn), transparent);
-  animation: mm-bar 1.2s ease infinite;
-}
-
-@keyframes mm-intro-fade {
-  0%,
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
-@keyframes mm-bar {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scaleX(0.7);
-  }
-  50% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
 }
 
 .mm-shell {
@@ -148,14 +79,8 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.mm-root.is-ready .mm-shell {
   opacity: 1;
   transform: none;
-  transition: opacity 0.55s var(--mm-ease), transform 0.55s var(--mm-ease);
 }
 
 .mm-stage {
@@ -249,17 +174,34 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px 72px;
+  padding: 40px 24px 72px;
   text-align: center;
 }
 
 .tk-beta {
-  margin: 0 0 10px;
+  margin: 0 0 18px;
   font-family: var(--tk-display);
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.42em;
-  color: rgba(236, 236, 230, 0.72);
+  color: rgba(236, 236, 230, 0.7);
   font-weight: 600;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+
+.tk-title {
+  margin: 0 0 28px;
+  max-width: min(96vw, 1100px);
+  font-family: var(--tk-display);
+  font-size: clamp(52px, 11.5vw, 120px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 0.92;
+  color: #f6f4ec;
+  text-wrap: balance;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.45),
+    0 14px 36px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(0, 0, 0, 0.28);
 }
 
 .tk-logo {

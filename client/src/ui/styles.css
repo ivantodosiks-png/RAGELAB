@@ -257,12 +257,12 @@ body {
 
 .lobby-forest {
   position: absolute;
-  inset: -8%;
+  inset: -4%;
   background:
-    #0a1208
-    url('/menu/forest.jpg') center / cover no-repeat;
-  filter: blur(14px) saturate(0.85) brightness(0.68) hue-rotate(-4deg);
-  transform: scale(1.12);
+    #1a2418
+    url('/menu/hamar-bg.png') center / cover no-repeat;
+  filter: saturate(1.1) brightness(1.02) contrast(1.04);
+  transform: scale(1.06);
 }
 
 .lobby-forest::before,

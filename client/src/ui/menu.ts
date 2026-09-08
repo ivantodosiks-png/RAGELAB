@@ -58,9 +58,6 @@ export interface MenuCallbacks {
   quit: () => void;
 }
 
-const INTRO_MS = 1400;
-
-/** Unlocked raid locations — ids stay stable; labels come from map defs. */
 const RAID_MAPS = MAP_IDS;
 
 export class MainMenu {
@@ -104,7 +101,7 @@ export class MainMenu {
     private readonly callbacks: MenuCallbacks,
   ) {
     this.guestName = `Operator-${Math.floor(1000 + Math.random() * 9000)}`;
-    this.root = el('div', 'rl-screen mm-root hit is-intro');
+    this.root = el('div', 'rl-screen mm-root hit is-ready');
     this.root.tabIndex = 0;
 
     const fx = el('div', 'mm-fx');
@@ -115,15 +112,6 @@ export class MainMenu {
       el('div', 'mm-grain'),
     );
     this.root.append(fx);
-
-    const intro = el('div', 'mm-intro');
-    intro.innerHTML = `
-      <div class="mm-intro-core">
-        <div class="mm-intro-mark">RAGE<span>LAB</span></div>
-        <p class="mm-intro-sub">BETA</p>
-        <div class="mm-intro-bar" aria-hidden="true"></div>
-      </div>`;
-    this.root.append(intro);
 
     const shell = el('div', 'mm-shell');
     this.stage = el('div', 'mm-stage is-home');
@@ -149,10 +137,6 @@ export class MainMenu {
     host.append(this.root);
     this.show('home');
     this.bindKeyboard();
-    window.setTimeout(() => {
-      this.root.classList.remove('is-intro');
-      this.root.classList.add('is-ready');
-    }, INTRO_MS);
   }
 
   setVisible(visible: boolean): void {
@@ -275,23 +259,8 @@ export class MainMenu {
     const view = el('div', 'tk-home');
     view.append(el('p', 'tk-beta', 'BETA TESTING'));
 
-    const logo = el('div', 'tk-logo tk-sign');
-    logo.innerHTML = `
-      <div class="tk-sign-board">
-        <div class="tk-sign-hooks" aria-hidden="true">
-          <span class="tk-sign-hook tk-sign-hook--l"></span>
-          <span class="tk-sign-hook tk-sign-hook--r"></span>
-        </div>
-        <span class="tk-sign-escape">ESCAPE FROM</span>
-        <span class="tk-sign-russia" aria-label="RUSSIA">
-          <i class="is-hang" style="--tilt:-5deg;--len:22px;--delay:0s;--dur:3.1s">R</i>
-          <i class="is-hang" style="--tilt:4deg;--len:28px;--delay:0.18s;--dur:3.7s">U</i>
-          <i class="is-hang" style="--tilt:-7deg;--len:18px;--delay:0.35s;--dur:2.9s">S</i>
-          <i class="is-hang" style="--tilt:6deg;--len:34px;--delay:0.08s;--dur:4.2s">S</i>
-          <i class="is-hang" style="--tilt:-4deg;--len:26px;--delay:0.48s;--dur:3.4s">I</i>
-          <i class="is-hang" style="--tilt:8deg;--len:30px;--delay:0.22s;--dur:3.9s">A</i>
-        </span>
-      </div>`;
+    const logo = el('h1', 'tk-title');
+    logo.textContent = 'Escape from Hamar';
     view.append(logo);
 
     const warn = el('div', 'tk-warn');
@@ -307,7 +276,7 @@ export class MainMenu {
       navLink('INVENTORY', () => this.flashLocked('Inventory'), false, true),
       navLink('TRADING', () => this.flashLocked('Trading'), false, true),
       navLink('QUIT', () => {
-        if (window.confirm('Quit RAGELAB?')) this.callbacks.quit();
+        if (window.confirm('Quit Escape from Hamar?')) this.callbacks.quit();
       }),
     );
     view.append(nav);
