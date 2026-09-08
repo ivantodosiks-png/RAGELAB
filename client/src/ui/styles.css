@@ -128,7 +128,7 @@ body {
 }
 
 .rl-btn.danger {
-  border-color: rgba(255, 90, 106), 0.45);
+  border-color: rgba(255, 90, 106, 0.45);
 }
 
 
@@ -176,12 +176,12 @@ body {
 
 .rl-create-lobby.is-locked,
 .rl-create-lobby:disabled {
-  background: #1a1f1b;
-  color: #6d7768;
-  border-color: #2a322c;
+  background: #121820;
+  color: #6a7588;
+  border-color: #243040;
   box-shadow: none;
   cursor: not-allowed;
-  filter: grayscale(0.35);
+  filter: grayscale(0.25);
   opacity: 0.72;
 }
 

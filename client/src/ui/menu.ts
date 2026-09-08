@@ -1242,7 +1242,7 @@ function selectField(
   current: string,
 ): { wrap: HTMLElement; input: HTMLElement } {
   const wrap = el('label', 'rl-field', label);
-  const input = el('select', 'rl-input') as HTMLSelectElement;
+  const input = el('select', 'rl-input rl-select') as HTMLSelectElement;
   for (const entry of values) {
     const value = typeof entry === 'string' ? entry : entry.value;
     const text = typeof entry === 'string' ? entry : entry.label;

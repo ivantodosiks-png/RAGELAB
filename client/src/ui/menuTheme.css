@@ -597,8 +597,340 @@
 
 .mm-form {
   display: grid;
+  gap: 14px;
+  max-width: 440px;
+}
+
+/* ── Form controls (inputs / selects / ranges) ───────────────────────────── */
+
+.rl-form {
+  display: grid;
+  gap: 14px;
+}
+
+.rl-field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  color: var(--mm-muted, var(--muted));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.rl-field.check {
+  grid-template-columns: auto 1fr;
+  align-items: center;
   gap: 12px;
-  max-width: 420px;
+  padding: 12px 14px;
+  border: 1px solid var(--mm-stroke, var(--line));
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--mm-text, var(--text));
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.rl-field.check:hover {
+  border-color: rgba(78, 196, 255, 0.28);
+  background: rgba(78, 196, 255, 0.04);
+}
+
+.rl-input,
+.rl-field input[type='text'],
+.rl-field input[type='email'],
+.rl-field input[type='password'],
+.rl-field input[type='number'],
+.rl-field input[type='url'],
+.rl-field select,
+.rl-field textarea,
+textarea.rl-input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 13px 16px;
+  border: 1px solid rgba(78, 196, 255, 0.16);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(18, 26, 36, 0.92), rgba(10, 14, 22, 0.88));
+  color: var(--mm-text, var(--text));
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 0 rgba(78, 196, 255, 0);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
+}
+
+.rl-field select,
+select.rl-input {
+  padding-right: 44px;
+  cursor: pointer;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mm-accent, var(--accent)) 50%),
+    linear-gradient(135deg, var(--mm-accent, var(--accent)) 50%, transparent 50%),
+    linear-gradient(180deg, rgba(18, 26, 36, 0.92), rgba(10, 14, 22, 0.88));
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px),
+    0 0;
+  background-size: 6px 6px, 6px 6px, 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.rl-field select option,
+select.rl-input option {
+  background: #0d121a;
+  color: var(--mm-text, var(--text));
+}
+
+.rl-field select:hover,
+select.rl-input:hover {
+  border-color: rgba(78, 196, 255, 0.38);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mm-accent, var(--accent)) 50%),
+    linear-gradient(135deg, var(--mm-accent, var(--accent)) 50%, transparent 50%),
+    linear-gradient(180deg, rgba(22, 32, 44, 0.96), rgba(12, 18, 28, 0.94));
+}
+
+.rl-field select:focus,
+select.rl-input:focus {
+  border-color: rgba(78, 196, 255, 0.7);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mm-accent, var(--accent)) 50%),
+    linear-gradient(135deg, var(--mm-accent, var(--accent)) 50%, transparent 50%),
+    linear-gradient(180deg, rgba(22, 32, 44, 0.98), rgba(12, 18, 28, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 3px rgba(78, 196, 255, 0.14),
+    0 0 22px rgba(78, 196, 255, 0.12);
+}
+
+.rl-input:hover,
+.rl-field input:hover:not([type='range']):not([type='checkbox']),
+.rl-field textarea:hover,
+textarea.rl-input:hover {
+  border-color: rgba(78, 196, 255, 0.38);
+  background: linear-gradient(180deg, rgba(22, 32, 44, 0.96), rgba(12, 18, 28, 0.94));
+}
+
+.rl-input:focus,
+.rl-field input:focus:not([type='range']):not([type='checkbox']),
+.rl-field textarea:focus,
+textarea.rl-input:focus {
+  border-color: rgba(78, 196, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 3px rgba(78, 196, 255, 0.14),
+    0 0 22px rgba(78, 196, 255, 0.12);
+}
+
+.rl-input:disabled,
+.rl-field input:disabled,
+.rl-field select:disabled,
+.rl-field textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+}
+
+.rl-input::placeholder,
+.rl-field input::placeholder,
+.rl-field textarea::placeholder {
+  color: rgba(132, 144, 163, 0.75);
+  letter-spacing: 0.08em;
+}
+
+.rl-field textarea,
+textarea.rl-input {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.rl-field input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(78, 196, 255, 0.35);
+  border-radius: 2px;
+  background: rgba(8, 12, 18, 0.9);
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rl-field input[type='checkbox']:hover {
+  border-color: rgba(78, 196, 255, 0.65);
+}
+
+.rl-field input[type='checkbox']:checked {
+  background: var(--mm-accent, var(--accent));
+  border-color: var(--mm-accent, var(--accent));
+  box-shadow: 0 0 12px rgba(78, 196, 255, 0.35);
+}
+
+.rl-field input[type='checkbox']:checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #061018;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.range-wrap {
+  display: grid;
+  grid-template-columns: 1fr 56px;
+  gap: 12px;
+  align-items: center;
+}
+
+.range-wrap span {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--mm-accent, var(--accent));
+  text-align: right;
+}
+
+.rl-field input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(78, 196, 255, 0.35), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(78, 196, 255, 0.12);
+  cursor: pointer;
+}
+
+.rl-field input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #061018;
+  background: var(--mm-accent, var(--accent));
+  box-shadow: 0 0 12px rgba(78, 196, 255, 0.55);
+  cursor: pointer;
+}
+
+.rl-field input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #061018;
+  background: var(--mm-accent, var(--accent));
+  box-shadow: 0 0 12px rgba(78, 196, 255, 0.55);
+  cursor: pointer;
+}
+
+.bind-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(78, 196, 255, 0.08);
+  color: var(--mm-text, var(--text));
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.bind-key {
+  font-family: var(--mono);
+  min-width: 140px;
+  text-align: center;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.stat {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(78, 196, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.stat b {
+  font-family: var(--display);
+  font-size: 20px;
+  color: var(--mm-accent, var(--accent));
+}
+
+.stat span {
+  color: var(--mm-muted, var(--muted));
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.rl-error {
+  min-height: 1.2em;
+  color: var(--mm-danger, var(--rage));
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.rl-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+.rl-table th,
+.rl-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(78, 196, 255, 0.1);
+  text-align: left;
+}
+
+.rl-table th {
+  color: var(--mm-muted, var(--muted));
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mm-join-row .rl-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.mm-mp-pane .rl-field,
+.mm-mp-pane .rl-btn {
+  width: 100%;
 }
 
 .mm-hero-cta {
@@ -711,6 +1043,12 @@
   grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: end;
+}
+
+.mm-join-row .rl-btn {
+  height: 46px;
+  padding-inline: 18px;
+  white-space: nowrap;
 }
 
 .mm-lock-note {
