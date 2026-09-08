@@ -156,28 +156,32 @@ body {
   gap: 10px;
   width: 100%;
   text-align: center;
-  letter-spacing: 0.18em;
-  border-radius: 10px;
+  letter-spacing: 0.2em;
+  border-radius: 0;
   padding: 14px 16px;
-  box-shadow: 0 8px 24px rgba(78, 196, 255, 0.12);
+  border: 1px solid rgba(184, 134, 58, 0.65);
+  background: #b8863a;
+  color: #14110a;
+  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
+  font-weight: 700;
+  box-shadow: none;
   transition:
-    transform 0.16s ease,
-    filter 0.16s ease,
-    box-shadow 0.16s ease,
-    background 0.16s ease,
-    border-color 0.16s ease,
-    color 0.16s ease;
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .rl-create-lobby:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 12px 28px rgba(78, 196, 255, 0.2);
+  transform: none;
+  filter: none;
+  background: #c99642;
+  border-color: rgba(210, 170, 90, 0.75);
+  box-shadow: none;
 }
 
 .rl-create-lobby:active:not(:disabled) {
-  transform: translateY(1px) scale(0.985);
-  filter: brightness(0.96);
+  transform: none;
+  filter: none;
 }
 
 .rl-create-icon {
@@ -187,12 +191,12 @@ body {
 
 .rl-create-lobby.is-locked,
 .rl-create-lobby:disabled {
-  background: #121820;
-  color: #6a7588;
-  border-color: #243040;
+  background: #161614;
+  color: #6a6a62;
+  border-color: rgba(168, 166, 152, 0.16);
   box-shadow: none;
   cursor: not-allowed;
-  filter: grayscale(0.25);
+  filter: none;
   opacity: 0.72;
 }
 
@@ -227,6 +231,8 @@ body {
   pointer-events: none;
 }
 
+/* —— Online lobby wait (Tarkov matching panel) —— */
+
 .lobby-join-block {
   display: grid;
   gap: 10px;
@@ -234,17 +240,16 @@ body {
   border-top: 1px solid var(--line);
 }
 
-.lobby-join-title,
-.lobby-wait-card h3 {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 600;
-}
-
 .lobby-wait {
+  --lobby-panel: #151513;
+  --lobby-stroke: rgba(168, 166, 152, 0.16);
+  --lobby-text: #c8c6ba;
+  --lobby-bright: #e6e4d8;
+  --lobby-muted: #7c7a70;
+  --lobby-accent: #b8863a;
+  --lobby-font: "Barlow Condensed", "Rajdhani", Bahnschrift, sans-serif;
+  --lobby-body: "Barlow", "Rajdhani", system-ui, sans-serif;
+
   position: absolute;
   inset: 0;
   display: grid;
@@ -253,6 +258,9 @@ body {
   pointer-events: auto;
   overflow: hidden;
   isolation: isolate;
+  color: var(--lobby-text);
+  font-family: var(--lobby-body);
+  letter-spacing: 0.035em;
 }
 
 .lobby-wait[hidden] {
@@ -270,9 +278,9 @@ body {
   position: absolute;
   inset: -4%;
   background:
-    #1a2418
+    #0e100c
     url('/menu/hamar-bg.png') center / cover no-repeat;
-  filter: saturate(1.1) brightness(1.02) contrast(1.04);
+  filter: saturate(0.7) brightness(0.58) contrast(1.12);
   transform: scale(1.06);
 }
 
@@ -285,20 +293,20 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(60% 40% at 50% 70%, rgba(180, 200, 140, 0.05), transparent 70%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 40%, rgba(0, 0, 0, 0.55));
-  /* Static — animated mist burned CPU on lobby screen. */
+    radial-gradient(58% 48% at 50% 42%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.72) 78%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 38%, rgba(0, 0, 0, 0.7));
 }
 
 .lobby-lamp-pole {
   position: absolute;
   right: 12%;
   bottom: 8%;
-  width: 10px;
+  width: 8px;
   height: min(48vh, 420px);
-  background: linear-gradient(180deg, #1a1c16, #0a0b08);
-  border-radius: 2px;
+  background: linear-gradient(180deg, #1c1c18, #0a0a08);
+  border-radius: 0;
   z-index: 1;
+  opacity: 0.85;
 }
 
 .lobby-lamp-arm {
@@ -306,22 +314,22 @@ body {
   top: 8%;
   right: 0;
   width: 72px;
-  height: 6px;
-  background: #1c1e18;
+  height: 5px;
+  background: #1a1a16;
   transform-origin: right center;
   transform: rotate(-18deg);
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .lobby-lamp-bulb {
   position: absolute;
   top: 6%;
   right: 68px;
-  width: 22px;
-  height: 28px;
+  width: 20px;
+  height: 26px;
   border-radius: 50% 50% 40% 40%;
-  background: radial-gradient(circle at 40% 35%, #fff6d0, #e0a030 55%, #8a5010 100%);
-  box-shadow: 0 0 12px rgba(255, 190, 80, 0.8);
+  background: radial-gradient(circle at 40% 35%, #f0e2b0, #b8863a 55%, #5a3a12 100%);
+  box-shadow: 0 0 10px rgba(184, 134, 58, 0.55);
   animation: lobby-bulb-flicker 3.8s steps(2, end) infinite;
 }
 
@@ -329,154 +337,12 @@ body {
   position: absolute;
   top: -4%;
   right: 20px;
-  width: 220px;
-  height: 220px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 180, 70, 0.28), transparent 68%);
+  background: radial-gradient(circle, rgba(184, 134, 58, 0.16), transparent 68%);
   animation: lobby-glow-flicker 3.8s ease-in-out infinite;
   filter: blur(2px);
-}
-
-.lobby-sign {
-  position: absolute;
-  left: 50%;
-  top: 7%;
-  transform: translateX(-50%);
-  z-index: 2;
-  text-align: center;
-  pointer-events: none;
-}
-
-.lobby-sign-board {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 16px 28px 10px;
-  background: rgba(8, 10, 7, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-  transform-origin: 50% -30px;
-  animation: lobby-board-sway 5.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
-}
-
-.lobby-sign-hooks {
-  position: absolute;
-  top: -34px;
-  left: 16%;
-  right: 16%;
-  height: 36px;
-  pointer-events: none;
-}
-
-.lobby-sign-hook {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 36px;
-  background: linear-gradient(180deg, rgba(180, 180, 170, 0.15), rgba(220, 220, 210, 0.8));
-}
-
-.lobby-sign-hook--l {
-  left: 0;
-  transform: rotate(3deg);
-  transform-origin: top center;
-}
-
-.lobby-sign-hook--r {
-  right: 0;
-  transform: rotate(-3deg);
-  transform-origin: top center;
-}
-
-.lobby-sign-escape {
-  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
-  font-size: clamp(14px, 2vw, 18px);
-  font-weight: 700;
-  letter-spacing: 0.42em;
-  color: rgba(236, 236, 230, 0.78);
-}
-
-.lobby-sign-russia {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.02em;
-  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
-  font-size: clamp(36px, 6vw, 64px);
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  color: #f2f2ea;
-  min-height: 1.55em;
-  padding-top: 0.1em;
-}
-
-.lobby-sign-russia i {
-  font-style: normal;
-  display: inline-block;
-  position: relative;
-  transform-origin: 50% 0;
-}
-
-.lobby-sign-russia i.is-hang {
-  color: #efe6d4;
-  text-shadow: 0 8px 18px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 170, 60, 0.2);
-  padding-top: var(--len, 20px);
-  animation: lobby-letter-pendulum var(--dur, 3.6s) cubic-bezier(0.37, 0.01, 0.28, 1) infinite;
-  animation-delay: var(--delay, 0s);
-}
-
-.lobby-sign-russia i.is-hang::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 1.5px;
-  height: var(--len, 20px);
-  background: linear-gradient(180deg, rgba(210, 210, 200, 0.1), rgba(220, 220, 210, 0.85));
-  transform: translateX(-50%);
-}
-
-.lobby-sign-russia i.is-hang::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: calc(var(--len, 20px) - 2px);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(200, 200, 190, 0.5);
-  transform: translateX(-50%);
-}
-
-@keyframes lobby-board-sway {
-  0%,
-  100% {
-    transform: rotate(-1.4deg);
-  }
-  50% {
-    transform: rotate(1.6deg);
-  }
-}
-
-@keyframes lobby-letter-pendulum {
-  0% {
-    transform: rotate(var(--tilt, -6deg));
-  }
-  25% {
-    transform: rotate(calc(var(--tilt, -6deg) * -1.35));
-  }
-  50% {
-    transform: rotate(calc(var(--tilt, -6deg) * 0.85));
-  }
-  75% {
-    transform: rotate(calc(var(--tilt, -6deg) * -0.55));
-  }
-  100% {
-    transform: rotate(var(--tilt, -6deg));
-  }
 }
 
 .lobby-stage {
@@ -488,54 +354,66 @@ body {
 .lobby-wait-card {
   width: 100%;
   display: grid;
-  gap: 18px;
-  padding: 28px 28px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(8, 12, 8, 0.78);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+  gap: 16px;
+  padding: 22px 22px 20px;
+  border: 1px solid var(--lobby-stroke);
+  background: var(--lobby-panel);
+  border-radius: 0;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .lobby-kicker {
   margin: 0;
-  color: #e07a2f;
-  letter-spacing: 0.28em;
-  font-size: 11px;
-  font-family: "Barlow Condensed", sans-serif;
+  color: var(--lobby-accent);
+  letter-spacing: 0.34em;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--lobby-font);
 }
 
 .lobby-wait-card h2 {
   margin: 0;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--lobby-font);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--lobby-bright);
+  line-height: 1;
 }
 
 .lobby-lead {
   margin: 0;
-  color: var(--muted);
+  color: var(--lobby-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
 }
 
 .lobby-code-box {
   display: grid;
   gap: 8px;
-  padding: 16px;
-  border: 1px solid rgba(224, 122, 47, 0.35);
-  background: rgba(224, 122, 47, 0.06);
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(184, 134, 58, 0.35);
+  background: rgba(184, 134, 58, 0.05);
+  border-radius: 0;
 }
 
 .lobby-code-label {
-  font-size: 11px;
-  letter-spacing: 0.2em;
+  font-size: 10px;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--lobby-muted);
+  font-family: var(--lobby-font);
+  font-weight: 600;
 }
 
 .lobby-code {
-  font-family: var(--mono);
-  font-size: 36px;
-  letter-spacing: 0.22em;
-  color: #f0e6d8;
+  font-family: var(--lobby-font);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--lobby-bright);
   line-height: 1;
 }
 
@@ -545,60 +423,129 @@ body {
   text-align: center;
 }
 
+.lobby-join-title,
+.lobby-wait-card h3 {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lobby-muted);
+  font-weight: 600;
+  font-family: var(--lobby-font);
+}
+
 .lobby-players {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--lobby-stroke);
 }
 
 .lobby-player {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 7px 10px;
+  border: 1px solid var(--lobby-stroke);
+  background: #121210;
+  border-radius: 0;
 }
 
 .lobby-player.self {
-  border-color: rgba(224, 122, 47, 0.4);
+  border-color: rgba(184, 134, 58, 0.4);
+  background: #16140f;
 }
 
 .lobby-player-name {
   flex: 1;
+  font-family: var(--lobby-font);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--lobby-bright);
 }
 
 .lobby-badge {
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: 9px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #e07a2f;
+  color: var(--lobby-accent);
+  font-family: var(--lobby-font);
+  font-weight: 700;
+  border: 1px solid rgba(184, 134, 58, 0.35);
+  padding: 2px 6px;
 }
 
 .lobby-badge.muted {
-  color: var(--muted);
+  color: var(--lobby-muted);
+  border-color: var(--lobby-stroke);
 }
 
 .lobby-empty,
 .lobby-wait-note {
   margin: 0;
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--lobby-muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
 }
 
 .lobby-actions {
   display: grid;
   gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--lobby-stroke);
 }
 
-@keyframes lobby-mist-drift {
-  from {
-    opacity: 0.7;
-    transform: translateX(-1%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(1.5%);
-  }
+.lobby-wait .rl-btn {
+  appearance: none;
+  border: 1px solid var(--lobby-stroke);
+  background: #121210;
+  color: var(--lobby-text);
+  font-family: var(--lobby-font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 11px 14px;
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: none;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  transform: none;
+}
+
+.lobby-wait .rl-btn:hover:not(:disabled) {
+  border-color: rgba(196, 192, 172, 0.4);
+  color: var(--lobby-bright);
+  background: #1a1a17;
+  transform: none;
+  box-shadow: none;
+}
+
+.lobby-wait .rl-btn:active:not(:disabled) {
+  transform: none;
+}
+
+.lobby-wait .rl-btn.primary,
+.lobby-wait .rl-btn.lobby-start {
+  border-color: rgba(184, 134, 58, 0.65);
+  background: var(--lobby-accent);
+  color: #14110a;
+}
+
+.lobby-wait .rl-btn.primary:hover:not(:disabled),
+.lobby-wait .rl-btn.lobby-start:hover:not(:disabled) {
+  background: #c99642;
+  border-color: rgba(210, 170, 90, 0.75);
+  color: #14110a;
+}
+
+.lobby-wait .rl-btn:disabled,
+.lobby-wait .rl-btn.is-loading {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 @keyframes lobby-bulb-flicker {
@@ -628,20 +575,11 @@ body {
 
 @keyframes lobby-glow-flicker {
   0%,
-  18%,
-  22%,
-  60%,
-  64%,
   100% {
+    opacity: 0.7;
+  }
+  50% {
     opacity: 1;
-  }
-  19%,
-  21% {
-    opacity: 0.25;
-  }
-  61%,
-  63% {
-    opacity: 0.4;
   }
 }
 

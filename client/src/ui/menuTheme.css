@@ -1,16 +1,20 @@
-﻿/* RAGELAB — Tarkov-inspired main menu */
+﻿/* RAGELAB — Escape from Tarkov visual language (structure unchanged) */
 
 :root {
-  --mm-ink: #050605;
-  --mm-panel: rgba(12, 14, 12, 0.72);
-  --mm-panel-strong: rgba(10, 12, 10, 0.9);
-  --mm-stroke: rgba(220, 220, 210, 0.12);
-  --mm-text: #ecece6;
-  --mm-muted: #8a8c82;
-  --mm-warn: #e07a2f;
-  --mm-warn-ink: #1a1208;
-  --mm-lock: #6a6c64;
-  --mm-blur: 18px;
+  --mm-ink: #0b0b0a;
+  --mm-panel: rgba(20, 20, 18, 0.92);
+  --mm-panel-strong: #151513;
+  --mm-stroke: rgba(168, 166, 152, 0.16);
+  --mm-stroke-strong: rgba(196, 192, 172, 0.28);
+  --mm-text: #c8c6ba;
+  --mm-text-bright: #e6e4d8;
+  --mm-muted: #7c7a70;
+  --mm-warn: #b8863a;
+  --mm-warn-hot: #c99642;
+  --mm-warn-ink: #14110a;
+  --mm-lock: #5a5a52;
+  --mm-ok: #7a8a5a;
+  --mm-blur: 0px;
   --mm-ease: cubic-bezier(0.22, 0.9, 0.2, 1);
   --tk-display: "Barlow Condensed", "Rajdhani", Bahnschrift, sans-serif;
   --tk-title: "Barlow Condensed", "Barlow", sans-serif;
@@ -23,7 +27,7 @@
   font-weight: 500;
   flex-direction: column;
   isolation: isolate;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.035em;
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
@@ -42,9 +46,9 @@
   position: absolute;
   inset: -4%;
   background:
-    #121810
+    #0e100c
     url('/menu/hamar-bg.png') center / cover no-repeat;
-  filter: blur(5px) saturate(1.08) brightness(0.78) contrast(1.06);
+  filter: blur(4px) saturate(0.72) brightness(0.62) contrast(1.12);
   transform: scale(1.06);
   opacity: 1;
 }
@@ -57,22 +61,22 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(58% 52% at 50% 40%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.55) 72%, rgba(0, 0, 0, 0.78) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 28%, transparent 55%, rgba(0, 0, 0, 0.7) 100%);
+    radial-gradient(56% 50% at 50% 42%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.62) 70%, rgba(0, 0, 0, 0.86) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, transparent 26%, transparent 58%, rgba(0, 0, 0, 0.78) 100%);
 }
 
 .mm-glow {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(40% 32% at 70% 20%, rgba(180, 140, 70, 0.08), transparent 70%),
-    radial-gradient(36% 28% at 20% 78%, rgba(40, 70, 55, 0.1), transparent 70%);
+    radial-gradient(38% 28% at 72% 18%, rgba(140, 110, 55, 0.05), transparent 72%),
+    radial-gradient(34% 26% at 18% 80%, rgba(40, 48, 34, 0.08), transparent 70%);
 }
 
 .mm-grain {
   position: absolute;
   inset: 0;
-  opacity: 0.028;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode: soft-light;
   z-index: 0;
@@ -126,22 +130,24 @@
 .mm-dock-ico {
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.45);
-  color: #ddd;
+  border: 1px solid rgba(168, 166, 152, 0.22);
+  background: rgba(12, 12, 10, 0.82);
+  color: #b8b6aa;
   display: grid;
   place-items: center;
   cursor: pointer;
   padding: 0;
+  border-radius: 0;
   font-family: var(--tk-display);
   font-size: 11px;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
 }
 
 .mm-dock-ico:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(196, 192, 172, 0.45);
+  color: var(--mm-text-bright);
 }
 
 .mm-dock-admin {
@@ -155,12 +161,14 @@
   transform: translateX(-50%);
   z-index: 20;
   padding: 10px 18px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(224, 122, 47, 0.55);
-  color: #f0e6d8;
+  background: #121210;
+  border: 1px solid rgba(184, 134, 58, 0.55);
+  border-radius: 0;
+  color: #e8dfc8;
   font-family: var(--tk-display);
-  letter-spacing: 0.16em;
-  font-size: 14px;
+  letter-spacing: 0.18em;
+  font-size: 13px;
+  font-weight: 600;
   opacity: 0;
   pointer-events: none;
 }
@@ -184,11 +192,11 @@
 .tk-beta {
   margin: 0 0 18px;
   font-family: var(--tk-display);
-  font-size: clamp(14px, 1.6vw, 17px);
-  letter-spacing: 0.42em;
-  color: rgba(236, 236, 230, 0.78);
+  font-size: clamp(12px, 1.4vw, 15px);
+  letter-spacing: 0.46em;
+  color: rgba(168, 166, 152, 0.72);
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .tk-title {
@@ -199,12 +207,12 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   line-height: 0.95;
-  color: #f2f0e6;
+  color: var(--mm-text-bright);
   text-wrap: balance;
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.65);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.75);
 }
 
 .tk-logo {
@@ -278,11 +286,11 @@
 
 .tk-sign-escape {
   font-family: var(--tk-display);
-  font-size: clamp(14px, 2.2vw, 20px);
+  font-size: clamp(13px, 2vw, 18px);
   font-weight: 700;
-  letter-spacing: 0.42em;
-  color: rgba(236, 236, 230, 0.78);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.46em;
+  color: rgba(168, 166, 152, 0.72);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
   margin-bottom: 2px;
 }
 
@@ -295,7 +303,7 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
-  color: #f4f1e6;
+  color: var(--mm-text-bright);
   min-height: 1.55em;
   padding-top: 0.15em;
 }
@@ -361,35 +369,38 @@
   gap: 12px;
   width: min(760px, 94vw);
   margin: 0 auto 36px;
-  padding: 12px 16px;
+  padding: 11px 14px;
   background: var(--mm-warn);
   color: var(--mm-warn-ink);
   text-align: left;
-  font-size: clamp(13px, 1.5vw, 15px);
+  font-size: clamp(12px, 1.4vw, 14px);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.4;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 .tk-warn-ico {
-  flex: 0 0 26px;
-  width: 26px;
-  height: 26px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  background: #111;
-  color: #fff;
+  background: #0e0e0c;
+  color: #d8d4c4;
   font-family: var(--tk-display);
   font-weight: 800;
-  font-size: 15px;
+  font-size: 14px;
+  border-radius: 0;
 }
 
 .tk-nav {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 4px;
 }
 
@@ -397,19 +408,20 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: #f0f0e8;
+  color: var(--mm-text-bright);
   font-family: var(--tk-display);
-  font-size: clamp(22px, 3.2vw, 34px);
+  font-size: clamp(20px, 3vw, 32px);
   font-weight: 700;
-  letter-spacing: 0.16em;
-  padding: 6px 12px;
+  letter-spacing: 0.2em;
+  padding: 5px 12px;
   cursor: pointer;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  border-radius: 0;
 }
 
 .tk-nav-link.is-hero {
-  font-size: clamp(26px, 3.8vw, 40px);
-  letter-spacing: 0.18em;
+  font-size: clamp(24px, 3.6vw, 38px);
+  letter-spacing: 0.22em;
 }
 
 .tk-nav-link:hover {
@@ -422,7 +434,7 @@
 }
 
 .tk-nav-link.is-locked:hover {
-  color: #9a9c92;
+  color: #7a7a72;
 }
 
 .tk-home-foot {
@@ -432,8 +444,9 @@
   display: flex;
   gap: 18px;
   color: var(--mm-muted);
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-family: var(--tk-display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -451,24 +464,26 @@
 .tk-flow-kicker {
   margin: 0;
   font-family: var(--tk-display);
-  letter-spacing: 0.35em;
-  font-size: 12px;
+  letter-spacing: 0.4em;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--mm-muted);
 }
 
 .tk-flow-title {
   margin: 8px 0 6px;
   font-family: var(--tk-display);
-  font-size: clamp(28px, 4vw, 44px);
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-size: clamp(26px, 3.8vw, 40px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--mm-text-bright);
 }
 
 .tk-flow-lead {
   margin: 0 0 28px;
   max-width: 520px;
   color: var(--mm-muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -483,33 +498,34 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(230, 228, 214, 0.14);
-  background: rgba(8, 10, 8, 0.78);
+  border: 1px solid var(--mm-stroke);
+  background: #121210;
   color: inherit;
   padding: 0;
   cursor: pointer;
   text-align: left;
   overflow: hidden;
   min-height: 320px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .tk-faction:hover:not(.is-locked) {
-  border-color: rgba(236, 232, 214, 0.42);
+  border-color: var(--mm-stroke-strong);
 }
 
 .tk-faction.is-pmc:hover:not(.is-locked) {
-  border-color: rgba(170, 190, 120, 0.45);
+  border-color: rgba(154, 131, 85, 0.45);
 }
 
 .tk-faction.is-scav {
-  border-color: rgba(160, 120, 80, 0.18);
+  border-color: rgba(140, 110, 70, 0.22);
 }
 
 .tk-faction.is-locked {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
-  filter: grayscale(0.35);
+  filter: grayscale(0.4);
 }
 
 .tk-faction-art {
@@ -573,28 +589,28 @@
 
 .tk-faction-tag {
   font-family: var(--tk-display);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.28em;
-  color: rgba(180, 178, 160, 0.7);
+  letter-spacing: 0.32em;
+  color: rgba(154, 152, 138, 0.7);
 }
 
 .tk-faction.is-pmc .tk-faction-tag {
-  color: rgba(160, 180, 120, 0.75);
+  color: rgba(154, 131, 85, 0.85);
 }
 
 .tk-faction.is-scav .tk-faction-tag {
-  color: rgba(190, 140, 90, 0.7);
+  color: rgba(160, 120, 80, 0.75);
 }
 
 .tk-faction-body strong {
   display: block;
   font-family: var(--tk-display);
-  font-size: clamp(30px, 4vw, 38px);
-  letter-spacing: 0.14em;
-  font-weight: 800;
+  font-size: clamp(28px, 3.8vw, 36px);
+  letter-spacing: 0.16em;
+  font-weight: 700;
   line-height: 1;
-  color: #f2efe4;
+  color: var(--mm-text-bright);
 }
 
 .tk-faction.is-scav .tk-faction-body strong {
@@ -615,24 +631,25 @@
   margin-top: auto;
   padding-top: 14px;
   font-family: var(--tk-display);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.28em;
-  color: rgba(224, 122, 47, 0.95);
+  letter-spacing: 0.3em;
+  color: rgba(184, 134, 58, 0.95);
 }
 
 .tk-lock-badge {
   position: absolute;
   top: 14px;
   right: 14px;
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 3px 8px;
+  background: #0e0e0c;
+  border: 1px solid rgba(168, 166, 152, 0.22);
+  border-radius: 0;
   font-family: var(--tk-display);
-  font-size: 11px;
+  font-size: 10px;
   font-style: normal;
-  letter-spacing: 0.16em;
-  color: rgba(220, 210, 190, 0.85);
+  letter-spacing: 0.18em;
+  color: rgba(180, 178, 164, 0.8);
 }
 
 .tk-back {
@@ -640,14 +657,15 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: #f2f2ea;
+  color: var(--mm-text-bright);
   font-family: var(--tk-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.24em;
   cursor: pointer;
   padding: 8px 16px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  border-radius: 0;
 }
 
 .tk-back:hover {
@@ -670,14 +688,13 @@
   position: relative;
   min-height: 200px;
   height: clamp(200px, 28vh, 280px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--mm-stroke);
+  border-radius: 0;
   background:
-    radial-gradient(70% 60% at 48% 42%, rgba(48, 56, 38, 0.5), rgba(10, 12, 9, 0.96)),
-    linear-gradient(145deg, #1a1f14, #0a0c09);
+    radial-gradient(70% 60% at 48% 42%, rgba(40, 42, 34, 0.45), rgba(10, 10, 9, 0.98)),
+    linear-gradient(145deg, #161614, #0c0c0b);
   overflow: hidden;
-  box-shadow:
-    inset 0 0 90px rgba(0, 0, 0, 0.55),
-    0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.55);
 }
 
 .tk-map-wash {
@@ -780,22 +797,23 @@
 
 .tk-map-pin.is-on .tk-pin-dot {
   background: var(--mm-warn);
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(224, 122, 47, 0.3);
+  border-color: #e8e4d4;
+  box-shadow: 0 0 0 2px rgba(184, 134, 58, 0.28);
 }
 
 .tk-pin-label {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 5px 9px;
+  background: #121210;
+  border: 1px solid var(--mm-stroke);
+  border-radius: 0;
 }
 
 .tk-map-pin.is-on .tk-pin-label {
-  border-color: rgba(224, 122, 47, 0.45);
-  background: rgba(12, 10, 6, 0.88);
+  border-color: rgba(184, 134, 58, 0.45);
+  background: #16140f;
 }
 
 .tk-pin-label b {
@@ -820,10 +838,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px 18px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(8, 10, 8, 0.82);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+  padding: 16px 16px 14px;
+  border: 1px solid var(--mm-stroke);
+  background: #131311;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .tk-map-meta-top {
@@ -835,8 +854,8 @@
 
 .tk-map-meta-id {
   font-family: var(--tk-display);
-  font-size: 11px;
-  letter-spacing: 0.24em;
+  font-size: 10px;
+  letter-spacing: 0.28em;
   color: var(--mm-muted);
 }
 
@@ -844,19 +863,20 @@
   font-family: var(--tk-display);
   font-size: 10px;
   letter-spacing: 0.18em;
-  color: rgba(160, 190, 110, 0.85);
-  border: 1px solid rgba(160, 190, 110, 0.35);
-  padding: 3px 8px;
+  color: rgba(154, 152, 110, 0.9);
+  border: 1px solid rgba(154, 152, 110, 0.3);
+  padding: 2px 7px;
+  border-radius: 0;
 }
 
 .tk-map-meta-name {
   margin: 0;
   font-family: var(--tk-display);
-  font-size: clamp(26px, 3.2vw, 34px);
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
   line-height: 1;
-  color: #f2efe4;
+  color: var(--mm-text-bright);
 }
 
 .tk-map-meta-desc {
@@ -967,26 +987,29 @@
 
 .tk-deploy {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(224, 122, 47, 0.92);
-  color: #120c06;
+  border: 1px solid rgba(184, 134, 58, 0.65);
+  background: var(--mm-warn);
+  color: var(--mm-warn-ink);
   font-family: var(--tk-display);
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   padding: 12px 20px;
   cursor: pointer;
   min-width: 0;
   width: 100%;
   max-width: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .tk-deploy:hover {
-  background: rgba(232, 136, 56, 0.96);
+  background: var(--mm-warn-hot);
+  border-color: rgba(210, 170, 90, 0.75);
 }
 
 .tk-deploy:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: wait;
 }
 
@@ -1010,9 +1033,10 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(8, 10, 8, 0.78);
+  border: 1px solid var(--mm-stroke);
+  background: #131311;
   text-align: left;
+  border-radius: 0;
 }
 
 .tk-host-row {
@@ -1039,10 +1063,10 @@
 .tk-deploy-col-title {
   margin: 0;
   font-family: var(--tk-display);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.28em;
-  color: rgba(236, 236, 230, 0.9);
+  letter-spacing: 0.3em;
+  color: var(--mm-text-bright);
 }
 
 .tk-deploy-hint {
@@ -1076,21 +1100,22 @@
   flex: 1;
   min-width: 0;
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.55);
-  color: #f0eee6;
+  border: 1px solid var(--mm-stroke-strong);
+  background: #0e0e0c;
+  color: var(--mm-text-bright);
   font-family: var(--tk-display);
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-align: center;
   text-transform: uppercase;
   padding: 12px 10px;
   outline: none;
+  border-radius: 0;
 }
 
 .tk-connect-input:focus {
-  border-color: rgba(224, 122, 47, 0.7);
+  border-color: rgba(184, 134, 58, 0.7);
 }
 
 .tk-connect-btn {
@@ -1103,19 +1128,22 @@
 
 .tk-secondary {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.45);
-  color: #ecece6;
+  border: 1px solid var(--mm-stroke-strong);
+  background: #161614;
+  color: var(--mm-text);
   font-family: var(--tk-display);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   padding: 10px 16px;
   cursor: pointer;
+  border-radius: 0;
 }
 
 .tk-secondary:hover {
-  border-color: rgba(255, 255, 255, 0.45);
+  border-color: rgba(196, 192, 172, 0.45);
+  color: var(--mm-text-bright);
+  background: #1a1a17;
 }
 
 .tk-secondary:disabled {
@@ -1145,7 +1173,7 @@
 .tk-char-tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--mm-stroke);
   margin-bottom: 18px;
   flex-wrap: wrap;
 }
@@ -1156,17 +1184,18 @@
   background: transparent;
   color: var(--mm-muted);
   font-family: var(--tk-display);
-  font-size: 14px;
-  letter-spacing: 0.16em;
+  font-size: 13px;
+  letter-spacing: 0.18em;
   font-weight: 700;
   padding: 10px 14px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  border-radius: 0;
 }
 
 .tk-char-tabs button.is-on {
-  color: #fff;
-  border-bottom-color: #fff;
+  color: var(--mm-text-bright);
+  border-bottom-color: var(--mm-warn);
 }
 
 .tk-char-tabs button.is-locked {
@@ -1188,8 +1217,9 @@
   align-items: center;
   justify-content: flex-end;
   min-height: 420px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.35));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #121210;
+  border: 1px solid var(--mm-stroke);
+  border-radius: 0;
   padding: 20px 16px 24px;
 }
 
@@ -1398,49 +1428,55 @@
 .mm-glass {
   background: var(--mm-panel-strong);
   border: 1px solid var(--mm-stroke);
-  backdrop-filter: blur(var(--mm-blur));
-  padding: 22px 24px 28px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  backdrop-filter: none;
+  padding: 20px 22px 24px;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mm-glass h2 {
   margin: 0 0 12px;
   font-family: var(--tk-display);
-  letter-spacing: 0.12em;
-  font-size: 28px;
+  letter-spacing: 0.14em;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--mm-text-bright);
 }
 
 .mm-kicker {
   margin: 0 0 4px;
   font-family: var(--tk-display);
-  letter-spacing: 0.28em;
-  font-size: 11px;
+  letter-spacing: 0.32em;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--mm-muted);
 }
 
 .mm-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin: 12px 0 16px;
 }
 
 .mm-tabs button {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--mm-stroke);
+  background: #121210;
   color: var(--mm-muted);
   font-family: var(--tk-display);
-  letter-spacing: 0.12em;
-  font-size: 13px;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  font-weight: 600;
   padding: 8px 12px;
   cursor: pointer;
+  border-radius: 0;
 }
 
 .mm-tabs button.is-on {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--mm-text-bright);
+  border-color: rgba(184, 134, 58, 0.55);
+  background: #1a1812;
 }
 
 .mm-settings-body,
@@ -1471,9 +1507,43 @@
   margin-top: 12px;
 }
 
+/* Tarkov-styled shared buttons inside main menu panels */
+.mm-root .rl-btn {
+  border: 1px solid var(--mm-stroke);
+  background: #121210;
+  color: var(--mm-text);
+  font-family: var(--tk-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+.mm-root .rl-btn:hover:not(:disabled) {
+  border-color: var(--mm-stroke-strong);
+  color: var(--mm-text-bright);
+  background: #1a1a17;
+  transform: none;
+  box-shadow: none;
+}
+
+.mm-root .rl-btn.primary {
+  border-color: rgba(184, 134, 58, 0.65);
+  background: var(--mm-warn);
+  color: var(--mm-warn-ink);
+}
+
+.mm-root .rl-btn.primary:hover:not(:disabled) {
+  background: var(--mm-warn-hot);
+  border-color: rgba(210, 170, 90, 0.75);
+  color: var(--mm-warn-ink);
+}
+
 .mm-table th,
 .mm-table td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--mm-stroke);
   padding: 8px 6px;
   text-align: left;
 }
