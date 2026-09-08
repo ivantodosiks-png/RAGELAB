@@ -1,10 +1,9 @@
-/* Body status — tactical operator silhouette (HUD + TAB) */
+/* Body status — SVG tactical operator (HUD + TAB) */
 
 .body-status {
-  --bs-line: rgba(210, 214, 198, 0.28);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   pointer-events: none;
   user-select: none;
 }
@@ -13,7 +12,7 @@
   position: relative;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 0;
   background: transparent;
   border: 0;
@@ -24,122 +23,66 @@
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.32em;
-  color: rgba(176, 182, 158, 0.45);
+  color: rgba(176, 182, 158, 0.42);
   line-height: 1;
   align-self: flex-start;
-  margin-left: 2px;
+  margin-left: 1px;
 }
 
 .body-status-sil {
   position: relative;
-  width: 54px;
-  height: 96px;
+  width: 58px;
+  height: 108px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.45));
+}
+
+.body-status-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
 }
 
 .bs-part {
-  position: absolute;
-  box-sizing: border-box;
-  border: 1px solid var(--bs-line);
-  background: rgb(86, 108, 78);
-  transition: background 0.08s linear, border-color 0.08s linear;
+  transition: fill 0.08s linear, stroke 0.08s linear;
 }
 
 .bs-part.is-hit {
-  border-color: rgba(255, 236, 190, 0.95);
-  outline: 1px solid rgba(255, 220, 140, 0.35);
+  stroke: rgba(255, 236, 190, 0.95) !important;
+  stroke-width: 1.8px;
 }
 
 .bs-part.is-destroyed {
-  border-color: rgba(70, 70, 70, 0.55);
-}
-
-.bs-head {
-  left: 50%;
-  top: 0;
-  width: 15px;
-  height: 16px;
-  margin-left: -7.5px;
-  border-radius: 50% 50% 45% 45%;
-}
-
-.bs-chest {
-  left: 50%;
-  top: 16px;
-  width: 24px;
-  height: 22px;
-  margin-left: -12px;
-  border-radius: 10px 10px 7px 7px / 11px 11px 8px 8px;
-}
-
-.bs-stomach {
-  left: 50%;
-  top: 36px;
-  width: 19px;
-  height: 15px;
-  margin-left: -9.5px;
-  border-radius: 6px 6px 10px 10px / 7px 7px 11px 11px;
-}
-
-.bs-armL,
-.bs-armR {
-  top: 17px;
-  width: 8px;
-  height: 32px;
-}
-
-.bs-armL {
-  left: 1px;
-  transform: rotate(7deg);
-  transform-origin: top center;
-  border-radius: 5px 4px 5px 6px;
-}
-
-.bs-armR {
-  right: 1px;
-  transform: rotate(-7deg);
-  transform-origin: top center;
-  border-radius: 4px 5px 6px 5px;
-}
-
-.bs-legL,
-.bs-legR {
-  top: 50px;
-  width: 10px;
-  height: 44px;
-  border-radius: 5px 5px 4px 4px;
-}
-
-.bs-legL {
-  left: 50%;
-  margin-left: -12px;
-  transform: rotate(2.5deg);
-  transform-origin: top center;
-}
-
-.bs-legR {
-  left: 50%;
-  margin-left: 2px;
-  transform: rotate(-2.5deg);
-  transform-origin: top center;
+  stroke: rgba(90, 90, 90, 0.55) !important;
+  opacity: 0.92;
 }
 
 /* TAB detail */
 .body-status--detail {
   width: 100%;
   height: 100%;
-  min-height: 300px;
-  padding: 18px 14px 18px 16px;
+  min-height: 0;
+  padding: 0;
   box-sizing: border-box;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  gap: 26px;
+  gap: 22px;
+}
+
+.body-status--detail .body-status-sil {
+  width: min(148px, 34%);
+  height: auto;
+  aspect-ratio: 120 / 140;
+  flex-shrink: 0;
 }
 
 .body-status-detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 210px;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  max-width: 280px;
 }
 
 .body-status-detail-title {
@@ -147,17 +90,17 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.28em;
-  color: rgba(176, 182, 158, 0.5);
+  color: rgba(176, 182, 158, 0.48);
 }
 
 .body-status-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 14px;
-  margin-top: 4px;
+  gap: 8px 12px;
+  margin-top: 2px;
   font-family: "Barlow Condensed", "Rajdhani", sans-serif;
   font-size: 9px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -165,7 +108,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: rgba(180, 186, 168, 0.55);
+  color: rgba(180, 186, 168, 0.5);
 }
 
 .body-status-legend span::before {
@@ -177,72 +120,15 @@
 }
 
 .body-status-legend span[data-c="damaged"]::before {
-  background: rgb(196, 158, 52);
+  background: #c49e34;
 }
 
 .body-status-legend span[data-c="critical"]::before {
-  background: rgb(176, 58, 48);
+  background: #b03a30;
 }
 
 .body-status-legend span[data-c="destroyed"]::before {
-  background: rgb(18, 18, 18);
-}
-
-.body-status--detail .body-status-sil {
-  width: 108px;
-  height: 196px;
-  flex-shrink: 0;
-}
-
-.body-status--detail .bs-head {
-  width: 26px;
-  height: 28px;
-  margin-left: -13px;
-}
-
-.body-status--detail .bs-chest {
-  top: 30px;
-  width: 46px;
-  height: 42px;
-  margin-left: -23px;
-  border-radius: 18px 18px 14px 14px / 20px 20px 15px 15px;
-}
-
-.body-status--detail .bs-stomach {
-  top: 70px;
-  width: 36px;
-  height: 30px;
-  margin-left: -18px;
-}
-
-.body-status--detail .bs-armL,
-.body-status--detail .bs-armR {
-  top: 32px;
-  width: 15px;
-  height: 64px;
-}
-
-.body-status--detail .bs-armL {
-  left: 3px;
-}
-
-.body-status--detail .bs-armR {
-  right: 3px;
-}
-
-.body-status--detail .bs-legL,
-.body-status--detail .bs-legR {
-  top: 100px;
-  width: 17px;
-  height: 92px;
-}
-
-.body-status--detail .bs-legL {
-  margin-left: -22px;
-}
-
-.body-status--detail .bs-legR {
-  margin-left: 5px;
+  background: #121212;
 }
 
 .body-status-list {
@@ -250,56 +136,73 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 5px;
-  min-width: 200px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .body-status-row {
   display: grid;
-  grid-template-columns: 9px 1fr;
+  grid-template-columns: 8px minmax(0, 1.1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 5px 8px;
   border: 1px solid transparent;
   border-radius: 1px;
+  background: rgba(255, 255, 255, 0.02);
   font-family: "Barlow", "Rajdhani", system-ui, sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.04em;
   color: rgba(214, 218, 204, 0.88);
 }
 
 .body-status-row.is-hit {
-  border-color: rgba(220, 190, 120, 0.4);
-  background: rgba(255, 200, 100, 0.06);
+  border-color: rgba(220, 190, 120, 0.35);
+  background: rgba(255, 200, 100, 0.05);
 }
 
-.body-status-row.is-damaged .body-status-line {
-  color: rgb(210, 178, 72);
+.body-status-row.is-damaged .body-status-state {
+  color: #d2b248;
 }
 
-.body-status-row.is-critical .body-status-line {
-  color: rgb(210, 90, 78);
+.body-status-row.is-critical .body-status-state {
+  color: #d25a4e;
 }
 
 .body-status-row.is-destroyed {
-  opacity: 0.72;
+  opacity: 0.7;
 }
 
-.body-status-row.is-destroyed .body-status-line {
+.body-status-row.is-destroyed .body-status-state {
   color: rgba(160, 160, 160, 0.75);
 }
 
 .body-status-swatch {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
-.body-status-line {
+.body-status-name,
+.body-status-hp,
+.body-status-state {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-size: 10px;
+  white-space: nowrap;
+}
+
+.body-status-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.body-status-hp {
+  color: rgba(180, 186, 168, 0.55);
+}
+
+.body-status-state {
+  min-width: 4.5em;
+  text-align: right;
+  color: rgba(150, 168, 140, 0.7);
 }

@@ -179,21 +179,40 @@ export class InventoryPanel {
 
     const stage = el('div', 'inv-char-stage');
 
-    for (const slot of EQUIP_SLOTS) {
-      const box = el('div', `inv-eq-slot ${slot.cls}`);
-      box.innerHTML = `<span class="inv-eq-slot-label">${slot.label}</span><span class="inv-eq-slot-empty"></span>`;
-      stage.append(box);
+    const top = el('div', 'inv-eq-top');
+    for (const slot of EQUIP_SLOTS.filter((s) => s.id === 'head')) {
+      top.append(this.equipSlot(slot));
+    }
+
+    const left = el('div', 'inv-eq-rail inv-eq-rail--left');
+    for (const slot of EQUIP_SLOTS.filter((s) => s.id === 'face' || s.id === 'armor')) {
+      left.append(this.equipSlot(slot));
+    }
+
+    const right = el('div', 'inv-eq-rail inv-eq-rail--right');
+    for (const slot of EQUIP_SLOTS.filter((s) => s.id === 'holster' || s.id === 'backpack')) {
+      right.append(this.equipSlot(slot));
+    }
+
+    const bot = el('div', 'inv-eq-bot');
+    for (const slot of EQUIP_SLOTS.filter((s) => s.id === 'weapon')) {
+      bot.append(this.equipSlot(slot));
     }
 
     const figure = el('div', 'inv-figure inv-figure--body');
     this.bodyView = new BodyStatusView('detail');
     if (this.pendingParts) this.bodyView.setParts(this.pendingParts, this.pendingHit);
     figure.append(this.bodyView.root);
-    stage.append(figure);
 
+    stage.append(top, left, figure, right, bot);
     col.append(stage);
-
     return col;
+  }
+
+  private equipSlot(slot: EquipSlotDef): HTMLElement {
+    const box = el('div', `inv-eq-slot ${slot.cls}`);
+    box.innerHTML = `<span class="inv-eq-slot-label">${slot.label}</span><span class="inv-eq-slot-empty"></span>`;
+    return box;
   }
 
   private buildInventoryColumn(): HTMLElement {
