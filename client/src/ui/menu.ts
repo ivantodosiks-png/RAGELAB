@@ -699,35 +699,59 @@ export class MainMenu {
         checkbox('Show ping', g.showPing, (v) => this.callbacks.patchGraphics({ showPing: v })),
         checkbox('Debug overlay', g.debugOverlay, (v) => this.callbacks.patchGraphics({ debugOverlay: v })),
         el('p', 'lead', 'Bodycam'),
-        checkbox('Bodycam overlay', bc.enabled, (v) =>
+        checkbox('Chest bodycam', bc.enabled, (v) =>
           this.callbacks.patchGraphics({ bodycam: { enabled: v } }),
         ),
         checkbox('REC indicator', bc.showRec, (v) =>
           this.callbacks.patchGraphics({ bodycam: { showRec: v } }),
         ),
-        slider('Lens size', bc.lensSize, 0.45, 0.95, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { lensSize: v } }),
+        checkbox('Battery / resolution', bc.showMeta, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { showMeta: v } }),
         ),
-        slider('Lens X', bc.offsetX, 0.3, 0.7, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { offsetX: v } }),
+        checkbox('Auto exposure', bc.autoExposure, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { autoExposure: v } }),
         ),
-        slider('Lens Y', bc.offsetY, 0.3, 0.7, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { offsetY: v } }),
+        slider('Walk bob', bc.walkBob, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { walkBob: v } }),
         ),
-        slider('Outside dim', bc.dimStrength, 0, 0.9, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { dimStrength: v } }),
+        slider('Run bob', bc.runBob, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { runBob: v } }),
         ),
-        slider('Fisheye', bc.fisheye, 0, 1, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { fisheye: v } }),
+        slider('Camera lag', bc.cameraLag, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { cameraLag: v } }),
         ),
-        slider('Noise', bc.noise, 0, 1, 0.01, (v) =>
-          this.callbacks.patchGraphics({ bodycam: { noise: v } }),
+        slider('Shake', bc.shakeIntensity, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { shakeIntensity: v } }),
+        ),
+        slider('FOV boost', bc.fovBoost, 0, 28, 1, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { fovBoost: v } }),
+        ),
+        slider('Barrel distortion', bc.barrelDistortion, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { barrelDistortion: v } }),
+        ),
+        slider('Vignette', bc.vignette, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { vignette: v } }),
         ),
         slider('Chromatic aberration', bc.chromaticAberration, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { chromaticAberration: v } }),
         ),
         slider('Edge blur', bc.edgeBlur, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { edgeBlur: v } }),
+        ),
+        slider('Sensor noise', bc.noise, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { noise: v } }),
+        ),
+        slider('Sharpening', bc.sharpening, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { sharpening: v } }),
+        ),
+        slider('Motion blur', bc.motionBlur, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { motionBlur: v } }),
+        ),
+        slider('White balance', bc.whiteBalance, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { whiteBalance: v } }),
+        ),
+        slider('Exposure speed', bc.exposureSpeed, 0.2, 3, 0.05, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { exposureSpeed: v } }),
         ),
       );
     }

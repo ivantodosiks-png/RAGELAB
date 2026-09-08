@@ -1,4 +1,7 @@
 import { QualityLevel, type UserSettings } from '../types/profile';
+import { DEFAULT_BODYCAM } from '../bodycam/settings';
+
+export { DEFAULT_BODYCAM } from '../bodycam/settings';
 
 /** Actions that can be rebound. The value is the default binding. */
 export const DEFAULT_BINDINGS: Record<string, string> = {
@@ -56,19 +59,6 @@ export const ACTION_LABELS: Record<string, string> = {
   debug: 'Debug overlay',
   sandbox: 'Cursor mode',
 };
-
-export const DEFAULT_BODYCAM = {
-  enabled: true,
-  lensSize: 0.78,
-  offsetX: 0.5,
-  offsetY: 0.52,
-  dimStrength: 0.58,
-  fisheye: 0.28,
-  noise: 0.22,
-  chromaticAberration: 0.18,
-  edgeBlur: 0.35,
-  showRec: true,
-} as const;
 
 export const DEFAULT_SETTINGS: UserSettings = {
   graphics: {

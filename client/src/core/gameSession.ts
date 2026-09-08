@@ -184,6 +184,7 @@ export class GameSession {
     this.effects = new EffectsManager(settingsStore.graphics);
     this.renderer.scene.add(this.effects.root);
     this.camera = new CameraRig(this.renderer.camera, this.renderer.viewModelCamera, settingsStore.graphics.fov);
+    this.camera.setBodycam(settingsStore.graphics.bodycam);
     this.input = new InputController(this.canvas, settingsStore.controls);
     this.input.attach();
     this.interp = new SnapshotInterpolator();
@@ -613,6 +614,7 @@ export class GameSession {
       settingsStore.events.on('graphicsChanged', (g) => {
         this.renderer.applySettings(g);
         this.camera.setBaseFov(g.fov);
+        this.camera.setBodycam(g.bodycam);
         this.effects.applySettings(g);
         this.ui.hud.applyBodycamSettings();
       }),
@@ -951,7 +953,8 @@ export class GameSession {
     listenerFwd.z = tmpVec.z;
     this.audio.updateListener(this.renderer.camera.position, listenerFwd, listenerUp, dt);
 
-    this.renderer.render();
+    this.renderer.setBodycamMotion(this.camera.yawVelocity, this.camera.pitchVelocity);
+    this.renderer.render(dt);
     this.updateHud(dt, predicted.speed / SPEED_WALK, !predicted.grounded, predicted.crouching, now);
   }
 
@@ -1026,6 +1029,7 @@ export class GameSession {
       case 'damaged': {
         this.audio.play('hurt', { volume: 0.7 });
         this.camera.addShake(0.18);
+        this.renderer.punchBodycamExposure(-0.12);
         directionFromAngles(aimDir, this.input.yaw, 0);
         const dx = event.from[0] - this.local.renderPosition.x;
         const dz = event.from[2] - this.local.renderPosition.z;
@@ -1072,7 +1076,11 @@ export class GameSession {
       case 'explosion':
         this.effects.explosion(vec(event.pos), event.radius, performance.now());
         this.audio.playAt('explosion', vec(event.pos), 1, 140, 0.04);
-        this.camera.addShake(clamp(1.2 - this.local.distanceTo(vec(event.pos)) / 40, 0, 1.1), 28);
+        {
+          const shake = clamp(1.2 - this.local.distanceTo(vec(event.pos)) / 40, 0, 1.1);
+          this.camera.addShake(shake, 28);
+          if (shake > 0.15) this.renderer.punchBodycamExposure(0.35 + shake * 0.45);
+        }
         break;
       case 'propBreak':
         this.effects.propBreak(vec(event.pos), event.kind as never, performance.now());

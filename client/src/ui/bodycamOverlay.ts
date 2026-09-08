@@ -2,16 +2,14 @@ import type { BodycamSettings } from '@ragelab/shared';
 import { el } from './dom';
 
 /**
- * Cheap DOM bodycam framing: circular lens hole, dim outside, grain, REC badge.
- * Optical distortion (fisheye / CA) lives in the WebGL pass — no second camera.
+ * Minimal digital bodycam recording HUD only — no lens circle / dim frame.
  */
 export class BodycamOverlay {
   readonly root: HTMLElement;
-  private readonly dim: HTMLElement;
-  private readonly rim: HTMLElement;
-  private readonly grain: HTMLElement;
   private readonly rec: HTMLElement;
   private readonly recTimer: HTMLElement;
+  private readonly meta: HTMLElement;
+  private readonly batteryFill: HTMLElement;
   private settings: BodycamSettings;
   private recStartedAt = performance.now();
   private raf = 0;
@@ -22,16 +20,19 @@ export class BodycamOverlay {
     this.root = el('div', 'bc-overlay');
     this.root.setAttribute('aria-hidden', 'true');
 
-    this.dim = el('div', 'bc-dim');
-    this.rim = el('div', 'bc-rim');
-    this.grain = el('div', 'bc-grain');
-
     this.rec = el('div', 'bc-rec');
     this.rec.innerHTML = `<span class="bc-rec-dot"></span><span class="bc-rec-label">REC</span>`;
     this.recTimer = el('span', 'bc-rec-timer', '00:00:00');
     this.rec.append(this.recTimer);
 
-    this.root.append(this.dim, this.rim, this.grain, this.rec);
+    this.meta = el('div', 'bc-meta');
+    this.meta.innerHTML = `<span class="bc-meta-res">1080P 60</span>`;
+    const bat = el('span', 'bc-battery');
+    bat.innerHTML = `<i class="bc-battery-fill"></i>`;
+    this.batteryFill = bat.querySelector('.bc-battery-fill') as HTMLElement;
+    this.meta.append(bat);
+
+    this.root.append(this.rec, this.meta);
     this.apply(settings);
   }
 
@@ -46,16 +47,8 @@ export class BodycamOverlay {
     this.settings = { ...settings };
     const on = this.visible && settings.enabled;
     this.root.classList.toggle('is-on', on);
-
-    const size = `${(settings.lensSize * 100).toFixed(2)}vmin`;
-    this.root.style.setProperty('--bc-size', size);
-    this.root.style.setProperty('--bc-x', `${(settings.offsetX * 100).toFixed(2)}%`);
-    this.root.style.setProperty('--bc-y', `${(settings.offsetY * 100).toFixed(2)}%`);
-    this.root.style.setProperty('--bc-dim', String(settings.dimStrength));
-    this.root.style.setProperty('--bc-noise', String(settings.noise));
-    this.root.style.setProperty('--bc-blur', `${(settings.edgeBlur * 2.4).toFixed(2)}px`);
-
     this.rec.hidden = !settings.showRec;
+    this.meta.hidden = !settings.showMeta;
     if (on && settings.showRec) this.startRecClock();
     else this.stopRecClock();
   }
@@ -63,6 +56,7 @@ export class BodycamOverlay {
   resetRecTimer(): void {
     this.recStartedAt = performance.now();
     this.paintTimer();
+    this.batteryFill.style.width = '86%';
   }
 
   dispose(): void {
@@ -91,6 +85,9 @@ export class BodycamOverlay {
     const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
     this.recTimer.textContent = `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+    // Slow drain for flavour (resets each match).
+    const drain = Math.max(0.18, 0.86 - sec / 20000);
+    this.batteryFill.style.width = `${(drain * 100).toFixed(1)}%`;
   }
 }
 

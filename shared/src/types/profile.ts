@@ -49,28 +49,9 @@ export const QualityLevel = {
 } as const;
 export type QualityLevelId = (typeof QualityLevel)[keyof typeof QualityLevel];
 
-export interface BodycamSettings {
-  /** Master toggle for the bodycam lens overlay. */
-  enabled: boolean;
-  /** Lens diameter as fraction of the shorter viewport side (0.35–0.95). */
-  lensSize: number;
-  /** Horizontal lens center 0–1. */
-  offsetX: number;
-  /** Vertical lens center 0–1 (slightly below center reads as chest mount). */
-  offsetY: number;
-  /** Outside-lens darkening strength 0–1. */
-  dimStrength: number;
-  /** Fisheye / wide-angle amount 0–1. */
-  fisheye: number;
-  /** Film grain amount 0–1. */
-  noise: number;
-  /** Chromatic aberration amount 0–1. */
-  chromaticAberration: number;
-  /** Soft edge blur inside the lens rim 0–1. */
-  edgeBlur: number;
-  /** Show REC · timer badge. */
-  showRec: boolean;
-}
+export type { BodycamSettings } from '../bodycam/settings';
+export { DEFAULT_BODYCAM, bodycamQualityScale } from '../bodycam/settings';
+import type { BodycamSettings } from '../bodycam/settings';
 
 export interface GraphicsSettings {
   quality: QualityLevelId;

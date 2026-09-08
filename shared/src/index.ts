@@ -8,6 +8,7 @@ export * from './types/map';
 export * from './types/room';
 export * from './types/events';
 export * from './types/profile';
+export * from './bodycam/settings';
 
 export * from './lobby';
 

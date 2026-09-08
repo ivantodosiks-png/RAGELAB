@@ -1,4 +1,4 @@
-/* Bodycam lens framing — lightweight CSS, no HUD chrome */
+/* Bodycam recording HUD — technical, tiny, no lens frame */
 
 .bc-overlay {
   position: absolute;
@@ -6,151 +6,108 @@
   z-index: 6;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s ease;
-  --bc-size: 78vmin;
-  --bc-x: 50%;
-  --bc-y: 52%;
-  --bc-dim: 0.58;
-  --bc-noise: 0.22;
-  --bc-blur: 0.8px;
+  transition: opacity 0.18s ease;
+  font-family: "Consolas", "Segoe UI Mono", ui-monospace, monospace;
 }
 
 .bc-overlay.is-on {
   opacity: 1;
 }
 
-.bc-dim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle var(--bc-size) at var(--bc-x) var(--bc-y),
-    transparent 0%,
-    transparent 46%,
-    rgba(0, 0, 0, calc(var(--bc-dim) * 0.22)) 52%,
-    rgba(0, 0, 0, calc(var(--bc-dim) * 0.72)) 62%,
-    rgba(0, 0, 0, calc(var(--bc-dim) * 0.92)) 78%,
-    rgba(0, 0, 0, calc(var(--bc-dim) * 0.97)) 100%
-  );
-}
-
-.bc-rim {
-  position: absolute;
-  left: var(--bc-x);
-  top: var(--bc-y);
-  width: var(--bc-size);
-  height: var(--bc-size);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.75),
-    inset 0 0 calc(var(--bc-size) * 0.035) rgba(0, 0, 0, 0.55),
-    inset 0 0 calc(var(--bc-size) * 0.09) rgba(0, 0, 0, 0.28),
-    0 0 0 1px rgba(20, 22, 18, 0.55),
-    0 0 18px rgba(0, 0, 0, 0.35);
-  background: radial-gradient(
-    circle at 50% 50%,
-    transparent 68%,
-    rgba(0, 0, 0, 0.18) 82%,
-    rgba(0, 0, 0, 0.42) 100%
-  );
-  filter: blur(0.15px);
-}
-
-.bc-grain {
-  position: absolute;
-  inset: 0;
-  opacity: calc(var(--bc-noise) * 0.55);
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  animation: bc-grain-shift 0.35s steps(2) infinite;
-  -webkit-mask-image: radial-gradient(
-    circle var(--bc-size) at var(--bc-x) var(--bc-y),
-    #000 0%,
-    #000 50%,
-    transparent 58%
-  );
-  mask-image: radial-gradient(
-    circle var(--bc-size) at var(--bc-x) var(--bc-y),
-    #000 0%,
-    #000 50%,
-    transparent 58%
-  );
-}
-
-@keyframes bc-grain-shift {
-  0% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(-1.5%, 1%);
-  }
-  100% {
-    transform: translate(1%, -1%);
-  }
-}
-
 .bc-rec {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left, 0px));
-  top: max(12px, env(safe-area-inset-top, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  top: max(10px, env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 8px 4px 6px;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.28);
-  color: rgba(236, 236, 230, 0.72);
-  font-family: "Barlow Condensed", "Segoe UI", Bahnschrift, sans-serif;
+  gap: 6px;
+  color: rgba(230, 232, 228, 0.62);
   font-size: 11px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   font-weight: 600;
-  opacity: 0.72;
-  backdrop-filter: blur(2px);
+  opacity: 0.78;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
 .bc-rec-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #e03030;
-  box-shadow: 0 0 6px rgba(224, 48, 48, 0.55);
-  animation: bc-rec-blink 1.4s steps(1) infinite;
+  background: #c62828;
+  box-shadow: 0 0 4px rgba(198, 40, 40, 0.45);
+  animation: bc-rec-blink 1.6s steps(1) infinite;
 }
 
 .bc-rec-label {
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
 }
 
 .bc-rec-timer {
   margin-left: 2px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  color: rgba(236, 236, 230, 0.55);
+  letter-spacing: 0.06em;
+  color: rgba(230, 232, 228, 0.48);
   font-weight: 500;
+}
+
+.bc-meta {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  top: max(10px, env(safe-area-inset-top, 0px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(230, 232, 228, 0.45);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.bc-battery {
+  position: relative;
+  width: 18px;
+  height: 8px;
+  border: 1px solid rgba(230, 232, 228, 0.4);
+  border-radius: 1px;
+  padding: 1px;
+  box-sizing: border-box;
+}
+
+.bc-battery::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 1.5px;
+  width: 2px;
+  height: 4px;
+  background: rgba(230, 232, 228, 0.4);
+  border-radius: 0 1px 1px 0;
+}
+
+.bc-battery-fill {
+  display: block;
+  height: 100%;
+  width: 86%;
+  background: rgba(230, 232, 228, 0.55);
 }
 
 @keyframes bc-rec-blink {
   0%,
-  49% {
+  55% {
     opacity: 1;
   }
-  50%,
+  56%,
   100% {
-    opacity: 0.25;
+    opacity: 0.2;
   }
 }
 
-/* Hide bodycam chrome while inventory / pause eat the frame */
 .hud.hud-inventory-open .bc-overlay,
 .hud:has(.pause.open) .bc-overlay {
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bc-grain {
-    animation: none;
-  }
   .bc-rec-dot {
     animation: none;
   }

@@ -235,8 +235,17 @@ export class GameRenderer {
           ? 1.25
           : 1.5;
     this.targetPixelRatio = Math.min(dpr, Math.max(0.5, settings.resolutionScale) * dpr, qualityCap);
-    this.bodycamPass.applySettings(settings.bodycam);
+    this.bodycamPass.applySettings(settings.bodycam, settings.quality);
     this.resize();
+  }
+
+  /** Feed angular velocity into bodycam motion blur (rad/s). */
+  setBodycamMotion(yawVelocity: number, pitchVelocity: number): void {
+    this.bodycamPass.setMotion(yawVelocity, pitchVelocity);
+  }
+
+  punchBodycamExposure(delta: number): void {
+    this.bodycamPass.punchExposure(delta);
   }
 
   /** Keep the shadow frustum centred on the player so shadows stay crisp. */
@@ -259,12 +268,12 @@ export class GameRenderer {
     this.viewModelCamera.aspect = width / height;
     this.viewModelCamera.updateProjectionMatrix();
     this.bodycamPass.resize(width, height, this.targetPixelRatio);
-    this.bodycamPass.applySettings(this.settings.bodycam);
+    this.bodycamPass.applySettings(this.settings.bodycam, this.settings.quality);
   }
 
-  render(): void {
+  render(dt = 1 / 60): void {
     this.sky.position.copy(this.camera.position);
-    this.bodycamClock += 0.016;
+    this.bodycamClock += dt;
     const usePass = this.bodycamPass.needsPass(this.settings.bodycam);
     if (usePass) this.bodycamPass.begin(this.renderer);
     else this.renderer.clear();
@@ -273,7 +282,7 @@ export class GameRenderer {
     this.renderer.clearDepth();
     this.renderer.render(this.viewModelScene, this.viewModelCamera);
 
-    if (usePass) this.bodycamPass.end(this.renderer, this.bodycamClock);
+    if (usePass) this.bodycamPass.end(this.renderer, this.bodycamClock, dt);
   }
 
   get drawCalls(): number {
