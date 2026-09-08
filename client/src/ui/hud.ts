@@ -1,6 +1,7 @@
 import { el } from './dom';
 import { TOOL_GUN_UI_SLOT } from '../player/inputController';
 import { copyText, lobbyInviteUrl } from './lobbyInvite';
+import { settingsStore } from '../settings/settingsStore';
 
 export interface HudScoreRow {
   id: number;
@@ -207,16 +208,7 @@ export class Hud {
     this.scoreboard = el('div', 'scoreboard');
 
     this.pause = el('div', 'pause');
-    const card = el('div', 'pause-card');
-    card.append(el('h2', '', 'Paused'));
-    const resume = el('button', 'rl-btn primary', 'Resume');
-    const settings = el('button', 'rl-btn', 'Settings');
-    const leave = el('button', 'rl-btn', 'Leave match');
-    resume.addEventListener('click', () => this.onResume?.());
-    settings.addEventListener('click', () => this.onSettings?.());
-    leave.addEventListener('click', () => this.onLeave?.());
-    card.append(resume, settings, leave);
-    this.pause.append(card);
+    this.buildPauseMain();
 
     this.root.append(
       this.hurt,
@@ -570,7 +562,49 @@ export class Hud {
 
   setPaused(open: boolean): void {
     this.pause.classList.toggle('open', open);
+    if (open) this.buildPauseMain();
     if (open && this.wheelOpen) this.cancelWeaponWheel();
+  }
+
+  private buildPauseMain(): void {
+    clearPause(this.pause);
+    const card = el('div', 'pause-card');
+    card.append(el('h2', '', 'Пауза'));
+    card.append(el('p', 'pause-hint', 'Матч на паузе. Продолжите или вернитесь в главное меню.'));
+    const resume = el('button', 'rl-btn primary', 'Продолжить');
+    const settings = el('button', 'rl-btn', 'Настройки');
+    const leave = el('button', 'rl-btn', 'В главное меню');
+    resume.addEventListener('click', () => this.onResume?.());
+    settings.addEventListener('click', () => this.buildPauseSettings());
+    leave.addEventListener('click', () => this.onLeave?.());
+    card.append(resume, settings, leave);
+    this.pause.append(card);
+  }
+
+  private buildPauseSettings(): void {
+    clearPause(this.pause);
+    const card = el('div', 'pause-card');
+    card.append(el('h2', '', 'Настройки'));
+    card.append(el('p', 'pause-hint', 'Быстрые параметры. Полный список — в главном меню.'));
+    const body = el('div', 'pause-settings');
+    const g = settingsStore.value.graphics;
+    const a = settingsStore.value.audio;
+    const c = settingsStore.value.controls;
+
+    body.append(
+      pauseSlider('FOV', g.fov, 70, 110, 1, (v) => settingsStore.patchGraphics({ fov: v })),
+      pauseSlider('Чувствительность', c.sensitivity, 0.4, 6, 0.05, (v) =>
+        settingsStore.patchControls({ sensitivity: v }),
+      ),
+      pauseSlider('Громкость', a.master, 0, 1, 0.01, (v) => settingsStore.patchAudio({ master: v })),
+      pauseSlider('Эффекты', a.effects, 0, 1, 0.01, (v) => settingsStore.patchAudio({ effects: v })),
+    );
+    const back = el('button', 'rl-btn', 'Назад');
+    back.addEventListener('click', () => this.buildPauseMain());
+    const resume = el('button', 'rl-btn primary', 'Продолжить');
+    resume.addEventListener('click', () => this.onResume?.());
+    card.append(body, back, resume);
+    this.pause.append(card);
   }
 
   showToast(text: string): void {
@@ -750,6 +784,37 @@ function slotGlyph(id: string): string {
     default:
       return `<svg ${common}><path d="M8 13h8l2-4"/><path d="M10 13v6H8"/><path d="M7 9h4"/></svg>`;
   }
+}
+
+function clearPause(host: HTMLElement): void {
+  host.replaceChildren();
+}
+
+function pauseSlider(
+  label: string,
+  value: number,
+  min: number,
+  max: number,
+  step: number,
+  onChange: (value: number) => void,
+): HTMLElement {
+  const wrap = el('label', 'rl-field', label);
+  const row = el('div', 'range-wrap');
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  const readout = el('span', '', Number.isInteger(value) ? String(value) : value.toFixed(2));
+  input.addEventListener('input', () => {
+    const v = Number(input.value);
+    readout.textContent = Number.isInteger(v) ? String(v) : v.toFixed(2);
+    onChange(v);
+  });
+  row.append(input, readout);
+  wrap.append(row);
+  return wrap;
 }
 
 function escapeHtml(value: string): string {

@@ -7,17 +7,29 @@ const SET_PIECES: Array<{
   pos: [number, number, number];
   yaw: number;
   bob?: number;
+  scale?: number;
 }> = [
   { id: 'building-h', pos: [-14, 0, -8], yaw: 0.2 },
   { id: 'building-a', pos: [-22, 0, -18], yaw: 0.55 },
+  { id: 'building-j', pos: [-28, 0, -6], yaw: 0.1, scale: 0.9 },
+  { id: 'building-d', pos: [24, 0, -14], yaw: -0.35 },
   { id: 'house-c', pos: [12, 0, -10], yaw: -0.4 },
+  { id: 'house-f', pos: [-6, 0, -24], yaw: 0.7 },
   { id: 'skyscraper-a', pos: [18, 0, -22], yaw: -0.15 },
+  { id: 'skyscraper-c', pos: [-18, 0, -30], yaw: 0.25, scale: 0.85 },
   { id: 'tree-large', pos: [6, 0, 4], yaw: 0.8, bob: 0.035 },
   { id: 'tree-small', pos: [-8, 0, 9], yaw: 1.1, bob: 0.05 },
+  { id: 'tree-large', pos: [14, 0, 8], yaw: -0.4, bob: 0.03, scale: 0.85 },
   { id: 'lamp', pos: [-3, 0, 6], yaw: 0 },
   { id: 'lamp', pos: [8.5, 0, -2], yaw: 0.4 },
+  { id: 'construction-light', pos: [2, 0, 10], yaw: -0.5 },
   { id: 'barrier', pos: [1.6, 0, 8.2], yaw: 1.2 },
+  { id: 'barrier', pos: [-4, 0, 11], yaw: 0.2 },
   { id: 'cone', pos: [-1.2, 0, 7.4], yaw: 0.3 },
+  { id: 'cone', pos: [3.2, 0, 9.1], yaw: 1.1 },
+  { id: 'sign-highway', pos: [0.5, 0, -4], yaw: 0.15 },
+  { id: 'fence', pos: [10, 0, 6], yaw: 1.4 },
+  { id: 'parasol', pos: [-10, 0, 5], yaw: 0.6 },
 ];
 
 /**
@@ -27,7 +39,7 @@ const SET_PIECES: Array<{
 export class MenuBackdrop {
   private renderer: THREE.WebGLRenderer | null = null;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(46, 1, 0.2, 110);
+  private readonly camera = new THREE.PerspectiveCamera(42, 1, 0.2, 140);
   private readonly clock = new THREE.Clock();
   private raf = 0;
   private running = false;
@@ -40,57 +52,71 @@ export class MenuBackdrop {
   private readonly rim: THREE.DirectionalLight;
   private readonly bobbers: Array<{ obj: THREE.Object3D; baseY: number; amp: number; phase: number }> = [];
   private readonly haze: THREE.Mesh;
+  private readonly blurPlane: THREE.Mesh;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.scene.background = new THREE.Color(0x050708);
-    this.scene.fog = new THREE.FogExp2(0x070a0c, 0.028);
+    this.scene.fog = new THREE.FogExp2(0x080b0d, 0.034);
 
-    this.scene.add(new THREE.HemisphereLight(0xa8c0d4, 0x1a1612, 0.48));
+    this.scene.add(new THREE.HemisphereLight(0xa8c0d4, 0x1a1612, 0.42));
 
-    this.sun = new THREE.DirectionalLight(0xffd8b0, 1.45);
+    this.sun = new THREE.DirectionalLight(0xffd8b0, 1.35);
     this.sun.position.set(12, 18, 9);
     this.scene.add(this.sun);
 
-    this.rim = new THREE.DirectionalLight(0xd6ff3d, 0.22);
+    this.rim = new THREE.DirectionalLight(0xd6ff3d, 0.18);
     this.rim.position.set(-8, 6, -10);
     this.scene.add(this.rim);
 
-    this.lamp = new THREE.PointLight(0xd6ff3d, 0.7, 22, 2);
+    this.lamp = new THREE.PointLight(0xd6ff3d, 0.55, 22, 2);
     this.lamp.position.set(-3, 4.2, 6);
     this.scene.add(this.lamp);
 
-    this.lampB = new THREE.PointLight(0xff8a4a, 0.35, 16, 2);
+    this.lampB = new THREE.PointLight(0xff8a4a, 0.32, 16, 2);
     this.lampB.position.set(8.5, 3.8, -2);
     this.scene.add(this.lampB);
 
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(48, 64),
+      new THREE.CircleGeometry(56, 64),
       new THREE.MeshStandardMaterial({ color: 0x101412, roughness: 0.94, metalness: 0.05 }),
     );
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
 
-    const grid = new THREE.GridHelper(44, 32, 0x2f3d30, 0x141916);
+    const grid = new THREE.GridHelper(48, 36, 0x2f3d30, 0x141916);
     (grid.material as THREE.Material).transparent = true;
-    (grid.material as THREE.Material).opacity = 0.18;
+    (grid.material as THREE.Material).opacity = 0.14;
     this.scene.add(grid);
 
     this.haze = new THREE.Mesh(
-      new THREE.PlaneGeometry(60, 18),
+      new THREE.PlaneGeometry(70, 22),
       new THREE.MeshBasicMaterial({
         color: 0xd6ff3d,
         transparent: true,
-        opacity: 0.035,
+        opacity: 0.028,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
     );
-    this.haze.position.set(0, 5, -8);
+    this.haze.position.set(0, 5, -10);
     this.haze.rotation.y = 0.15;
     this.scene.add(this.haze);
 
-    this.particles = makeDust(120, 0xd6ff3d, 0.04, 0.26);
-    this.embers = makeDust(40, 0xff7a45, 0.055, 0.18);
+    // Soft foreground veil — keeps the 3D set atmospheric without fighting UI contrast.
+    this.blurPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(80, 50),
+      new THREE.MeshBasicMaterial({
+        color: 0x050708,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
+    );
+    this.blurPlane.position.set(0, 4, 4);
+    this.scene.add(this.blurPlane);
+
+    this.particles = makeDust(140, 0xd6ff3d, 0.038, 0.22);
+    this.embers = makeDust(48, 0xff7a45, 0.05, 0.16);
     this.scene.add(this.particles, this.embers);
   }
 
@@ -104,8 +130,8 @@ export class MenuBackdrop {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.95;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+    this.renderer.toneMappingExposure = 0.9;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.15));
     this.resize();
     this.running = true;
     this.clock.start();
@@ -121,8 +147,6 @@ export class MenuBackdrop {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
-    // Do NOT force-lose the WebGL context — the same #viewport canvas is reused
-    // by GameSession. Losing it makes the next renderer fail to start.
     this.renderer?.dispose();
     this.renderer = null;
   }
@@ -174,7 +198,7 @@ export class MenuBackdrop {
         continue;
       }
       if (!clone || this.disposed || !this.running) continue;
-      const scale = cityModelScale(piece.id) * 0.42;
+      const scale = cityModelScale(piece.id) * 0.42 * (piece.scale ?? 1);
       clone.scale.setScalar(scale);
       clone.position.set(...piece.pos);
       clone.rotation.y = piece.yaw;
@@ -203,34 +227,35 @@ export class MenuBackdrop {
     if (document.hidden) return;
     const t = this.clock.getElapsedTime();
 
-    const radius = 17.8 + Math.sin(t * 0.09) * 0.7;
-    const yaw = t * 0.028;
-    const elev = 5.9 + Math.sin(t * 0.14) * 0.55;
-    this.camera.position.set(
-      Math.sin(yaw) * radius,
-      elev,
-      Math.cos(yaw) * radius * 0.88,
-    );
+    const radius = 19.2 + Math.sin(t * 0.08) * 0.85;
+    const yaw = t * 0.022;
+    const elev = 6.4 + Math.sin(t * 0.12) * 0.5;
+    this.camera.position.set(Math.sin(yaw) * radius, elev, Math.cos(yaw) * radius * 0.9);
     this.camera.lookAt(
-      Math.sin(t * 0.07) * 0.6,
-      2.0 + Math.sin(t * 0.11) * 0.15,
-      Math.cos(t * 0.05) * 0.4,
+      Math.sin(t * 0.06) * 0.7,
+      2.1 + Math.sin(t * 0.1) * 0.12,
+      Math.cos(t * 0.045) * 0.45,
     );
 
-    this.sun.intensity = 1.28 + Math.sin(t * 0.35) * 0.14;
-    this.lamp.intensity = 0.52 + Math.sin(t * 1.5) * 0.14;
-    this.lampB.intensity = 0.28 + Math.sin(t * 1.1 + 1.2) * 0.1;
-    this.rim.intensity = 0.16 + Math.sin(t * 0.6) * 0.06;
-    this.haze.material instanceof THREE.MeshBasicMaterial &&
-      (this.haze.material.opacity = 0.028 + Math.sin(t * 0.45) * 0.012);
+    this.sun.intensity = 1.2 + Math.sin(t * 0.32) * 0.12;
+    this.lamp.intensity = 0.45 + Math.sin(t * 1.4) * 0.12;
+    this.lampB.intensity = 0.26 + Math.sin(t * 1.05 + 1.2) * 0.08;
+    this.rim.intensity = 0.14 + Math.sin(t * 0.55) * 0.05;
+    if (this.haze.material instanceof THREE.MeshBasicMaterial) {
+      this.haze.material.opacity = 0.022 + Math.sin(t * 0.4) * 0.01;
+    }
     this.haze.rotation.z = Math.sin(t * 0.08) * 0.04;
+    if (this.blurPlane.material instanceof THREE.MeshBasicMaterial) {
+      this.blurPlane.material.opacity = 0.18 + Math.sin(t * 0.25) * 0.04;
+    }
+    this.blurPlane.lookAt(this.camera.position);
 
-    driftParticles(this.particles, 0.0055);
-    driftParticles(this.embers, 0.0035, true);
+    driftParticles(this.particles, 0.005);
+    driftParticles(this.embers, 0.0032, true);
 
     for (const b of this.bobbers) {
       b.obj.position.y = b.baseY + Math.sin(t * 0.7 + b.phase) * b.amp;
-      b.obj.rotation.y += 0.00035;
+      b.obj.rotation.y += 0.0003;
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -256,9 +281,9 @@ function driftParticles(points: THREE.Points, speed: number, swirl = false): voi
 function makeDust(count: number, color: number, size: number, opacity: number): THREE.Points {
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 40;
-    positions[i * 3 + 1] = Math.random() * 9;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 40;
+    positions[i * 3] = (Math.random() - 0.5) * 44;
+    positions[i * 3 + 1] = Math.random() * 10;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 44;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));

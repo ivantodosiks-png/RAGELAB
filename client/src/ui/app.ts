@@ -118,6 +118,27 @@ export class UiApp {
     window.setInterval(() => {
       if (authService.current.status === 'signedIn') void this.refreshBan();
     }, 20_000);
+
+    void this.refreshPresence();
+    window.setInterval(() => void this.refreshPresence(), 12_000);
+  }
+
+  private async refreshPresence(): Promise<void> {
+    try {
+      const rooms = await this.fetchRooms();
+      const playersOnline = rooms.reduce((sum, room) => sum + room.playerCount, 0);
+      this.menu.setPresence({
+        playersOnline,
+        serverLabel: rooms.length > 0 ? `${rooms.length} лобби онлайн` : 'Ожидание лобби',
+        pingMs: rooms[0] ? Math.max(12, Math.round(rooms[0].tickMs * 4)) : null,
+      });
+    } catch {
+      this.menu.setPresence({
+        playersOnline: 0,
+        serverLabel: 'Сервер недоступен',
+        pingMs: null,
+      });
+    }
   }
 
   showMenu(): void {

@@ -540,8 +540,7 @@ export class GameSession {
     this.ui.hud.onResume = () => this.setPaused(false);
     this.ui.hud.onLeave = () => this.ui.onLeaveMatch?.();
     this.ui.hud.onSettings = () => {
-      this.ui.menu.show('settings');
-      this.ui.onLeaveMatch?.();
+      /* Settings open inside the pause overlay — do not leave the match. */
     };
     this.ui.hud.onChat = (text) => this.net?.sendChat(text);
     this.ui.hud.onRespawn = () => {
