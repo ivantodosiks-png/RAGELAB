@@ -577,12 +577,56 @@ input[type='range'] {
 }
 
 
-/* Right HUD: intentionally empty — no ammo, LOW/FULL, or magazine strip. */
+/* Right HUD: intentionally empty — no ammo counts / mag strip panels. */
 .hud-weapon,
 .hud-mag-strip,
 .hud-mag-ico,
 .ww-center-ammo {
   display: none !important;
+}
+
+/* Alt+T mag check — text only, bottom-right */
+.hud-mag-status {
+  position: absolute;
+  right: max(22px, env(safe-area-inset-right, 0px));
+  bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  z-index: 9;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  pointer-events: none;
+  font-family: "Consolas", "Segoe UI Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: rgba(228, 230, 220, 0.72);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+
+.hud-mag-status.is-on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hud-mag-status.is-out {
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+.hud.hud-inventory-open .hud-mag-status,
+.hud:has(.pause.open) .hud-mag-status,
+.hud:has(.death.show) .hud-mag-status {
+  opacity: 0 !important;
 }
 
 .weapon-bar {

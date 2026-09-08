@@ -1325,16 +1325,20 @@ export class GameSession {
   private inspectChamberedMag(): void {
     const weaponId = this.weapon.hasWeapon ? this.weapon.weaponId : null;
     if (!weaponId) {
-      this.ui.hud.showToast('No weapon');
+      this.ui.hud.showMagStatus('EMPTY');
       return;
     }
     const mag = getChamberedMagazine(this.inventory, weaponId);
     if (!mag) {
-      this.ui.hud.showToast('No magazine');
+      this.ui.hud.showMagStatus('EMPTY');
       return;
     }
-    // Exact count only in TAB inventory; inspect stays silent on fill words.
-    this.ui.hud.showToast(`${mag.currentAmmo} / ${mag.capacity}`);
+    // Prefer live chamber count from the weapon controller when available.
+    const ammo = this.weapon.hasWeapon && this.weapon.weaponId === weaponId
+      ? this.weapon.ammoInMag
+      : mag.currentAmmo;
+    const cap = Math.max(1, mag.capacity);
+    this.ui.hud.showMagStatus(magFillLabel(ammo, cap));
   }
 
   private performOfflineMagSwap(): void {
@@ -1466,6 +1470,14 @@ function inFront(origin: Vec3, dir: Vec3, target: Vec3, range: number): boolean 
   const dist = Math.hypot(dx, dy, dz);
   if (dist > range || dist < 0.01) return false;
   return (dx * dir.x + dy * dir.y + dz * dir.z) / dist > 0.72;
+}
+
+function magFillLabel(ammo: number, capacity: number): 'FULL' | 'HALF' | 'LOW' | 'EMPTY' {
+  if (ammo <= 0) return 'EMPTY';
+  const ratio = ammo / Math.max(1, capacity);
+  if (ratio >= 0.85) return 'FULL';
+  if (ratio >= 0.4) return 'HALF';
+  return 'LOW';
 }
 
 function eventHasPlayer(event: GameEvent): boolean {

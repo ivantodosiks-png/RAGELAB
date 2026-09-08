@@ -76,10 +76,12 @@ export class Hud {
   private readonly scope: HTMLElement;
   private readonly bodycam: BodycamOverlay;
   private readonly tips: HTMLElement;
+  private readonly magStatus: HTMLElement;
 
   private hitTimer = 0;
   private hurtTimer = 0;
   private toastTimer = 0;
+  private magStatusTimer = 0;
   private deathEndsAt = 0;
   private chatLines: string[] = [];
   private lastHealth = -1;
@@ -145,6 +147,8 @@ export class Hud {
     this.vitals.append(hpKicker, hpLabel, hpBar, stLabel, stBar);
 
     this.tips = this.buildTips();
+    this.magStatus = el('div', 'hud-mag-status');
+    this.magStatus.setAttribute('aria-live', 'polite');
 
     this.ammoPanel = el('div', 'hud-weapon');
     this.ammoName = el('div', 'name', '—');
@@ -215,6 +219,7 @@ export class Hud {
       this.hitmarker,
       this.vitals,
       this.tips,
+      this.magStatus,
       this.ammoPanel,
       this.weaponBar,
       this.wheel,
@@ -695,6 +700,17 @@ export class Hud {
     this.toastTimer = 2.4;
   }
 
+  /** Tarkov-style mag check: FULL / HALF / LOW / EMPTY — bottom-right, fade only. */
+  showMagStatus(status: 'FULL' | 'HALF' | 'LOW' | 'EMPTY'): void {
+    this.magStatus.textContent = status;
+    this.magStatus.classList.remove('is-out');
+    // Retrigger fade-in if already visible.
+    this.magStatus.classList.remove('is-on');
+    void this.magStatus.offsetWidth;
+    this.magStatus.classList.add('is-on');
+    this.magStatusTimer = 2;
+  }
+
   update(dt: number, nowMs: number): void {
     if (this.hitTimer > 0) {
       this.hitTimer -= dt;
@@ -714,6 +730,14 @@ export class Hud {
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) this.toast.classList.remove('show');
+    }
+    if (this.magStatusTimer > 0) {
+      this.magStatusTimer -= dt;
+      if (this.magStatusTimer <= 0) {
+        this.magStatusTimer = 0;
+        this.magStatus.classList.add('is-out');
+        this.magStatus.classList.remove('is-on');
+      }
     }
     if (this.death.classList.contains('show')) this.updateDeath(nowMs);
   }

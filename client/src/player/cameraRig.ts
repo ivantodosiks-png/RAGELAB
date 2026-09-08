@@ -145,17 +145,18 @@ export class CameraRig {
     if (bodyOn) {
       this.settleNoise = lerp(
         this.settleNoise,
-        grounded && speedRatio < 0.1 ? 0.25 : 0,
-        1 - Math.exp(-2.8 * dt),
+        grounded && speedRatio < 0.1 ? 0.32 : 0,
+        1 - Math.exp(-2.6 * dt),
       );
-      const amp = 0.01 + runGate * 0.014;
+      const amp = 0.012 + runGate * 0.018;
       bobVertical =
         Math.sin(this.bobPhase * 2) * amp * this.bobAmount +
-        Math.sin(this.bobPhase * 0.41) * 0.0025 * this.settleNoise;
+        Math.sin(this.bobPhase * 4.0) * 0.0035 * runGate * this.bobAmount +
+        Math.sin(this.bobPhase * 0.41) * 0.003 * this.settleNoise;
       bobHorizontal =
-        Math.sin(this.bobPhase) * (0.012 + runGate * 0.01) * this.bobAmount +
-        Math.sin(this.bobPhase * 0.27) * 0.0018 * this.settleNoise;
-      bobRoll = Math.sin(this.bobPhase * 0.5) * 0.008 * this.bobAmount;
+        Math.sin(this.bobPhase) * (0.014 + runGate * 0.014) * this.bobAmount +
+        Math.sin(this.bobPhase * 0.27) * 0.0022 * this.settleNoise;
+      bobRoll = Math.sin(this.bobPhase * 0.5) * 0.01 * this.bobAmount + runGate * 0.004 * this.bobAmount;
     } else {
       bobVertical = Math.sin(this.bobPhase * 2) * 0.022 * this.bobAmount;
       bobHorizontal = Math.sin(this.bobPhase) * 0.026 * this.bobAmount;

@@ -726,8 +726,20 @@ export class MainMenu {
         slider('Vignette', bc.vignette, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { vignette: v } }),
         ),
+        slider('Lens aperture', bc.lensAperture, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { lensAperture: v } }),
+        ),
+        slider('Lens size', bc.lensRadius, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { lensRadius: v } }),
+        ),
+        slider('Lens rim', bc.lensRim, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { lensRim: v } }),
+        ),
         slider('Chromatic aberration', bc.chromaticAberration, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { chromaticAberration: v } }),
+        ),
+        slider('Rim softness', bc.edgeBlur, 0, 1, 0.01, (v) =>
+          this.callbacks.patchGraphics({ bodycam: { edgeBlur: v } }),
         ),
         slider('Sensor noise', bc.noise, 0, 1, 0.01, (v) =>
           this.callbacks.patchGraphics({ bodycam: { noise: v } }),

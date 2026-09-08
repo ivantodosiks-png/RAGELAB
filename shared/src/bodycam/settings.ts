@@ -30,11 +30,17 @@ export interface BodycamSettings {
    * @deprecated
    */
   barrelDistortion: number;
-  /** Soft corner darkening 0–1 (no warp). */
+  /** Soft darkening toward aperture edge 0–1 (no warp). */
   vignette: number;
+  /** Circular lens aperture strength 0–1 (outside fades to black). */
+  lensAperture: number;
+  /** Clear circle radius (aspect-corrected). Larger = more playable FOV. */
+  lensRadius: number;
+  /** Soft glass rim at the aperture edge 0–1. */
+  lensRim: number;
   /** Very mild edge chromatic aberration 0–1 (no geometry warp). */
   chromaticAberration: number;
-  /** Deprecated edge softness — kept for saves, unused when distortion-free. */
+  /** Softness near the lens rim only 0–1. */
   edgeBlur: number;
 
   // ── Sensor (post-process) ────────────────────────────────────────────────
@@ -61,21 +67,24 @@ export interface BodycamSettings {
 
 export const DEFAULT_BODYCAM: BodycamSettings = {
   enabled: true,
-  chestHeight: 0.74,
-  forwardOffset: 0.12,
-  pitchBias: -0.03,
-  fovBoost: 6,
-  walkBob: 0.38,
-  runBob: 0.55,
+  chestHeight: 0.73,
+  forwardOffset: 0.13,
+  pitchBias: -0.035,
+  fovBoost: 8,
+  walkBob: 0.48,
+  runBob: 0.68,
   cameraLag: 0,
-  shakeIntensity: 0.55,
+  shakeIntensity: 0.62,
   barrelDistortion: 0,
-  vignette: 0.28,
-  chromaticAberration: 0.12,
-  edgeBlur: 0,
-  noise: 0.18,
-  sharpening: 0.22,
-  motionBlur: 0.22,
+  vignette: 0.34,
+  lensAperture: 0.92,
+  lensRadius: 0.5,
+  lensRim: 0.55,
+  chromaticAberration: 0.16,
+  edgeBlur: 0.35,
+  noise: 0.2,
+  sharpening: 0.24,
+  motionBlur: 0.28,
   autoExposure: true,
   exposureSpeed: 0.95,
   minExposure: 0.5,

@@ -13,13 +13,17 @@ void main() {
 }
 `;
 
-/** Full-frame digital bodycam look — proportional image, no fisheye/warp. */
+/** Circular bodycam aperture — proportional image, no fisheye/warp. */
 const FRAG = /* glsl */ `
 precision highp float;
 uniform sampler2D tDiffuse;
 uniform vec2 uResolution;
 uniform float uVignette;
+uniform float uAperture;
+uniform float uLensRadius;
+uniform float uLensRim;
 uniform float uChroma;
+uniform float uEdgeBlur;
 uniform float uNoise;
 uniform float uSharpen;
 uniform float uMotion;
@@ -44,14 +48,21 @@ void main() {
   vec2 d = uv - vec2(0.5);
   vec2 dn = vec2(d.x * aspect, d.y);
   float dist = length(dn);
-  float edge = smoothstep(0.22, 0.78, dist);
 
-  // No UV warp — keep geometry proportional across the whole frame.
+  // Large circular clear zone (aspect-corrected). Outside fades to black.
+  // lensRadius slider: higher = larger clear circle (more playable FOV).
+  float radius = mix(0.42, 0.62, clamp(uLensRadius, 0.0, 1.0));
+  float fall = 0.045 + (1.0 - uAperture) * 0.04;
+  float outside = smoothstep(radius - fall * 0.35, radius + fall, dist);
+  float inside = 1.0 - outside;
+  float rimBand = smoothstep(radius - 0.028, radius - 0.006, dist)
+                * (1.0 - smoothstep(radius + 0.002, radius + 0.034, dist));
+  float nearRim = smoothstep(radius * 0.72, radius + 0.02, dist);
+
+  // No UV warp — keep geometry proportional.
   vec2 mDir = uMotionDir;
-  float mAmt = uMotion * 0.008;
-
-  // Tiny edge-only CA (samples nearby pixels; does not stretch the image).
-  float ca = uChroma * 0.0018 * edge * edge;
+  float mAmt = uMotion * 0.007;
+  float ca = uChroma * 0.0022 * nearRim * nearRim;
   vec2 radial = normalize(d + 1e-5);
 
   vec3 col;
@@ -62,7 +73,19 @@ void main() {
   if (uMotion > 0.04) {
     vec3 a = texture2D(tDiffuse, uv + mDir * mAmt).rgb;
     vec3 b = texture2D(tDiffuse, uv - mDir * mAmt).rgb;
-    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * 0.35, 0.0, 0.35));
+    col = mix(col, (col + a + b) / 3.0, clamp(uMotion * 0.32, 0.0, 0.32));
+  }
+
+  // Soft focus loss only near the glass rim (not a warp).
+  if (uEdgeBlur > 0.01) {
+    vec2 px = (1.2 + uEdgeBlur * 2.4) / uResolution;
+    vec3 blur =
+      texture2D(tDiffuse, uv + vec2( px.x, 0.0)).rgb +
+      texture2D(tDiffuse, uv + vec2(-px.x, 0.0)).rgb +
+      texture2D(tDiffuse, uv + vec2(0.0,  px.y)).rgb +
+      texture2D(tDiffuse, uv + vec2(0.0, -px.y)).rgb;
+    blur *= 0.25;
+    col = mix(col, blur, clamp(nearRim * uEdgeBlur * 0.55, 0.0, 0.55));
   }
 
   if (uSharpen > 0.01) {
@@ -72,24 +95,35 @@ void main() {
       texture2D(tDiffuse, uv + vec2(0.0, 1.0) / uResolution).rgb +
       texture2D(tDiffuse, uv + vec2(0.0, -1.0) / uResolution).rgb;
     blur *= 0.25;
-    col += (col - blur) * uSharpen * (1.0 - edge * 0.5);
+    col += (col - blur) * uSharpen * inside * (1.0 - nearRim * 0.7);
   }
 
   col *= uExposure;
   col *= uWB;
 
-  // Soft optical corner falloff — darkens only, never warps.
-  float vig = 1.0 - uVignette * pow(clamp(dist * 1.15, 0.0, 1.0), 1.75);
-  col *= vig;
+  // Inner optical vignette inside the clear circle.
+  float inner = smoothstep(radius * 0.28, radius * 0.95, dist);
+  col *= 1.0 - uVignette * inner * 0.55 * inside;
 
   float nAmt = uNoise * uQualityNoise;
   if (nAmt > 0.001) {
     float n = hash(gl_FragCoord.xy + vec2(uTime * 70.0, uTime * 19.0)) - 0.5;
     float dark = 1.0 - smoothstep(0.05, 0.42, luma(col));
-    col += n * nAmt * (0.028 + dark * 0.05);
+    col += n * nAmt * (0.026 + dark * 0.048) * mix(0.35, 1.0, inside);
   }
 
   col = col / (1.0 + col * 0.06);
+
+  // Glass rim: thin dark ring + faint specular (no geometry stretch).
+  float rim = rimBand * uLensRim;
+  col = mix(col, col * 0.12, rim * 0.72);
+  col += rim * 0.055 * vec3(0.92, 0.94, 0.9);
+
+  // Outside aperture → deep black housing (bodycam bezel).
+  col *= mix(1.0, 0.0, outside * uAperture);
+  // Tiny residual ambient so pure black isn't crushing UI bleed.
+  col += (1.0 - inside) * uAperture * 0.008;
+
   gl_FragColor = vec4(clamp(col, 0.0, 4.0), 1.0);
 }
 `;
@@ -138,10 +172,14 @@ export class BodycamPass {
       uniforms: {
         tDiffuse: { value: null as THREE.Texture | null },
         uResolution: { value: new THREE.Vector2(1, 1) },
-        uVignette: { value: 0.28 },
-        uChroma: { value: 0.12 },
-        uNoise: { value: 0.18 },
-        uSharpen: { value: 0.22 },
+        uVignette: { value: 0.34 },
+        uAperture: { value: 0.92 },
+        uLensRadius: { value: 0.5 },
+        uLensRim: { value: 0.55 },
+        uChroma: { value: 0.16 },
+        uEdgeBlur: { value: 0.35 },
+        uNoise: { value: 0.2 },
+        uSharpen: { value: 0.24 },
         uMotion: { value: 0 },
         uMotionDir: { value: new THREE.Vector2(0, 0) },
         uExposure: { value: 1 },
@@ -181,10 +219,15 @@ export class BodycamPass {
       this.wb.set(1, 1, 1);
     }
     const u = this.material.uniforms;
-    u.uVignette!.value = settings.vignette * (quality === 'low' ? 0.75 : 1);
-    u.uChroma!.value = settings.chromaticAberration * (quality === 'low' ? 0.4 : 1);
+    const low = quality === 'low';
+    u.uVignette!.value = settings.vignette * (low ? 0.75 : 1);
+    u.uAperture!.value = settings.lensAperture ?? 0.92;
+    u.uLensRadius!.value = settings.lensRadius ?? 0.5;
+    u.uLensRim!.value = (settings.lensRim ?? 0.55) * (low ? 0.6 : 1);
+    u.uChroma!.value = settings.chromaticAberration * (low ? 0.4 : 1);
+    u.uEdgeBlur!.value = low ? settings.edgeBlur * 0.35 : settings.edgeBlur;
     u.uNoise!.value = settings.noise;
-    u.uSharpen!.value = quality === 'low' ? 0 : settings.sharpening;
+    u.uSharpen!.value = low ? 0 : settings.sharpening;
     u.uQualityNoise!.value = q.noise;
   }
 
