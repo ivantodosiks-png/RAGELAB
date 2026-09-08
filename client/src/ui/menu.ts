@@ -109,7 +109,6 @@ export class MainMenu {
 
     const fx = el('div', 'mm-fx');
     fx.append(
-      el('div', 'mm-forest-fallback'),
       el('div', 'mm-forest'),
       el('div', 'mm-vignette'),
       el('div', 'mm-glow'),

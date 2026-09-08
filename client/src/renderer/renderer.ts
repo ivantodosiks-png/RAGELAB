@@ -224,11 +224,14 @@ export class GameRenderer {
     this.camera.far = settings.renderDistance;
     this.camera.updateProjectionMatrix();
 
-    this.targetPixelRatio = Math.min(
-      window.devicePixelRatio || 1,
-      Math.max(0.5, settings.resolutionScale) * (window.devicePixelRatio || 1),
-      settings.quality === QualityLevel.Low ? 1 : 2,
-    );
+    const dpr = window.devicePixelRatio || 1;
+    const qualityCap =
+      settings.quality === QualityLevel.Low
+        ? 1
+        : settings.quality === QualityLevel.Medium
+          ? 1.25
+          : 1.5;
+    this.targetPixelRatio = Math.min(dpr, Math.max(0.5, settings.resolutionScale) * dpr, qualityCap);
     this.resize();
   }
 

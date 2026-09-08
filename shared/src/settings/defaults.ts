@@ -21,7 +21,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   weapon4: 'Digit4',
   weapon5: 'Digit5',
   weapon6: 'Digit6',
-  weaponWheel: 'KeyQ',
+  weaponWheel: '',
   nextWeapon: 'WheelUp',
   prevWeapon: 'WheelDown',
   scoreboard: 'Tab',

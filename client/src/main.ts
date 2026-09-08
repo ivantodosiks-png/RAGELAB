@@ -7,7 +7,6 @@ import { GAME_SERVER_URL, supabaseConfigured } from './supabase/client';
 import { UiApp, type JoinRequest } from './ui/app';
 import { parseLobbyInvite } from './ui/lobbyInvite';
 import { GameSession } from './core/gameSession';
-import { MenuBackdrop } from './ui/menuBackdrop';
 
 const canvasEl = document.querySelector<HTMLCanvasElement>('#viewport');
 const uiRootEl = document.querySelector<HTMLElement>('#ui-root');
@@ -18,17 +17,22 @@ const uiRoot: HTMLElement = uiRootEl;
 const ui = new UiApp(uiRoot);
 let session: GameSession | null = null;
 let joining = false;
-let backdrop: MenuBackdrop | null = null;
+
+function clearMenuCanvas(): void {
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#070a06';
+    ctx.fillRect(0, 0, canvas.width || canvas.clientWidth, canvas.height || canvas.clientHeight);
+  }
+}
 
 function startMenuWorld(): void {
-  backdrop?.dispose();
-  backdrop = new MenuBackdrop(canvas);
-  backdrop.start();
+  // CSS forest photo only — skip Three.js menu world (was a major lag source).
+  clearMenuCanvas();
 }
 
 function stopMenuWorld(): void {
-  backdrop?.dispose();
-  backdrop = null;
+  // no-op
 }
 
 ui.onJoin = (request) => {

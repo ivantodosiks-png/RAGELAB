@@ -132,7 +132,6 @@ export class GameSession {
   private scores: PlayerScore[] = [];
   private lastButtons = 0;
   private lastUiSlot = 0;
-  private wheelIgnoreHold = false;
   private lastYaw = 0;
   private lastPitch = 0;
   private respawnAt = 0;
@@ -726,7 +725,6 @@ export class GameSession {
       if (this.ui.hud.weaponWheelOpen) {
         this.input.closeWeaponWheel();
         this.ui.hud.cancelWeaponWheel();
-        this.wheelIgnoreHold = true;
       } else if (this.spawnMenu?.isOpen) this.closeSpawnMenu();
       else this.setPaused(!this.paused);
     }
@@ -761,24 +759,10 @@ export class GameSession {
       this.inspectChamberedMag();
     }
 
-    if (!this.input.isActionHeld('weaponWheel')) this.wheelIgnoreHold = false;
-    const canWheel =
-      !this.paused &&
-      this.local.alive &&
-      !this.ui.hud.chatting &&
-      !this.spawnMenu?.isOpen &&
-      !this.sandbox.cursorMode &&
-      !this.wheelIgnoreHold;
-    const wantWheel = canWheel && this.input.isActionHeld('weaponWheel');
-    if (wantWheel && !this.input.weaponWheelOpen) {
-      this.input.openWeaponWheel();
-      this.ui.hud.openWeaponWheel(this.input.uiSlot);
-    } else if (this.input.weaponWheelOpen && !wantWheel) {
-      const slot = this.ui.hud.closeWeaponWheel(true);
+    // Weapon wheel (Q hold) disabled — use hotbar 1–6 instead.
+    if (this.input.weaponWheelOpen) {
+      this.ui.hud.cancelWeaponWheel();
       this.input.closeWeaponWheel();
-      if (slot >= 0) this.input.selectUiSlot(slot);
-    } else if (this.input.weaponWheelOpen) {
-      this.ui.hud.updateWeaponWheel(this.input.wheelCursorX, this.input.wheelCursorY, this.input.uiSlot);
     }
 
     const predicted = this.local.update(dtMs, () => this.input.sample(), this.input.yaw, this.input.pitch, commands);

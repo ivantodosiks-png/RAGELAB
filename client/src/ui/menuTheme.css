@@ -37,22 +37,15 @@
   position: absolute;
   inset: -4%;
   background:
-    #070a06
-    url('/menu/forest.gif') center / cover no-repeat;
-  filter: blur(10px) saturate(0.75) brightness(0.72);
-  transform: scale(1.08);
-  opacity: 0.95;
+    #0a1208
+    url('/menu/forest.jpg') center / cover no-repeat;
+  filter: blur(14px) saturate(0.85) brightness(0.68) hue-rotate(-4deg);
+  transform: scale(1.12);
+  opacity: 1;
 }
 
 .mm-forest-fallback {
-  position: absolute;
-  inset: -4%;
-  background:
-    #070a06
-    url('/menu/forest.jpg') center / cover no-repeat;
-  filter: blur(12px) saturate(0.7) brightness(0.68);
-  transform: scale(1.1);
-  z-index: -1;
+  display: none;
 }
 
 .mm-vignette {

@@ -259,10 +259,10 @@ body {
   position: absolute;
   inset: -8%;
   background:
-    #070a06
-    url('/menu/forest.gif') center / cover no-repeat;
-  filter: blur(12px) saturate(0.7) brightness(0.7);
-  transform: scale(1.1);
+    #0a1208
+    url('/menu/forest.jpg') center / cover no-repeat;
+  filter: blur(14px) saturate(0.85) brightness(0.68) hue-rotate(-4deg);
+  transform: scale(1.12);
 }
 
 .lobby-forest::before,
@@ -274,9 +274,9 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(60% 40% at 50% 70%, rgba(180, 200, 140, 0.06), transparent 70%),
+    radial-gradient(60% 40% at 50% 70%, rgba(180, 200, 140, 0.05), transparent 70%),
     linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 40%, rgba(0, 0, 0, 0.55));
-  animation: lobby-mist-drift 14s ease-in-out infinite alternate;
+  /* Static — animated mist burned CPU on lobby screen. */
 }
 
 .lobby-lamp-pole {
