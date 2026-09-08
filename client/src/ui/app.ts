@@ -129,13 +129,13 @@ export class UiApp {
       const playersOnline = rooms.reduce((sum, room) => sum + room.playerCount, 0);
       this.menu.setPresence({
         playersOnline,
-        serverLabel: rooms.length > 0 ? `${rooms.length} лобби онлайн` : 'Ожидание лобби',
+        serverLabel: rooms.length > 0 ? `${rooms.length} lobbies online` : 'Waiting for lobbies',
         pingMs: rooms[0] ? Math.max(12, Math.round(rooms[0].tickMs * 4)) : null,
       });
     } catch {
       this.menu.setPresence({
         playersOnline: 0,
-        serverLabel: 'Сервер недоступен',
+        serverLabel: 'Server unreachable',
         pingMs: null,
       });
     }
@@ -390,7 +390,7 @@ export class UiApp {
     if (this.blockedByBan()) return;
     const code = normalizeLobbyCode(opts.code);
     if (!isLobbyCode(code)) {
-      this.toast('Введите 6-символьный код лобби.');
+      this.toast('Enter a 6-character lobby code.');
       return;
     }
 
@@ -423,7 +423,7 @@ export class UiApp {
       return;
     }
 
-    this.toast('Лобби не найдено. Админ должен запустить npm run dev и создать лобби.');
+    this.toast('Lobby not found. An admin must run npm run dev and create a lobby.');
   }
 
   private async hostNewRoom(opts: {
@@ -435,7 +435,7 @@ export class UiApp {
   }): Promise<void> {
     if (this.blockedByBan()) return;
     if (!this.menu.isAdmin) {
-      this.toast('Только администратор может создать лобби.');
+      this.toast('Only an administrator can create a lobby.');
       return;
     }
     if (await localGameServerReachable()) {
@@ -443,7 +443,7 @@ export class UiApp {
       this.onJoin?.({ username: this.menu.username, create: opts, mapId: opts.mapId, team: opts.team });
       return;
     }
-    this.toast('Онлайн недоступен. Запустите npm run dev на этом ПК, затем создайте лобби.');
+    this.toast('Online unavailable. Run npm run dev on this PC, then create a lobby.');
   }
 
   get profile(): FullProfile | null {

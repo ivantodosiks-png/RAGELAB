@@ -218,7 +218,7 @@ export class GameSession {
     const net = this.net;
     return new Promise((resolve, reject) => {
       const timeout = window.setTimeout(
-        () => reject(new Error('Не удалось подключиться к игровому серверу.')),
+        () => reject(new Error('Could not connect to the game server.')),
         25_000,
       );
       net.setHandlers({
@@ -490,11 +490,11 @@ export class GameSession {
     this.ui.hideLobbyWait();
     this.ui.showGame();
     if (this.offline) {
-      this.ui.hud.showToast('Офлайн игра');
+      this.ui.hud.showToast('Offline match');
       return;
     }
     if (this.joinCode) {
-      this.ui.hud.showToast(`Лобби ${this.joinCode}`);
+      this.ui.hud.showToast(`Lobby ${this.joinCode}`);
     } else {
       this.ui.hud.showToast(`${this.roomName || this.map.name}`);
     }

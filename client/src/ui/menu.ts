@@ -70,13 +70,13 @@ export interface MenuCallbacks {
 }
 
 const NAV: Array<{ id: MenuScreen; label: string; hero?: boolean; quit?: boolean }> = [
-  { id: 'play', label: 'Играть', hero: true },
-  { id: 'servers', label: 'Серверы' },
-  { id: 'profile', label: 'Профиль' },
-  { id: 'inventory', label: 'Инвентарь' },
-  { id: 'shop', label: 'Магазин' },
-  { id: 'loadout', label: 'Арсенал' },
-  { id: 'settings', label: 'Настройки' },
+  { id: 'play', label: 'Play', hero: true },
+  { id: 'servers', label: 'Servers' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'inventory', label: 'Inventory' },
+  { id: 'shop', label: 'Shop' },
+  { id: 'loadout', label: 'Loadout' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 const INTRO_MS = 1850;
@@ -112,7 +112,7 @@ export class MainMenu {
   private loadoutFocus: WeaponId = 'rifle';
   private presence: MenuPresence = {
     playersOnline: 0,
-    serverLabel: 'Меню',
+    serverLabel: 'Menu',
     pingMs: null,
   };
   private credits = 0;
@@ -177,7 +177,7 @@ export class MainMenu {
       <p class="mm-brand-sub">Browser multiplayer</p>`;
 
     const nav = el('nav', 'mm-nav');
-    nav.setAttribute('aria-label', 'Главное меню');
+    nav.setAttribute('aria-label', 'Main menu');
     for (const item of NAV) {
       const btn = el('button', item.hero ? 'mm-nav-btn is-play' : 'mm-nav-btn', '');
       btn.type = 'button';
@@ -192,17 +192,17 @@ export class MainMenu {
       this.navOrder.push(item.id);
     }
 
-    this.adminBtn = el('button', 'mm-nav-btn', 'Админ');
+    this.adminBtn = el('button', 'mm-nav-btn', 'Admin');
     this.adminBtn.type = 'button';
     this.adminBtn.hidden = true;
     this.adminBtn.addEventListener('click', () => this.show('admin'));
     nav.append(this.adminBtn);
     this.navButtons.set('admin', this.adminBtn);
 
-    const quit = el('button', 'mm-nav-btn is-quit', 'Выйти');
+    const quit = el('button', 'mm-nav-btn is-quit', 'Quit');
     quit.type = 'button';
     quit.addEventListener('click', () => {
-      if (window.confirm('Покинуть RAGELAB?')) this.callbacks.quit();
+      if (window.confirm('Leave RAGELAB?')) this.callbacks.quit();
     });
     nav.append(quit);
     rail.append(brand, nav);
@@ -210,7 +210,7 @@ export class MainMenu {
     const main = el('div', 'mm-main');
     this.playerCard = el('button', 'mm-player-card');
     this.playerCard.type = 'button';
-    this.playerCard.title = 'Профиль';
+    this.playerCard.title = 'Profile';
     this.playerCard.addEventListener('click', () => this.show(this.signedIn ? 'profile' : 'auth'));
     this.stage = el('div', 'mm-stage');
     main.append(this.playerCard, this.stage);
@@ -250,10 +250,10 @@ export class MainMenu {
     this.refreshChip();
     this.refreshStatusBar();
     this.status.innerHTML = signedIn
-      ? `в сети как <b>${escapeHtml(username)}</b>`
+      ? `signed in as <b>${escapeHtml(username)}</b>`
       : supabaseReady
-        ? 'гость · войдите, чтобы сохранить прогресс'
-        : 'гость · supabase не настроен';
+        ? 'guest · sign in to keep progress'
+        : 'guest · supabase not configured';
     if (!signedIn) this.setAdmin(false);
     if (
       this.screen === 'auth' ||
@@ -342,12 +342,12 @@ export class MainMenu {
     const pingClass = this.presence.pingMs == null ? '' : this.presence.pingMs < 80 ? 'is-live' : 'is-warn';
     this.statusBar.innerHTML = `
       <div class="mm-status-cluster">
-        <div class="mm-stat-pill"><span>Онлайн</span><b class="is-live"><i class="mm-live-dot"></i>${this.presence.playersOnline}</b></div>
-        <div class="mm-stat-pill"><span>Сервер</span><b>${escapeHtml(this.presence.serverLabel)}</b></div>
-        <div class="mm-stat-pill"><span>Пинг</span><b class="${pingClass}">${ping}</b></div>
+        <div class="mm-stat-pill"><span>Online</span><b class="is-live"><i class="mm-live-dot"></i>${this.presence.playersOnline}</b></div>
+        <div class="mm-stat-pill"><span>Server</span><b>${escapeHtml(this.presence.serverLabel)}</b></div>
+        <div class="mm-stat-pill"><span>Ping</span><b class="${pingClass}">${ping}</b></div>
       </div>
       <div class="mm-status-cluster">
-        <div class="mm-stat-pill"><span>Сессия</span><b>${this.signedIn ? 'Аккаунт' : 'Гость'}</b></div>
+        <div class="mm-stat-pill"><span>Session</span><b>${this.signedIn ? 'Account' : 'Guest'}</b></div>
       </div>`;
   }
 
@@ -423,24 +423,24 @@ export class MainMenu {
   private renderPlay(): void {
     const card = el('div', 'mm-glass mm-hero');
     card.append(el('p', 'mm-kicker', 'Deploy'));
-    card.append(el('h2', '', 'В бой'));
+    card.append(el('h2', '', 'Deploy'));
     card.append(
       el(
         'p',
         'lead',
-        'Онлайн sandbox: стройте, сражайтесь и экспериментируйте. Быстрый старт в локальную сессию или переход к браузеру серверов.',
+        'Online sandbox — build, fight, and experiment. Jump into a local session or open the server browser.',
       ),
     );
 
     const form = el('div', 'rl-form mm-form');
-    const name = inputField('Позывной', this.signedIn ? this.username : this.guestName, !this.signedIn);
+    const name = inputField('Callsign', this.signedIn ? this.username : this.guestName, !this.signedIn);
     const map = selectField(
-      'Карта',
+      'Map',
       MAP_IDS.map((id) => ({ value: id, label: getMap(id).name })),
       DEFAULT_MAP_ID,
     );
     const side = selectField(
-      'Сторона',
+      'Side',
       [
         { value: '1', label: 'Alpha' },
         { value: '2', label: 'Bravo' },
@@ -459,7 +459,7 @@ export class MainMenu {
 
     const play = el('button', 'mm-hero-cta', '');
     play.type = 'button';
-    play.innerHTML = '<span class="mm-play-ico" aria-hidden="true"></span><span>Играть</span>';
+    play.innerHTML = '<span class="mm-play-ico" aria-hidden="true"></span><span>Play</span>';
     play.addEventListener('click', () => {
       play.classList.add('is-pressed');
       const username = this.commitName(name);
@@ -475,13 +475,13 @@ export class MainMenu {
 
     const quick = el('div', 'mm-quick-grid');
     const qServers = el('button', 'mm-quick-card', '');
-    qServers.innerHTML = '<strong>Серверы</strong><span>Лобби и коды приглашений</span>';
+    qServers.innerHTML = '<strong>Servers</strong><span>Lobbies and invite codes</span>';
     qServers.addEventListener('click', () => this.show('servers'));
     const qShop = el('button', 'mm-quick-card', '');
-    qShop.innerHTML = '<strong>Магазин</strong><span>Косметика и редкость</span>';
+    qShop.innerHTML = '<strong>Shop</strong><span>Cosmetics and rarity</span>';
     qShop.addEventListener('click', () => this.show('shop'));
     const qSettings = el('button', 'mm-quick-card', '');
-    qSettings.innerHTML = '<strong>Настройки</strong><span>Графика, звук, управление</span>';
+    qSettings.innerHTML = '<strong>Settings</strong><span>Graphics, audio, controls</span>';
     qSettings.addEventListener('click', () => this.show('settings'));
     quick.append(qServers, qShop, qSettings);
     card.append(quick);
@@ -491,24 +491,24 @@ export class MainMenu {
   private renderServers(): void {
     const card = el('div', 'mm-glass mm-wide');
     card.append(el('p', 'mm-kicker', 'Multiplayer'));
-    card.append(el('h2', '', 'Серверы'));
-    card.append(el('p', 'lead', 'Создайте лобби или подключитесь по коду. В списке — живые комнаты с картой, режимом и пингом.'));
+    card.append(el('h2', '', 'Servers'));
+    card.append(el('p', 'lead', 'Create a lobby or join with a code. Live rooms show map, mode, players, and ping.'));
 
     const grid = el('div', 'mm-mp-grid');
     const createPane = el('div', 'mm-mp-pane');
-    createPane.append(el('h3', '', 'Создать лобби'));
+    createPane.append(el('h3', '', 'Create lobby'));
     const map = selectField(
-      'Карта',
+      'Map',
       MAP_IDS.map((id) => ({ value: id, label: getMap(id).name })),
       DEFAULT_MAP_ID,
     );
     const create = el('button', 'rl-btn primary rl-create-lobby', '');
-    create.innerHTML = '<span class="rl-create-label">Создать</span>';
+    create.innerHTML = '<span class="rl-create-label">Create</span>';
     create.disabled = !this.isAdmin || this.createBusy;
     if (!this.isAdmin) create.classList.add('is-locked');
     if (this.createBusy) {
       create.classList.add('is-loading');
-      create.innerHTML = '<span class="rl-create-spinner" aria-hidden="true"></span><span class="rl-create-label">Создание…</span>';
+      create.innerHTML = '<span class="rl-create-spinner" aria-hidden="true"></span><span class="rl-create-label">Creating…</span>';
     }
     create.addEventListener('click', () => {
       if (!this.isAdmin || this.createBusy) return;
@@ -523,13 +523,13 @@ export class MainMenu {
     });
     createPane.append(map.wrap, create);
     if (!this.isAdmin) {
-      createPane.append(el('p', 'mm-lock-note', 'Создавать лобби могут только администраторы'));
+      createPane.append(el('p', 'mm-lock-note', 'Only administrators can create a lobby'));
     }
 
     const joinPane = el('div', 'mm-mp-pane');
-    joinPane.append(el('h3', '', 'Войти по коду'));
+    joinPane.append(el('h3', '', 'Join with code'));
     const err = el('div', 'rl-error');
-    const code = inputField('Код', this.pendingJoinCode);
+    const code = inputField('Code', this.pendingJoinCode);
     const codeInput = code.input as HTMLInputElement;
     codeInput.maxLength = 6;
     codeInput.autocomplete = 'off';
@@ -541,11 +541,11 @@ export class MainMenu {
       this.pendingJoinCode = next;
       if (codeInput.value !== next) codeInput.value = next;
     });
-    const join = el('button', 'rl-btn primary', 'Подключиться');
+    const join = el('button', 'rl-btn primary', 'Join');
     const go = (): void => {
       const value = normalizeLobbyCode(codeInput.value || this.pendingJoinCode);
       if (!isLobbyCode(value)) {
-        err.textContent = 'Введите 6-символьный код лобби.';
+        err.textContent = 'Enter a 6-character lobby code.';
         return;
       }
       err.textContent = '';
@@ -563,7 +563,7 @@ export class MainMenu {
     card.append(grid);
 
     const listHost = el('div', 'mm-server-list');
-    listHost.textContent = 'Загрузка серверов…';
+    listHost.textContent = 'Loading servers…';
     card.append(listHost);
     this.stage.append(card);
     void this.fillRooms(listHost);
@@ -576,16 +576,16 @@ export class MainMenu {
       const online = rooms.reduce((sum, room) => sum + room.playerCount, 0);
       this.setPresence({
         playersOnline: online,
-        serverLabel: rooms.length > 0 ? `${rooms.length} лобби` : 'Нет лобби',
+        serverLabel: rooms.length > 0 ? `${rooms.length} lobbies` : 'No lobbies',
         pingMs: rooms[0] ? Math.max(12, Math.round(rooms[0].tickMs * 4)) : null,
       });
       if (rooms.length === 0) {
-        listHost.textContent = 'Нет активных лобби. Администратор может создать комнату выше.';
+        listHost.textContent = 'No live lobbies. An administrator can create one above.';
         return;
       }
       clear(listHost);
       const head = el('div', 'mm-server-head');
-      head.innerHTML = '<span>Сервер</span><span>Карта</span><span>Режим</span><span>Игроки</span><span>Пинг</span><span></span>';
+      head.innerHTML = '<span>Server</span><span>Map</span><span>Mode</span><span>Players</span><span>Ping</span><span></span>';
       listHost.append(head);
       for (const room of rooms) {
         const row = el('div', 'mm-server-row');
@@ -596,9 +596,9 @@ export class MainMenu {
           <span>${escapeHtml(room.mode)}</span>
           <span>${room.playerCount}/${room.maxPlayers}</span>
           <span>${ping} ms</span>`;
-        const btn = el('button', 'rl-btn', room.hasPassword ? 'Войти…' : 'Войти');
+        const btn = el('button', 'rl-btn', room.hasPassword ? 'Join…' : 'Join');
         btn.addEventListener('click', () => {
-          const password = room.hasPassword ? window.prompt('Пароль комнаты') ?? '' : undefined;
+          const password = room.hasPassword ? window.prompt('Room password') ?? '' : undefined;
           this.callbacks.play({
             username: this.operatorName(),
             roomId: room.id,
@@ -611,8 +611,8 @@ export class MainMenu {
         listHost.append(row);
       }
     } catch (err) {
-      listHost.textContent = `Сервер недоступен: ${String(err)}`;
-      this.setPresence({ playersOnline: 0, serverLabel: 'Оффлайн', pingMs: null });
+      listHost.textContent = `Server unreachable: ${String(err)}`;
+      this.setPresence({ playersOnline: 0, serverLabel: 'Offline', pingMs: null });
     }
   }
 
@@ -620,8 +620,8 @@ export class MainMenu {
     const card = el('div', 'mm-glass mm-wide mm-loadout');
     const def = getWeapon(this.loadoutFocus);
     card.append(el('p', 'mm-kicker', 'Armory'));
-    card.append(el('h2', '', 'Арсенал'));
-    card.append(el('p', 'lead', 'Превью оружия. В матче используется стандартный loadout; sandbox-пушки подбираются в мире.'));
+    card.append(el('h2', '', 'Loadout'));
+    card.append(el('p', 'lead', 'Weapon preview. Matches use the default loadout; sandbox guns are picked up in-world.'));
 
     const layout = el('div', 'mm-loadout-layout');
     const list = el('div', 'mm-loadout-list');
@@ -646,7 +646,7 @@ export class MainMenu {
     list.append(melee);
     list.append(el('h3', '', 'Equipment'));
     const tool = el('div', 'mm-gun is-static');
-    tool.innerHTML = '<b>Tool Gun</b><i>Слот 6 · spawn / physics</i>';
+    tool.innerHTML = '<b>Tool Gun</b><i>Slot 6 · spawn / physics</i>';
     list.append(tool);
 
     const show = el('div', 'mm-loadout-show');
@@ -669,11 +669,11 @@ export class MainMenu {
   private renderInventory(): void {
     const card = el('div', 'mm-glass mm-wide');
     card.append(el('p', 'mm-kicker', 'Locker'));
-    card.append(el('h2', '', 'Инвентарь'));
+    card.append(el('h2', '', 'Inventory'));
 
     if (!this.signedIn || !this.profile) {
-      card.append(el('p', 'lead', 'Войдите, чтобы загрузить косметику и постоянный инвентарь.'));
-      const go = el('button', 'rl-btn primary', 'Войти');
+      card.append(el('p', 'lead', 'Sign in to load cosmetics and persistent inventory from your profile.'));
+      const go = el('button', 'rl-btn primary', 'Sign in');
       go.addEventListener('click', () => this.show('auth'));
       card.append(go);
       this.stage.append(card);
@@ -688,7 +688,7 @@ export class MainMenu {
     }
 
     if (this.profile.cosmetics.length === 0) {
-      card.append(el('p', 'lead', 'Каталог косметики на сервере пока пуст.'));
+      card.append(el('p', 'lead', 'No cosmetic catalog is configured on this server yet.'));
       this.stage.append(card);
       return;
     }
@@ -701,9 +701,9 @@ export class MainMenu {
         <span class="mm-inv-ico">${item.itemType[0]?.toUpperCase() ?? '?'}</span>
         <b>${escapeHtml(item.name)}</b>
         <i>${escapeHtml(item.itemType)} · ${escapeHtml(item.rarity)}</i>
-        <em>${have ? `×${counts.get(item.id) ?? 1}` : 'Закрыто'}</em>`;
+        <em>${have ? `×${counts.get(item.id) ?? 1}` : 'Locked'}</em>`;
       if (have) {
-        const btn = el('button', 'rl-btn', equipped.has(item.id) ? 'Надето' : 'Надеть');
+        const btn = el('button', 'rl-btn', equipped.has(item.id) ? 'Equipped' : 'Equip');
         btn.disabled = equipped.has(item.id);
         btn.addEventListener('click', () => this.callbacks.equipCosmetic(item.id));
         tile.append(btn);
@@ -717,16 +717,16 @@ export class MainMenu {
   private renderShop(): void {
     const card = el('div', 'mm-glass mm-wide');
     card.append(el('p', 'mm-kicker', 'Store'));
-    card.append(el('h2', '', 'Магазин'));
-    card.append(el('p', 'lead', 'Косметика по категориям. Цена зависит от редкости. Покупка списывает локальные кредиты (CR).'));
+    card.append(el('h2', '', 'Shop'));
+    card.append(el('p', 'lead', 'Cosmetics by category. Price scales with rarity. Purchases spend local credits (CR).'));
 
     const tabs = el('div', 'mm-cat-tabs');
     for (const [id, label] of [
-      ['all', 'Все'],
-      ['suit', 'Костюмы'],
-      ['tracer', 'Трассеры'],
-      ['charm', 'Брелоки'],
-      ['title', 'Титулы'],
+      ['all', 'All'],
+      ['suit', 'Suits'],
+      ['tracer', 'Tracers'],
+      ['charm', 'Charms'],
+      ['title', 'Titles'],
     ] as const) {
       const btn = el('button', this.shopCategory === id ? 'is-on' : '', label);
       btn.addEventListener('click', () => {
@@ -752,24 +752,24 @@ export class MainMenu {
         <span class="mm-shop-ico">${item.itemType[0]?.toUpperCase() ?? '?'}</span>
         <b>${escapeHtml(item.name)}</b>
         <i>${escapeHtml(item.itemType)} · ${escapeHtml(item.rarity)}</i>
-        <em>${have ? 'В инвентаре' : `${formatCredits(price)} CR`}</em>`;
-      const btn = el('button', 'rl-btn', have ? 'Надеть' : 'Купить');
+        <em>${have ? 'Owned' : `${formatCredits(price)} CR`}</em>`;
+      const btn = el('button', 'rl-btn', have ? 'Equip' : 'Buy');
       if (have) {
         btn.addEventListener('click', () => {
           if (this.signedIn) this.callbacks.equipCosmetic(item.id);
           else {
-            this.shopNotice = 'Войдите, чтобы экипировать предмет.';
+            this.shopNotice = 'Sign in to equip this item.';
             this.render();
           }
         });
       } else {
         btn.addEventListener('click', () => {
           if (!this.spendCredits(price)) {
-            this.shopNotice = 'Недостаточно кредитов.';
+            this.shopNotice = 'Not enough credits.';
             this.render();
             return;
           }
-          this.shopNotice = `Куплено: ${item.name}. Предметы аккаунта разблокируются прогрессом на сервере.`;
+          this.shopNotice = `Purchased: ${item.name}. Account items unlock through server progression.`;
           this.render();
         });
       }
@@ -777,7 +777,7 @@ export class MainMenu {
       grid.append(tile);
     }
     if (shown === 0) {
-      card.append(el('p', 'lead', 'В этой категории пока нет предметов. Войдите, чтобы загрузить каталог.'));
+      card.append(el('p', 'lead', 'Nothing in this category yet. Sign in to load the catalog.'));
     } else {
       card.append(grid);
     }
@@ -787,10 +787,10 @@ export class MainMenu {
   private renderProfile(): void {
     const card = el('div', 'mm-glass mm-wide');
     card.append(el('p', 'mm-kicker', 'Operator'));
-    card.append(el('h2', '', 'Профиль'));
+    card.append(el('h2', '', 'Profile'));
     if (!this.signedIn || !this.profile) {
-      card.append(el('p', 'lead', 'Войдите, чтобы видеть аватар, уровень, статистику и достижения.'));
-      const go = el('button', 'rl-btn primary', 'Войти');
+      card.append(el('p', 'lead', 'Sign in to see your avatar, level, stats, and achievements.'));
+      const go = el('button', 'rl-btn primary', 'Sign in');
       go.addEventListener('click', () => this.show('auth'));
       card.append(go);
       this.stage.append(card);
@@ -809,25 +809,25 @@ export class MainMenu {
     }
     const meta = el('div');
     meta.innerHTML = `<h3 style="margin:0 0 6px;font-family:var(--display);letter-spacing:.12em;text-transform:uppercase">${escapeHtml(p.profile.username)}</h3>
-      <p class="lead" style="margin:0">Уровень ${s.level} · ${formatCredits(this.displayCredits())} CR · ${formatPlaytime(s.playtimeSeconds)}</p>`;
+      <p class="lead" style="margin:0">Level ${s.level} · ${formatCredits(this.displayCredits())} CR · ${formatPlaytime(s.playtimeSeconds)}</p>`;
     hero.append(avatar, meta);
     card.append(hero);
 
     const form = el('div', 'rl-form mm-form');
-    const name = inputField('Никнейм', p.profile.username);
-    const avatarUrl = inputField('URL аватара', p.profile.avatarUrl ?? '');
+    const name = inputField('Username', p.profile.username);
+    const avatarUrl = inputField('Avatar URL', p.profile.avatarUrl ?? '');
     const err = el('div', 'rl-error');
-    const save = el('button', 'rl-btn primary', 'Сохранить');
+    const save = el('button', 'rl-btn primary', 'Save');
     save.addEventListener('click', async () => {
       err.textContent = '';
       const message = await this.callbacks.saveProfile(
         (name.input as HTMLInputElement).value.trim(),
         (avatarUrl.input as HTMLInputElement).value.trim(),
       );
-      err.textContent = message ?? 'Сохранено.';
+      err.textContent = message ?? 'Saved.';
       this.refreshChip();
     });
-    const account = el('button', 'rl-btn', 'Аккаунт');
+    const account = el('button', 'rl-btn', 'Account');
     account.addEventListener('click', () => this.show('auth'));
     form.append(name.wrap, avatarUrl.wrap, err, save, account);
     card.append(form);
@@ -835,14 +835,14 @@ export class MainMenu {
     const kd = s.deaths > 0 ? (s.kills / s.deaths).toFixed(2) : String(s.kills);
     const stats = el('div', 'stat-grid');
     for (const [label, value] of [
-      ['Уровень', String(s.level)],
+      ['Level', String(s.level)],
       ['XP', String(s.xp)],
-      ['Победы', String(s.wins)],
-      ['Убийства', String(s.kills)],
-      ['Смерти', String(s.deaths)],
+      ['Wins', String(s.wins)],
+      ['Kills', String(s.kills)],
+      ['Deaths', String(s.deaths)],
       ['K/D', kd],
-      ['Хедшоты', String(s.headshots)],
-      ['Матчи', String(s.matchesPlayed)],
+      ['Headshots', String(s.headshots)],
+      ['Matches', String(s.matchesPlayed)],
     ] as const) {
       const node = el('div', 'stat');
       node.append(el('b', '', value), el('span', '', label));
@@ -862,7 +862,7 @@ export class MainMenu {
     if (this.weaponStats.length > 0) {
       const table = document.createElement('table');
       table.className = 'rl-table';
-      table.innerHTML = `<thead><tr><th>Оружие</th><th>K</th><th>Fired</th><th>Hit</th><th>HS</th></tr></thead><tbody>${this.weaponStats
+      table.innerHTML = `<thead><tr><th>Weapon</th><th>K</th><th>Fired</th><th>Hit</th><th>HS</th></tr></thead><tbody>${this.weaponStats
         .map(
           (w) =>
             `<tr><td>${escapeHtml(w.weaponId)}</td><td>${w.kills}</td><td>${w.shotsFired}</td><td>${w.shotsHit}</td><td>${w.headshots}</td></tr>`,
@@ -872,10 +872,10 @@ export class MainMenu {
     }
 
     if (this.leaderboard.length > 0) {
-      card.append(el('p', 'lead', 'Таблица лидеров'));
+      card.append(el('p', 'lead', 'Leaderboard'));
       const table = document.createElement('table');
       table.className = 'rl-table';
-      table.innerHTML = `<thead><tr><th>#</th><th>Игрок</th><th>K</th><th>D</th><th>Lv</th></tr></thead><tbody>${this.leaderboard
+      table.innerHTML = `<thead><tr><th>#</th><th>Player</th><th>K</th><th>D</th><th>Lv</th></tr></thead><tbody>${this.leaderboard
         .map(
           (row, i) =>
             `<tr><td>${i + 1}</td><td>${escapeHtml(row.username)}</td><td>${row.kills}</td><td>${row.deaths}</td><td>${row.level}</td></tr>`,
@@ -888,29 +888,29 @@ export class MainMenu {
 
   private async renderAdmin(): Promise<void> {
     const card = el('div', 'mm-glass mm-wide');
-    card.append(el('h2', '', 'Админ'));
-    card.append(el('p', 'lead', 'Аккаунты, баны и модерация.'));
+    card.append(el('h2', '', 'Admin'));
+    card.append(el('p', 'lead', 'Registered accounts, bans, and moderation.'));
     this.stage.append(card);
     if (!this.isAdmin) {
-      card.append(el('p', 'rl-error', 'Нужен доступ администратора.'));
+      card.append(el('p', 'rl-error', 'Admin access required.'));
       return;
     }
 
     const tools = el('div', 'rl-admin-tools');
-    const search = inputField('Поиск', this.adminQuery);
+    const search = inputField('Search', this.adminQuery);
     const searchInput = search.input as HTMLInputElement;
     searchInput.placeholder = 'username or email';
     searchInput.addEventListener('input', () => {
       this.adminQuery = searchInput.value;
       this.fillAdminTable(tableHost);
     });
-    const refresh = el('button', 'rl-btn', 'Обновить');
+    const refresh = el('button', 'rl-btn', 'Refresh');
     refresh.addEventListener('click', () => void this.reloadAdminUsers());
     tools.append(search.wrap, refresh);
     card.append(tools);
     if (this.adminNotice) card.append(el('div', 'rl-error', this.adminNotice));
     const tableHost = el('div', 'rl-admin-table');
-    tableHost.textContent = 'Загрузка…';
+    tableHost.textContent = 'Loading…';
     card.append(tableHost);
     if (this.adminUsers.length === 0) {
       await this.reloadAdminUsers(false);
@@ -939,14 +939,14 @@ export class MainMenu {
       return user.username.toLowerCase().includes(needle) || (user.email ?? '').toLowerCase().includes(needle);
     });
     if (rows.length === 0) {
-      host.textContent = this.adminUsers.length === 0 ? 'Игроков пока нет.' : 'Никого не найдено.';
+      host.textContent = this.adminUsers.length === 0 ? 'No registered players yet.' : 'No players match that search.';
       return;
     }
 
     const table = document.createElement('table');
     table.className = 'rl-table';
     table.innerHTML =
-      '<thead><tr><th>Игрок</th><th>Email</th><th>Joined</th><th>Lv</th><th>K/D</th><th>Status</th><th></th></tr></thead>';
+      '<thead><tr><th>Player</th><th>Email</th><th>Joined</th><th>Lv</th><th>K/D</th><th>Status</th><th></th></tr></thead>';
     const body = document.createElement('tbody');
     for (const user of rows) {
       const tr = document.createElement('tr');
@@ -976,14 +976,14 @@ export class MainMenu {
         reason.className = 'rl-input';
         reason.rows = 3;
         reason.maxLength = 280;
-        reason.placeholder = 'Причина бана';
-        const confirm = el('button', 'rl-btn danger', 'Подтвердить');
+        reason.placeholder = 'Ban reason (shown to the player)';
+        const confirm = el('button', 'rl-btn danger', 'Confirm ban');
         confirm.addEventListener('click', async () => {
           this.adminNotice = (await this.callbacks.banUser(user.id, reason.value.trim())) ?? '';
           this.pendingBanId = null;
           await this.reloadAdminUsers();
         });
-        const cancel = el('button', 'rl-btn', 'Отмена');
+        const cancel = el('button', 'rl-btn', 'Cancel');
         cancel.addEventListener('click', () => {
           this.pendingBanId = null;
           this.render();
@@ -1008,13 +1008,13 @@ export class MainMenu {
   private renderSettings(): void {
     const card = el('div', 'mm-glass mm-wide');
     card.append(el('p', 'mm-kicker', 'System'));
-    card.append(el('h2', '', 'Настройки'));
+    card.append(el('h2', '', 'Settings'));
     const tabs = el('div', 'mm-tabs');
     for (const [id, label] of [
-      ['video', 'Графика'],
-      ['audio', 'Звук'],
-      ['controls', 'Управление'],
-      ['interface', 'Интерфейс'],
+      ['video', 'Video'],
+      ['audio', 'Audio'],
+      ['controls', 'Controls'],
+      ['interface', 'Interface'],
     ] as const) {
       const btn = el('button', this.settingsTab === id ? 'is-on' : '', label);
       btn.addEventListener('click', () => {
@@ -1030,23 +1030,23 @@ export class MainMenu {
     const c = this.settings.controls;
 
     if (this.settingsTab === 'video') {
-      const quality = selectField('Качество', ['low', 'medium', 'high', 'ultra'], g.quality);
+      const quality = selectField('Graphics', ['low', 'medium', 'high', 'ultra'], g.quality);
       quality.input.addEventListener('change', () => {
         this.callbacks.applyQuality((quality.input as HTMLSelectElement).value as QualityLevelId);
       });
       body.append(
         quality.wrap,
-        slider('Поле зрения', g.fov, 70, 110, 1, (v) => this.callbacks.patchGraphics({ fov: v })),
-        slider('Масштаб разрешения', g.resolutionScale, 0.5, 1.5, 0.05, (v) =>
+        slider('Field of view', g.fov, 70, 110, 1, (v) => this.callbacks.patchGraphics({ fov: v })),
+        slider('Resolution scale', g.resolutionScale, 0.5, 1.5, 0.05, (v) =>
           this.callbacks.patchGraphics({ resolutionScale: v }),
         ),
-        slider('Дальность отрисовки', g.renderDistance, 80, 400, 10, (v) =>
+        slider('Render distance', g.renderDistance, 80, 400, 10, (v) =>
           this.callbacks.patchGraphics({ renderDistance: v }),
         ),
-        checkbox('Тени', g.shadows, (v) => this.callbacks.patchGraphics({ shadows: v })),
-        checkbox('Сглаживание', g.antialias, (v) => this.callbacks.patchGraphics({ antialias: v })),
+        checkbox('Shadows', g.shadows, (v) => this.callbacks.patchGraphics({ shadows: v })),
+        checkbox('Antialias', g.antialias, (v) => this.callbacks.patchGraphics({ antialias: v })),
       );
-      const full = el('button', 'rl-btn', document.fullscreenElement ? 'Выйти из fullscreen' : 'Fullscreen');
+      const full = el('button', 'rl-btn', document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen');
       full.addEventListener('click', () => {
         if (document.fullscreenElement) void document.exitFullscreen();
         else void document.documentElement.requestFullscreen();
@@ -1055,42 +1055,42 @@ export class MainMenu {
       body.append(full);
     } else if (this.settingsTab === 'audio') {
       body.append(
-        slider('Общая громкость', a.master, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ master: v })),
-        slider('Музыка', a.music, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ music: v })),
-        slider('Эффекты', a.effects, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ effects: v })),
-        slider('Голос', a.voice, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ voice: v })),
-        slider('Интерфейс', a.ui, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ui: v })),
-        slider('Амбиент', a.ambience, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ambience: v })),
+        slider('Master volume', a.master, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ master: v })),
+        slider('Music', a.music, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ music: v })),
+        slider('Effects', a.effects, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ effects: v })),
+        slider('Voice', a.voice, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ voice: v })),
+        slider('Interface', a.ui, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ui: v })),
+        slider('Ambience', a.ambience, 0, 1, 0.01, (v) => this.callbacks.patchAudio({ ambience: v })),
       );
     } else if (this.settingsTab === 'controls') {
       body.append(
-        slider('Чувствительность мыши', c.sensitivity, 0.4, 6, 0.05, (v) =>
+        slider('Mouse sensitivity', c.sensitivity, 0.4, 6, 0.05, (v) =>
           this.callbacks.patchControls({ sensitivity: v }),
         ),
-        slider('Чувствительность прицела', c.aimSensitivityMultiplier, 0.2, 1.5, 0.05, (v) =>
+        slider('ADS sensitivity', c.aimSensitivityMultiplier, 0.2, 1.5, 0.05, (v) =>
           this.callbacks.patchControls({ aimSensitivityMultiplier: v }),
         ),
-        checkbox('Инверсия Y', c.invertY, (v) => this.callbacks.patchControls({ invertY: v })),
-        checkbox('Переключение спринта', c.toggleSprint, (v) => this.callbacks.patchControls({ toggleSprint: v })),
-        checkbox('Переключение приседа', c.toggleCrouch, (v) => this.callbacks.patchControls({ toggleCrouch: v })),
-        checkbox('Переключение прицела', c.toggleAim, (v) => this.callbacks.patchControls({ toggleAim: v })),
-        el('p', 'lead', 'Привязки — нажмите кнопку, затем новую клавишу'),
+        checkbox('Invert Y', c.invertY, (v) => this.callbacks.patchControls({ invertY: v })),
+        checkbox('Toggle sprint', c.toggleSprint, (v) => this.callbacks.patchControls({ toggleSprint: v })),
+        checkbox('Toggle crouch', c.toggleCrouch, (v) => this.callbacks.patchControls({ toggleCrouch: v })),
+        checkbox('Toggle aim', c.toggleAim, (v) => this.callbacks.patchControls({ toggleAim: v })),
+        el('p', 'lead', 'Bindings — click a key, then press a new one'),
       );
       for (const [action, label] of Object.entries(ACTION_LABELS)) {
         const row = el('div', 'bind-row');
         row.append(el('span', '', label));
         const btn = el('button', 'rl-btn bind-key', formatCode(c.bindings[action] ?? ''));
-        if (this.rebinding === action) btn.textContent = 'Нажмите…';
+        if (this.rebinding === action) btn.textContent = 'Press a key…';
         btn.addEventListener('click', () => this.beginRebind(action, btn));
         row.append(btn);
         body.append(row);
       }
     } else {
       body.append(
-        checkbox('Показывать FPS', g.showFps, (v) => this.callbacks.patchGraphics({ showFps: v })),
-        checkbox('Показывать пинг', g.showPing, (v) => this.callbacks.patchGraphics({ showPing: v })),
+        checkbox('Show FPS', g.showFps, (v) => this.callbacks.patchGraphics({ showFps: v })),
+        checkbox('Show ping', g.showPing, (v) => this.callbacks.patchGraphics({ showPing: v })),
         checkbox('Debug overlay', g.debugOverlay, (v) => this.callbacks.patchGraphics({ debugOverlay: v })),
-        el('p', 'lead', 'Прицел, тряска камеры и sway оружия управляются отдачей в матче.'),
+        el('p', 'lead', 'Crosshair, camera shake, and weapon sway are driven in-match by recoil.'),
       );
     }
     card.append(body);
@@ -1099,7 +1099,7 @@ export class MainMenu {
 
   private beginRebind(action: string, btn: HTMLButtonElement): void {
     this.rebinding = action;
-    btn.textContent = 'Нажмите…';
+    btn.textContent = 'Press a key…';
     const onKey = (event: KeyboardEvent): void => {
       event.preventDefault();
       window.removeEventListener('keydown', onKey, true);
@@ -1122,15 +1122,15 @@ export class MainMenu {
 
   private renderAuth(): void {
     const card = el('div', 'mm-glass');
-    card.append(el('h2', '', this.signedIn ? 'Аккаунт' : 'Вход'));
+    card.append(el('h2', '', this.signedIn ? 'Account' : 'Sign in'));
     if (!this.supabaseReady) {
-      card.append(el('p', 'lead', 'Ключи Supabase не заданы в .env. Гостевая игра всё ещё доступна.'));
+      card.append(el('p', 'lead', 'Supabase public keys are missing from .env. Guest play still works.'));
       this.stage.append(card);
       return;
     }
     if (this.signedIn) {
-      card.append(el('p', 'lead', `Вы вошли как ${this.username}.`));
-      const out = el('button', 'rl-btn', 'Выйти из аккаунта');
+      card.append(el('p', 'lead', `Signed in as ${this.username}.`));
+      const out = el('button', 'rl-btn', 'Sign out');
       out.addEventListener('click', () => this.callbacks.signOut());
       card.append(out);
       this.stage.append(card);
@@ -1141,9 +1141,9 @@ export class MainMenu {
     const login = el('div', 'rl-form mm-form');
     const email = inputField('Email', '');
     (email.input as HTMLInputElement).type = 'email';
-    const password = inputField('Пароль', '');
+    const password = inputField('Password', '');
     (password.input as HTMLInputElement).type = 'password';
-    const signIn = el('button', 'rl-btn primary', 'Войти');
+    const signIn = el('button', 'rl-btn primary', 'Sign in');
     signIn.addEventListener('click', async () => {
       err.textContent = '';
       const message = await this.callbacks.signIn(
@@ -1153,15 +1153,15 @@ export class MainMenu {
       if (message) err.textContent = message;
     });
     login.append(email.wrap, password.wrap, signIn);
-    card.append(login, el('p', 'lead', 'Новый игрок?'), err);
+    card.append(login, el('p', 'lead', 'New here?'), err);
 
     const signup = el('div', 'rl-form mm-form');
-    const user = inputField('Никнейм', '');
+    const user = inputField('Username', '');
     const email2 = inputField('Email', '');
     (email2.input as HTMLInputElement).type = 'email';
-    const pass2 = inputField('Пароль', '');
+    const pass2 = inputField('Password', '');
     (pass2.input as HTMLInputElement).type = 'password';
-    const create = el('button', 'rl-btn', 'Создать аккаунт');
+    const create = el('button', 'rl-btn', 'Create account');
     create.addEventListener('click', async () => {
       err.textContent = '';
       const message = await this.callbacks.signUp(
@@ -1218,12 +1218,12 @@ function mapLabel(mapId: string): string {
 
 function buildAchievements(s: { kills: number; wins: number; headshots: number; level: number; matchesPlayed: number }) {
   return [
-    { title: 'Первая кровь', desc: '1 убийство', done: s.kills >= 1 },
-    { title: 'Ветеран двора', desc: '10 матчей', done: s.matchesPlayed >= 10 },
-    { title: 'Снайпер', desc: '25 хедшотов', done: s.headshots >= 25 },
-    { title: 'Чемпион', desc: '5 побед', done: s.wins >= 5 },
-    { title: 'Оператор', desc: 'Уровень 10', done: s.level >= 10 },
-    { title: 'Легенда', desc: 'Уровень 25', done: s.level >= 25 },
+    { title: 'First Blood', desc: 'Get 1 kill', done: s.kills >= 1 },
+    { title: 'Yard Veteran', desc: 'Play 10 matches', done: s.matchesPlayed >= 10 },
+    { title: 'Sharpshooter', desc: 'Land 25 headshots', done: s.headshots >= 25 },
+    { title: 'Champion', desc: 'Win 5 matches', done: s.wins >= 5 },
+    { title: 'Operator', desc: 'Reach level 10', done: s.level >= 10 },
+    { title: 'Legend', desc: 'Reach level 25', done: s.level >= 25 },
   ];
 }
 
@@ -1298,13 +1298,13 @@ function formatNum(value: number): string {
 }
 
 function formatCredits(value: number): string {
-  return Math.round(value).toLocaleString('ru-RU');
+  return Math.round(value).toLocaleString('en-US');
 }
 
 function formatPlaytime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${h}ч ${m}м`;
+  return `${h}h ${m}m`;
 }
 
 function loadCredits(): number {

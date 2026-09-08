@@ -68,7 +68,7 @@ function cyl(
 
 /**
  * Compact first-person Tool Gun. Shared-style materials, low-poly boxes/cylinders
- * only вЂ” cheap enough to keep in the view-model pass every frame.
+ * only — cheap enough to keep in the view-model pass every frame.
  */
 export function buildToolGunMesh(disposables: Array<{ dispose(): void }>): THREE.Group {
   const root = new THREE.Group();

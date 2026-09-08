@@ -569,11 +569,11 @@ export class Hud {
   private buildPauseMain(): void {
     clearPause(this.pause);
     const card = el('div', 'pause-card');
-    card.append(el('h2', '', 'Пауза'));
-    card.append(el('p', 'pause-hint', 'Матч на паузе. Продолжите или вернитесь в главное меню.'));
-    const resume = el('button', 'rl-btn primary', 'Продолжить');
-    const settings = el('button', 'rl-btn', 'Настройки');
-    const leave = el('button', 'rl-btn', 'В главное меню');
+    card.append(el('h2', '', 'Paused'));
+    card.append(el('p', 'pause-hint', 'Match paused. Resume or return to the main menu.'));
+    const resume = el('button', 'rl-btn primary', 'Resume');
+    const settings = el('button', 'rl-btn', 'Settings');
+    const leave = el('button', 'rl-btn', 'Main menu');
     resume.addEventListener('click', () => this.onResume?.());
     settings.addEventListener('click', () => this.buildPauseSettings());
     leave.addEventListener('click', () => this.onLeave?.());
@@ -584,8 +584,8 @@ export class Hud {
   private buildPauseSettings(): void {
     clearPause(this.pause);
     const card = el('div', 'pause-card');
-    card.append(el('h2', '', 'Настройки'));
-    card.append(el('p', 'pause-hint', 'Быстрые параметры. Полный список — в главном меню.'));
+    card.append(el('h2', '', 'Settings'));
+    card.append(el('p', 'pause-hint', 'Quick options. Full settings live in the main menu.'));
     const body = el('div', 'pause-settings');
     const g = settingsStore.value.graphics;
     const a = settingsStore.value.audio;
@@ -593,15 +593,15 @@ export class Hud {
 
     body.append(
       pauseSlider('FOV', g.fov, 70, 110, 1, (v) => settingsStore.patchGraphics({ fov: v })),
-      pauseSlider('Чувствительность', c.sensitivity, 0.4, 6, 0.05, (v) =>
+      pauseSlider('Sensitivity', c.sensitivity, 0.4, 6, 0.05, (v) =>
         settingsStore.patchControls({ sensitivity: v }),
       ),
-      pauseSlider('Громкость', a.master, 0, 1, 0.01, (v) => settingsStore.patchAudio({ master: v })),
-      pauseSlider('Эффекты', a.effects, 0, 1, 0.01, (v) => settingsStore.patchAudio({ effects: v })),
+      pauseSlider('Master volume', a.master, 0, 1, 0.01, (v) => settingsStore.patchAudio({ master: v })),
+      pauseSlider('Effects', a.effects, 0, 1, 0.01, (v) => settingsStore.patchAudio({ effects: v })),
     );
-    const back = el('button', 'rl-btn', 'Назад');
+    const back = el('button', 'rl-btn', 'Back');
     back.addEventListener('click', () => this.buildPauseMain());
-    const resume = el('button', 'rl-btn primary', 'Продолжить');
+    const resume = el('button', 'rl-btn primary', 'Resume');
     resume.addEventListener('click', () => this.onResume?.());
     card.append(body, back, resume);
     this.pause.append(card);

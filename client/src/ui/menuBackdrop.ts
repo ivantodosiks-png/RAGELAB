@@ -102,7 +102,7 @@ export class MenuBackdrop {
     this.haze.rotation.y = 0.15;
     this.scene.add(this.haze);
 
-    // Soft foreground veil вЂ” keeps the 3D set atmospheric without fighting UI contrast.
+    // Soft foreground veil — keeps the 3D set atmospheric without fighting UI contrast.
     this.blurPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(80, 50),
       new THREE.MeshBasicMaterial({
