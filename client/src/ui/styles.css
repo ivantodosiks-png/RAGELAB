@@ -44,6 +44,11 @@ body {
   color: var(--text);
   font-family: var(--font);
   letter-spacing: 0.02em;
+  /* Sharp LCD text — avoid grayscale AA that softens/grainy glyphs on Windows. */
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 #app,
@@ -51,6 +56,12 @@ body {
 #ui-root {
   position: fixed;
   inset: 0;
+}
+
+#ui-root {
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
 }
 
 #viewport {

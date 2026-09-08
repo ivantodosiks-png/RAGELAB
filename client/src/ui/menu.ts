@@ -290,6 +290,7 @@ export class MainMenu {
     pmc.type = 'button';
     pmc.innerHTML = `
       <div class="tk-faction-art tk-faction-art--pmc" aria-hidden="true">
+        <img src="/menu/pmc-usec.png" alt="" loading="lazy" decoding="async" />
         <span class="tk-faction-art-mark">01</span>
       </div>
       <div class="tk-faction-body">
@@ -304,6 +305,7 @@ export class MainMenu {
     scav.type = 'button';
     scav.innerHTML = `
       <div class="tk-faction-art tk-faction-art--scav" aria-hidden="true">
+        <img src="/menu/scav-dikij.png" alt="" loading="lazy" decoding="async" />
         <span class="tk-faction-art-mark">02</span>
       </div>
       <div class="tk-faction-body">
