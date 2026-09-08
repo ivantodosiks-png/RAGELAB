@@ -34,23 +34,6 @@ export class LobbyWait {
         <div class="lobby-lamp-arm"></div>
         <div class="lobby-lamp-bulb"></div>
         <div class="lobby-lamp-glow"></div>
-      </div>
-      <div class="lobby-sign" aria-hidden="true">
-        <div class="lobby-sign-board">
-          <div class="lobby-sign-hooks" aria-hidden="true">
-            <span class="lobby-sign-hook lobby-sign-hook--l"></span>
-            <span class="lobby-sign-hook lobby-sign-hook--r"></span>
-          </div>
-          <span class="lobby-sign-escape">ESCAPE FROM</span>
-          <span class="lobby-sign-russia" aria-label="RUSSIA">
-            <i class="is-hang" style="--tilt:-5deg;--len:18px;--delay:0s;--dur:3.1s">R</i>
-            <i class="is-hang" style="--tilt:4deg;--len:24px;--delay:0.18s;--dur:3.7s">U</i>
-            <i class="is-hang" style="--tilt:-7deg;--len:14px;--delay:0.35s;--dur:2.9s">S</i>
-            <i class="is-hang" style="--tilt:6deg;--len:30px;--delay:0.08s;--dur:4.2s">S</i>
-            <i class="is-hang" style="--tilt:-4deg;--len:22px;--delay:0.48s;--dur:3.4s">I</i>
-            <i class="is-hang" style="--tilt:8deg;--len:26px;--delay:0.22s;--dur:3.9s">A</i>
-          </span>
-        </div>
       </div>`;
     this.root.append(bg);
 

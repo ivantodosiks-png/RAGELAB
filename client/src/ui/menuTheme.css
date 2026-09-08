@@ -36,12 +36,12 @@
 
 .mm-forest {
   position: absolute;
-  inset: -2%;
+  inset: -10%;
   background:
-    #1a2418
+    #121810
     url('/menu/hamar-bg.png') center / cover no-repeat;
-  filter: saturate(1.15) brightness(1.05) contrast(1.05);
-  transform: scale(1.04);
+  filter: blur(16px) saturate(1.05) brightness(0.68) contrast(1.08);
+  transform: scale(1.14);
   opacity: 1;
 }
 
@@ -53,22 +53,22 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(70% 60% at 50% 42%, transparent 18%, rgba(0, 0, 0, 0.42) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, transparent 26%, transparent 58%, rgba(0, 0, 0, 0.55) 100%);
+    radial-gradient(58% 52% at 50% 40%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.55) 72%, rgba(0, 0, 0, 0.78) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 28%, transparent 55%, rgba(0, 0, 0, 0.7) 100%);
 }
 
 .mm-glow {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(42% 34% at 72% 22%, rgba(255, 180, 90, 0.14), transparent 70%),
-    radial-gradient(38% 30% at 18% 78%, rgba(60, 110, 90, 0.16), transparent 70%);
+    radial-gradient(40% 32% at 70% 20%, rgba(180, 140, 70, 0.08), transparent 70%),
+    radial-gradient(36% 28% at 20% 78%, rgba(40, 70, 55, 0.1), transparent 70%);
 }
 
 .mm-grain {
   position: absolute;
   inset: 0;
-  opacity: 0.045;
+  opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode: overlay;
 }
@@ -92,13 +92,12 @@
   padding: 0;
 }
 
-.mm-stage.is-map {
-  overflow: hidden;
+.mm-stage.is-deploy {
+  overflow: auto;
 }
 
 .mm-stage.is-switching {
-  opacity: 0.35;
-  transition: opacity 0.09s linear;
+  opacity: 1;
 }
 
 .mm-dock {
@@ -131,7 +130,6 @@
   font-family: var(--tk-display);
   font-size: 11px;
   letter-spacing: 0.08em;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .mm-dock-ico:hover {
@@ -148,7 +146,7 @@
   position: absolute;
   left: 50%;
   bottom: 72px;
-  transform: translateX(-50%) translateY(8px);
+  transform: translateX(-50%);
   z-index: 20;
   padding: 10px 18px;
   background: rgba(0, 0, 0, 0.85);
@@ -159,12 +157,10 @@
   font-size: 14px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s, transform 0.2s;
 }
 
 .mm-lock-toast.is-on {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
 /* —— Home (Tarkov main) —— */
@@ -194,7 +190,6 @@
   margin: 0 0 34px;
   max-width: min(96vw, 1100px);
   isolation: isolate;
-  animation: tk-title-enter 1.15s var(--mm-ease) both;
 }
 
 .tk-title-stack {
@@ -202,54 +197,47 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.12em;
+  gap: 0.14em;
   z-index: 1;
 }
 
 .tk-title-kicker {
   display: block;
   font-family: var(--tk-display);
-  font-size: clamp(15px, 2.6vw, 24px);
+  font-size: clamp(16px, 2.8vw, 26px);
   font-weight: 600;
-  letter-spacing: 0.58em;
+  letter-spacing: 0.55em;
   line-height: 1;
-  text-indent: 0.58em;
+  text-indent: 0.55em;
   text-transform: uppercase;
-  color: rgba(196, 190, 168, 0.78);
-  text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.55),
-    0 0 24px rgba(0, 0, 0, 0.4);
-  animation: tk-title-line 1s var(--mm-ease) 0.08s both;
+  color: rgba(210, 204, 184, 0.82);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
 }
 
 .tk-title-mark {
   display: block;
   position: relative;
   font-family: var(--tk-title);
-  font-size: clamp(68px, 15.5vw, 148px);
+  font-size: clamp(72px, 16vw, 152px);
   font-weight: 800;
   letter-spacing: 0.1em;
   line-height: 0.86;
   text-indent: 0.06em;
   text-transform: uppercase;
-  color: #ebe4d2;
   background: linear-gradient(
     185deg,
-    #f7f1e2 8%,
-    #d8d0ba 42%,
-    #a89f88 78%,
-    #8a8270 100%
+    #f8f3e6 6%,
+    #ddd4be 40%,
+    #b0a690 76%,
+    #8f8774 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   filter:
-    drop-shadow(0 1px 0 rgba(255, 236, 200, 0.18))
+    drop-shadow(0 1px 0 rgba(255, 236, 200, 0.16))
     drop-shadow(0 3px 0 rgba(0, 0, 0, 0.55))
-    drop-shadow(0 18px 36px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 28px rgba(170, 130, 60, 0.22))
-    drop-shadow(0 0 64px rgba(50, 70, 40, 0.2));
-  animation: tk-title-line 1.15s var(--mm-ease) 0.18s both;
+    drop-shadow(0 16px 32px rgba(0, 0, 0, 0.55));
 }
 
 .tk-title-mark::after {
@@ -257,33 +245,10 @@
   position: absolute;
   inset: 8% -2% 4%;
   pointer-events: none;
-  opacity: 0.14;
+  opacity: 0.12;
   mix-blend-mode: soft-light;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   background-size: 140px 140px;
-}
-
-@keyframes tk-title-enter {
-  from {
-    opacity: 0;
-    transform: translateY(22px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes tk-title-line {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-    letter-spacing: 0.72em;
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .tk-logo {
@@ -321,8 +286,6 @@
   align-items: center;
   gap: 4px;
   padding: 18px 28px 8px;
-  transform-origin: 50% -28px;
-  animation: tk-board-sway 5.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55));
 }
 
@@ -393,11 +356,8 @@
   color: #efe6d4;
   text-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12),
-    0 10px 22px rgba(0, 0, 0, 0.65),
-    0 0 24px rgba(255, 170, 60, 0.18);
+    0 10px 22px rgba(0, 0, 0, 0.65);
   padding-top: var(--len, 24px);
-  animation: tk-letter-pendulum var(--dur, 3.6s) cubic-bezier(0.37, 0.01, 0.28, 1) infinite;
-  animation-delay: var(--delay, 0s);
 }
 
 .tk-sign-russia i.is-hang::before {
@@ -426,30 +386,16 @@
 }
 
 @keyframes tk-board-sway {
-  0%,
-  100% {
-    transform: rotate(-1.6deg) translateY(0);
-  }
-  50% {
-    transform: rotate(1.8deg) translateY(2px);
+  from,
+  to {
+    transform: none;
   }
 }
 
 @keyframes tk-letter-pendulum {
-  0% {
-    transform: rotate(var(--tilt, -6deg));
-  }
-  25% {
-    transform: rotate(calc(var(--tilt, -6deg) * -1.35));
-  }
-  50% {
-    transform: rotate(calc(var(--tilt, -6deg) * 0.85));
-  }
-  75% {
-    transform: rotate(calc(var(--tilt, -6deg) * -0.55));
-  }
-  100% {
-    transform: rotate(var(--tilt, -6deg));
+  from,
+  to {
+    transform: none;
   }
 }
 
@@ -503,7 +449,6 @@
   padding: 6px 12px;
   cursor: pointer;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
-  transition: color 0.15s, transform 0.15s, opacity 0.15s;
 }
 
 .tk-nav-link.is-hero {
@@ -513,7 +458,6 @@
 
 .tk-nav-link:hover {
   color: #fff;
-  transform: translateX(4px);
 }
 
 .tk-nav-link.is-locked {
@@ -523,7 +467,6 @@
 
 .tk-nav-link.is-locked:hover {
   color: #9a9c92;
-  transform: none;
 }
 
 .tk-home-foot {
@@ -575,84 +518,148 @@
 
 .tk-faction-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 280px));
-  gap: 18px;
-  width: min(600px, 94vw);
+  grid-template-columns: repeat(2, minmax(0, 300px));
+  gap: 22px;
+  width: min(640px, 94vw);
 }
 
 .tk-faction {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(8, 10, 8, 0.72);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(230, 228, 214, 0.14);
+  background: rgba(8, 10, 8, 0.78);
   color: inherit;
   padding: 0;
   cursor: pointer;
   text-align: left;
   overflow: hidden;
-  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  min-height: 320px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
 .tk-faction:hover:not(.is-locked) {
-  border-color: rgba(255, 255, 255, 0.45);
-  transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  border-color: rgba(236, 232, 214, 0.42);
+}
+
+.tk-faction.is-pmc:hover:not(.is-locked) {
+  border-color: rgba(170, 190, 120, 0.45);
+}
+
+.tk-faction.is-scav {
+  border-color: rgba(160, 120, 80, 0.18);
 }
 
 .tk-faction.is-locked {
-  opacity: 0.48;
+  opacity: 0.55;
   cursor: not-allowed;
+  filter: grayscale(0.35);
 }
 
 .tk-faction-art {
-  height: 140px;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.75)),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 8px);
+  position: relative;
+  height: 168px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .tk-faction-art--pmc {
   background:
-    linear-gradient(160deg, rgba(70, 90, 50, 0.45), rgba(10, 12, 10, 0.9)),
-    radial-gradient(circle at 40% 40%, rgba(180, 190, 150, 0.25), transparent 55%);
+    linear-gradient(180deg, transparent 30%, rgba(6, 8, 6, 0.92) 100%),
+    linear-gradient(125deg, rgba(52, 68, 42, 0.85) 0%, rgba(18, 22, 16, 0.95) 55%, rgba(10, 12, 10, 1) 100%),
+    radial-gradient(ellipse at 35% 40%, rgba(170, 190, 130, 0.28), transparent 58%);
 }
 
 .tk-faction-art--scav {
   background:
-    linear-gradient(160deg, rgba(90, 60, 40, 0.4), rgba(10, 12, 10, 0.9)),
-    radial-gradient(circle at 60% 50%, rgba(160, 120, 80, 0.2), transparent 55%);
+    linear-gradient(180deg, transparent 28%, rgba(8, 7, 6, 0.94) 100%),
+    linear-gradient(145deg, rgba(78, 52, 34, 0.8) 0%, rgba(28, 18, 12, 0.95) 58%, rgba(10, 10, 9, 1) 100%),
+    radial-gradient(ellipse at 65% 45%, rgba(180, 120, 70, 0.22), transparent 55%);
 }
 
-.tk-faction-meta {
-  padding: 14px 16px 16px;
+.tk-faction-art-mark {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  font-family: var(--tk-display);
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(236, 236, 228, 0.12);
+  line-height: 1;
 }
 
-.tk-faction-meta strong {
+.tk-faction-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 18px 20px;
+  flex: 1;
+}
+
+.tk-faction-tag {
+  font-family: var(--tk-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: rgba(180, 178, 160, 0.7);
+}
+
+.tk-faction.is-pmc .tk-faction-tag {
+  color: rgba(160, 180, 120, 0.75);
+}
+
+.tk-faction.is-scav .tk-faction-tag {
+  color: rgba(190, 140, 90, 0.7);
+}
+
+.tk-faction-body strong {
   display: block;
   font-family: var(--tk-display);
-  font-size: 28px;
-  letter-spacing: 0.16em;
+  font-size: clamp(30px, 4vw, 38px);
+  letter-spacing: 0.14em;
   font-weight: 800;
+  line-height: 1;
+  color: #f2efe4;
 }
 
-.tk-faction-meta span {
+.tk-faction.is-scav .tk-faction-body strong {
+  letter-spacing: 0.18em;
+  color: #e8d8c4;
+}
+
+.tk-faction-sub {
   display: block;
-  margin-top: 4px;
   color: var(--mm-muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.tk-faction-cta {
+  margin-top: auto;
+  padding-top: 14px;
+  font-family: var(--tk-display);
   font-size: 12px;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: rgba(224, 122, 47, 0.95);
 }
 
 .tk-lock-badge {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 3px 8px;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  top: 14px;
+  right: 14px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   font-family: var(--tk-display);
   font-size: 11px;
   font-style: normal;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
+  color: rgba(220, 210, 190, 0.85);
 }
 
 .tk-back {
@@ -674,17 +681,253 @@
   color: #fff;
 }
 
-/* —— Map board —— */
+/* —— Map panel —— */
+
+.tk-map-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.85fr);
+  gap: 16px;
+  width: min(860px, 94vw);
+  margin: 0 0 22px;
+  text-align: left;
+  align-items: stretch;
+}
+
+.tk-map-board {
+  position: relative;
+  min-height: 280px;
+  height: clamp(240px, 36vh, 340px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(70% 60% at 48% 42%, rgba(48, 56, 38, 0.5), rgba(10, 12, 9, 0.96)),
+    linear-gradient(145deg, #1a1f14, #0a0c09);
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 90px rgba(0, 0, 0, 0.55),
+    0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.tk-map-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.tk-map-wash--arena {
+  background:
+    radial-gradient(circle at 32% 46%, rgba(120, 140, 70, 0.28), transparent 34%),
+    radial-gradient(circle at 70% 60%, rgba(60, 70, 40, 0.18), transparent 40%);
+}
+
+.tk-map-wash--desert {
+  background:
+    radial-gradient(circle at 68% 54%, rgba(170, 130, 70, 0.3), transparent 36%),
+    radial-gradient(circle at 30% 40%, rgba(90, 70, 40, 0.16), transparent 42%);
+}
+
+.tk-map-frame {
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tk-map-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(230, 224, 200, 0.45);
+  border-style: solid;
+}
+
+.tk-map-corner--tl {
+  top: 0;
+  left: 0;
+  border-width: 2px 0 0 2px;
+}
+
+.tk-map-corner--tr {
+  top: 0;
+  right: 0;
+  border-width: 2px 2px 0 0;
+}
+
+.tk-map-corner--bl {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 2px 2px;
+}
+
+.tk-map-corner--br {
+  bottom: 0;
+  right: 0;
+  border-width: 0 2px 2px 0;
+}
+
+.tk-map-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.7;
+  mask-image: radial-gradient(ellipse at center, #000 40%, transparent 88%);
+}
+
+.tk-map-pins {
+  position: absolute;
+  inset: 0;
+}
+
+.tk-map-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.tk-pin-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(236, 236, 228, 0.85);
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+.tk-map-pin.is-on .tk-pin-dot {
+  background: var(--mm-warn);
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(224, 122, 47, 0.3);
+}
+
+.tk-pin-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tk-map-pin.is-on .tk-pin-label {
+  border-color: rgba(224, 122, 47, 0.45);
+  background: rgba(12, 10, 6, 0.88);
+}
+
+.tk-pin-label b {
+  font-family: var(--tk-display);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.tk-pin-label i {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--mm-muted);
+}
+
+.tk-map-pin.is-on .tk-pin-label i {
+  color: var(--mm-warn);
+}
+
+.tk-map-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 10, 8, 0.82);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+}
+
+.tk-map-meta-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.tk-map-meta-id {
+  font-family: var(--tk-display);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--mm-muted);
+}
+
+.tk-map-meta-status {
+  font-family: var(--tk-display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: rgba(160, 190, 110, 0.85);
+  border: 1px solid rgba(160, 190, 110, 0.35);
+  padding: 3px 8px;
+}
+
+.tk-map-meta-name {
+  margin: 0;
+  font-family: var(--tk-display);
+  font-size: clamp(26px, 3.2vw, 34px);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  color: #f2efe4;
+}
+
+.tk-map-meta-desc {
+  margin: 0;
+  color: var(--mm-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tk-map-meta-rows {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tk-map-meta-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.tk-map-meta-rows span {
+  color: var(--mm-muted);
+}
+
+.tk-map-meta-rows b {
+  font-family: var(--tk-display);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ecece4;
+}
 
 .tk-map-flow {
   align-items: center;
   justify-content: center;
-  max-width: 720px;
+  max-width: 920px;
   margin: 0 auto;
   min-height: 100%;
   padding: 28px 20px 40px;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .tk-map-flow .tk-flow-title {
@@ -692,24 +935,11 @@
   font-size: clamp(22px, 3vw, 32px);
 }
 
-.tk-map-board {
-  position: relative;
-  width: min(640px, 92vw);
-  height: min(280px, 38vh);
-  margin: 0 0 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    radial-gradient(60% 50% at 50% 45%, rgba(55, 62, 42, 0.55), rgba(12, 14, 10, 0.92)),
-    linear-gradient(135deg, #1a1e14, #0c0e0a);
-  overflow: hidden;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.55);
-}
-
 .tk-map-bar {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: min(640px, 92vw);
+  width: min(860px, 94vw);
   margin-bottom: 8px;
 }
 
@@ -729,83 +959,6 @@
   min-width: 120px;
   padding: 10px 18px;
   font-size: 16px;
-}
-
-.tk-map-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  opacity: 0.55;
-}
-
-.tk-map-pins {
-  position: absolute;
-  inset: 0;
-}
-
-.tk-map-pin {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  border: 0;
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-}
-
-.tk-map-pin.is-locked {
-  opacity: 0.35;
-  cursor: default;
-  pointer-events: none;
-}
-
-.tk-pin-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid #e8e8de;
-  background: rgba(0, 0, 0, 0.55);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35);
-}
-
-.tk-map-pin.is-on .tk-pin-dot {
-  background: var(--mm-warn);
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(224, 122, 47, 0.35), 0 0 16px rgba(224, 122, 47, 0.55);
-}
-
-.tk-pin-label {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.tk-pin-label b {
-  font-family: var(--tk-display);
-  font-size: 15px;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-}
-
-.tk-pin-label i {
-  font-style: normal;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--mm-muted);
-}
-
-.tk-map-pin.is-on .tk-pin-label i {
-  color: var(--mm-warn);
 }
 
 .tk-map-detail {
@@ -851,12 +1004,95 @@
   padding: 12px 28px;
   cursor: pointer;
   min-width: 180px;
-  transition: filter 0.15s, transform 0.15s;
+  width: 100%;
+  max-width: 420px;
 }
 
 .tk-deploy:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.tk-deploy:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.tk-deploy-flow {
+  max-width: 920px;
+  margin: 0 auto;
+  padding-top: 40px;
+}
+
+.tk-deploy-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.tk-deploy-hint {
+  margin: 0;
+  max-width: 420px;
+  color: var(--mm-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.tk-connect-block {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 10px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.tk-connect-title {
+  margin: 0;
+  font-family: var(--tk-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: rgba(236, 236, 230, 0.88);
+}
+
+.tk-connect-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: stretch;
+}
+
+.tk-connect-input {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.55);
+  color: #f0eee6;
+  font-family: var(--tk-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 12px 14px;
+  outline: none;
+}
+
+.tk-connect-input:focus {
+  border-color: rgba(224, 122, 47, 0.7);
+}
+
+.tk-connect-btn {
+  flex-shrink: 0;
+  min-width: 120px;
 }
 
 .tk-secondary {
@@ -1252,6 +1488,16 @@
 
   .tk-faction-grid {
     grid-template-columns: 1fr;
+    max-width: 360px;
+  }
+
+  .tk-map-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .tk-map-board {
+    min-height: 220px;
+    height: 240px;
   }
 
   .tk-map-detail {

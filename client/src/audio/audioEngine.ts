@@ -115,6 +115,7 @@ export class AudioEngine {
       'impact_flesh',
       'hitmarker',
       'headshot',
+      'bodycam_on',
     ];
     for (const key of keys) this.buffer(key);
   }

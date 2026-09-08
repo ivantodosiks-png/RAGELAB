@@ -15,7 +15,7 @@ import { formatCode, el, clear } from './dom';
 export type MenuScreen =
   | 'home'
   | 'raid'
-  | 'map'
+  | 'deploy'
   | 'character'
   | 'settings'
   | 'auth'
@@ -74,7 +74,6 @@ export class MainMenu {
     serverLabel: 'Menu',
     pingMs: null,
   };
-  private switchTimer = 0;
   private selectedMapId = DEFAULT_MAP_ID;
   private toastTimer = 0;
 
@@ -180,17 +179,9 @@ export class MainMenu {
   }
 
   show(screen: MenuScreen): void {
-    if (screen === this.screen && this.stage.childNodes.length > 0) {
-      this.render();
-      return;
-    }
     this.screen = screen;
-    this.stage.className = `mm-stage is-${screen} is-switching`;
-    window.clearTimeout(this.switchTimer);
-    this.switchTimer = window.setTimeout(() => {
-      this.stage.className = `mm-stage is-${screen}`;
-      this.render();
-    }, 90);
+    this.stage.className = `mm-stage is-${screen}`;
+    this.render();
   }
 
   private bindKeyboard(): void {
@@ -199,7 +190,7 @@ export class MainMenu {
       if (isTypingTarget(event.target)) return;
       if (event.code === 'Escape') {
         if (this.screen === 'home') return;
-        if (this.screen === 'map') this.show('raid');
+        if (this.screen === 'deploy') this.show('raid');
         else if (this.screen === 'raid') this.show('home');
         else this.show('home');
         event.preventDefault();
@@ -216,8 +207,8 @@ export class MainMenu {
       case 'raid':
         this.renderRaidSelect();
         break;
-      case 'map':
-        this.renderMapSelect();
+      case 'deploy':
+        this.renderDeploy();
         break;
       case 'character':
         this.renderCharacter();
@@ -293,33 +284,40 @@ export class MainMenu {
   }
 
   private renderRaidSelect(): void {
-    const view = el('div', 'tk-flow');
+    const view = el('div', 'tk-flow tk-raid-flow');
     view.append(el('p', 'tk-flow-kicker', 'RAID'));
-    view.append(el('h2', 'tk-flow-title', 'SELECT FACTION'));
-    view.append(el('p', 'tk-flow-lead', 'Choose how you enter the raid. Scav is locked for now.'));
+    view.append(el('h2', 'tk-flow-title', 'SELECT MODE'));
+    view.append(el('p', 'tk-flow-lead', 'Choose how you enter the operation.'));
 
     const grid = el('div', 'tk-faction-grid');
 
     const pmc = el('button', 'tk-faction is-pmc', '');
     pmc.type = 'button';
     pmc.innerHTML = `
-      <div class="tk-faction-art tk-faction-art--pmc" aria-hidden="true"></div>
-      <div class="tk-faction-meta">
+      <div class="tk-faction-art tk-faction-art--pmc" aria-hidden="true">
+        <span class="tk-faction-art-mark">01</span>
+      </div>
+      <div class="tk-faction-body">
+        <span class="tk-faction-tag">CONTRACT</span>
         <strong>PMC</strong>
-        <span>Operator · full kit</span>
+        <span class="tk-faction-sub">Private military · full kit · lobby deploy</span>
+        <span class="tk-faction-cta">CONTINUE</span>
       </div>`;
-    pmc.addEventListener('click', () => this.show('map'));
+    pmc.addEventListener('click', () => this.show('deploy'));
 
     const scav = el('button', 'tk-faction is-scav is-locked', '');
     scav.type = 'button';
     scav.innerHTML = `
-      <div class="tk-faction-art tk-faction-art--scav" aria-hidden="true"></div>
-      <div class="tk-faction-meta">
-        <strong>SCAV</strong>
-        <span>LOCKED · coming soon</span>
+      <div class="tk-faction-art tk-faction-art--scav" aria-hidden="true">
+        <span class="tk-faction-art-mark">02</span>
       </div>
-      <em class="tk-lock-badge">LOCKED</em>`;
-    scav.addEventListener('click', () => this.flashLocked('Scav'));
+      <div class="tk-faction-body">
+        <span class="tk-faction-tag">SCAV</span>
+        <strong>ДИКИЙ</strong>
+        <span class="tk-faction-sub">Random kit · scavenger run · unavailable</span>
+        <em class="tk-lock-badge">LOCKED</em>
+      </div>`;
+    scav.addEventListener('click', () => this.flashLocked('Дикий'));
 
     grid.append(pmc, scav);
     view.append(grid);
@@ -331,79 +329,159 @@ export class MainMenu {
     this.stage.append(view);
   }
 
-  private renderMapSelect(): void {
-    const view = el('div', 'tk-flow tk-map-flow');
-    view.append(el('h2', 'tk-flow-title', 'MAP'));
+  private renderDeploy(): void {
+    const view = el('div', 'tk-flow tk-deploy-flow');
+    view.append(el('p', 'tk-flow-kicker', 'PMC'));
+    view.append(el('h2', 'tk-flow-title', 'SELECT MAP'));
+    view.append(
+      el('p', 'tk-flow-lead', 'Pick the AO, then create a lobby or connect with a host code.'),
+    );
+
+    const selected = getMap(this.selectedMapId);
+    const panel = el('div', 'tk-map-panel');
 
     const board = el('div', 'tk-map-board');
+    board.append(el('div', 'tk-map-grid'));
+    board.append(el('div', 'tk-map-wash tk-map-wash--' + this.selectedMapId));
+    const frame = el('div', 'tk-map-frame');
+    frame.innerHTML = `
+      <span class="tk-map-corner tk-map-corner--tl"></span>
+      <span class="tk-map-corner tk-map-corner--tr"></span>
+      <span class="tk-map-corner tk-map-corner--bl"></span>
+      <span class="tk-map-corner tk-map-corner--br"></span>`;
+    board.append(frame);
+
     const pins = el('div', 'tk-map-pins');
-
-    const layouts: Array<{ id: string; x: number; y: number }> = [
-      { id: 'arena', x: 34, y: 44 },
-      { id: 'desert', x: 66, y: 56 },
+    const layouts: Array<{ id: string; x: number; y: number; sector: string }> = [
+      { id: 'arena', x: 32, y: 46, sector: 'SECTOR A' },
+      { id: 'desert', x: 68, y: 54, sector: 'SECTOR B' },
     ];
-
     for (const layout of layouts) {
       if (!RAID_MAPS.includes(layout.id)) continue;
       const map = getMap(layout.id);
-      const pin = el('button', this.selectedMapId === layout.id ? 'tk-map-pin is-on' : 'tk-map-pin', '');
+      const pin = el(
+        'button',
+        this.selectedMapId === layout.id ? 'tk-map-pin is-on' : 'tk-map-pin',
+        '',
+      );
       pin.type = 'button';
       pin.style.left = `${layout.x}%`;
       pin.style.top = `${layout.y}%`;
       pin.innerHTML = `
         <span class="tk-pin-dot"></span>
-        <span class="tk-pin-label"><b>${escapeHtml(map.name)}</b></span>`;
+        <span class="tk-pin-label">
+          <b>${escapeHtml(map.name)}</b>
+          <i>${layout.sector}</i>
+        </span>`;
       pin.addEventListener('click', () => {
         this.selectedMapId = layout.id;
         this.render();
       });
       pins.append(pin);
     }
+    board.append(pins);
+    panel.append(board);
 
-    board.append(el('div', 'tk-map-grid'), pins);
-    view.append(board);
+    const meta = el('div', 'tk-map-meta');
+    meta.innerHTML = `
+      <div class="tk-map-meta-top">
+        <span class="tk-map-meta-id">${escapeHtml(selected.id.toUpperCase())}</span>
+        <span class="tk-map-meta-status">AVAILABLE</span>
+      </div>
+      <h3 class="tk-map-meta-name">${escapeHtml(selected.name)}</h3>
+      <p class="tk-map-meta-desc">${escapeHtml(selected.description)}</p>
+      <div class="tk-map-meta-rows">
+        <div><span>Players</span><b>${mapHasSides(selected) ? '1v1' : 'up to 16'}</b></div>
+        <div><span>Type</span><b>${mapHasSides(selected) ? 'Sides' : 'Sandbox'}</b></div>
+        <div><span>Faction</span><b>PMC</b></div>
+      </div>`;
+    panel.append(meta);
+    view.append(panel);
 
-    const bar = el('div', 'tk-map-bar');
-    const selected = getMap(this.selectedMapId);
-    bar.append(el('span', 'tk-map-selected', selected.name));
+    const actions = el('div', 'tk-deploy-actions');
 
-    const deploy = el('button', 'tk-deploy', 'DEPLOY');
-    deploy.type = 'button';
-    deploy.addEventListener('click', () => {
+    const create = el(
+      'button',
+      'tk-deploy',
+      this.createBusy ? 'CREATING…' : 'CREATE LOBBY',
+    );
+    create.type = 'button';
+    create.disabled = this.createBusy;
+    create.addEventListener('click', () => {
+      if (this.createBusy) return;
       const mapId = this.selectedMapId;
-      this.callbacks.play({
-        username: this.operatorName(),
+      this.callbacks.createRoom({
+        name: `${this.operatorName()}'s lobby`.slice(0, 48),
         mapId,
+        maxPlayers: mapHasSides(getMap(mapId)) ? 2 : 16,
+        password: '',
         team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
       });
     });
-    bar.append(deploy);
+    actions.append(create);
+    actions.append(
+      el('p', 'tk-deploy-hint', 'Host receives a code. Friends join with Connect.'),
+    );
 
-    if (this.isAdmin || this.canHostOnline) {
-      const create = el('button', 'tk-secondary', this.createBusy ? '…' : 'LOBBY');
-      create.type = 'button';
-      create.disabled = this.createBusy;
-      create.addEventListener('click', () => {
-        if (this.createBusy) return;
-        const mapId = this.selectedMapId;
-        this.callbacks.createRoom({
-          name: `${this.operatorName()}'s lobby`.slice(0, 48),
-          mapId,
-          maxPlayers: mapHasSides(getMap(mapId)) ? 2 : 16,
-          password: '',
-          team: mapHasSides(getMap(mapId)) ? this.pendingTeam : undefined,
-        });
+    const connect = el('div', 'tk-connect-block');
+    connect.append(el('h3', 'tk-connect-title', 'CONNECT'));
+    connect.append(
+      el('p', 'tk-deploy-hint', 'Enter the 6-character code from the host lobby.'),
+    );
+
+    const row = el('div', 'tk-connect-row');
+    const input = el('input', 'tk-connect-input') as HTMLInputElement;
+    input.type = 'text';
+    input.maxLength = 7;
+    input.placeholder = 'ABC 123';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.value = this.pendingJoinCode
+      ? formatLobbyCodeInput(this.pendingJoinCode.replace(/\s/g, '').slice(0, 6))
+      : '';
+    input.addEventListener('input', () => {
+      const raw = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+      this.pendingJoinCode = raw;
+      input.value = formatLobbyCodeInput(raw);
+    });
+
+    const join = el('button', 'tk-secondary tk-connect-btn', 'CONNECT');
+    join.type = 'button';
+    const doJoin = () => {
+      const code = this.pendingJoinCode.replace(/\s/g, '');
+      if (code.length < 6) {
+        input.focus();
+        return;
+      }
+      this.callbacks.joinByCode({
+        username: this.operatorName(),
+        code,
+        mapId: this.selectedMapId,
+        team: mapHasSides(getMap(this.selectedMapId)) ? this.pendingTeam : undefined,
       });
-      bar.append(create);
-    }
+    };
+    join.addEventListener('click', doJoin);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        doJoin();
+      }
+    });
+    row.append(input, join);
+    connect.append(row);
+    actions.append(connect);
 
-    view.append(bar);
+    view.append(actions);
 
     const back = el('button', 'tk-back', 'BACK');
     back.type = 'button';
     back.addEventListener('click', () => this.show('raid'));
     view.append(back);
     this.stage.append(view);
+
+    if (this.pendingJoinCode.length === 6) {
+      window.setTimeout(() => input.focus(), 0);
+    }
   }
 
   private renderCharacter(): void {
@@ -901,6 +979,11 @@ function checkbox(label: string, value: boolean, onChange: (value: boolean) => v
 
 function formatNum(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function formatLobbyCodeInput(code: string): string {
+  const raw = code.replace(/\s/g, '').toUpperCase();
+  return raw.length > 3 ? `${raw.slice(0, 3)} ${raw.slice(3)}` : raw;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {

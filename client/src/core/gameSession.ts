@@ -550,6 +550,7 @@ export class GameSession {
     this.lobbyStarting = false;
     this.ui.hideLobbyWait();
     this.ui.showGame();
+    this.playBodycamPowerOn();
     if (this.offline) {
       this.ui.hud.showToast('Offline match');
       return;
@@ -559,6 +560,12 @@ export class GameSession {
     } else {
       this.ui.hud.showToast(`${this.roomName || this.map.name}`);
     }
+  }
+
+  /** Bodycam boot chirp when entering the world / respawning. */
+  private playBodycamPowerOn(): void {
+    if (!settingsStore.graphics.bodycam.enabled) return;
+    this.audio.play('bodycam_on', { bus: 'ui', volume: 0.85 });
   }
 
   private syncLobbyWait(): void {
@@ -1064,6 +1071,7 @@ export class GameSession {
           this.weapon.equip(this.loadout[0]!, performance.now());
           this.wasAlive = true;
           this.ui.hud.hideDeath();
+          this.playBodycamPowerOn();
           if (this.offline) {
             const inv = createEmptyInventory();
             grantStartingMagazines(inv, this.loadout.filter(Boolean) as WeaponId[]);

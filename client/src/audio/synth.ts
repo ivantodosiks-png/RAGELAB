@@ -57,6 +57,7 @@ export type SoundKey =
   | 'ui_hover'
   | 'ui_back'
   | 'killfeed'
+  | 'bodycam_on'
   | 'ambience';
 
 interface Envelope {
@@ -671,6 +672,22 @@ export function synthesizeBank(sampleRate: number): Map<SoundKey, Float32Array> 
   bank.set('ui_click', renderTone(sampleRate, 0.08, 900, 1200, 40, 2));
   bank.set('ui_hover', renderTone(sampleRate, 0.05, 1400, 1500, 60));
   bank.set('ui_back', renderTone(sampleRate, 0.11, 700, 420, 26, 2));
+
+  // Fallback if assets/bodycam/bodycam.mp3 fails to load.
+  bank.set(
+    'bodycam_on',
+    renderMechanical(
+      sampleRate,
+      0.55,
+      [
+        { at: 0.0, freq: 180, decay: 22, gain: 0.55 },
+        { at: 0.04, freq: 920, decay: 70, gain: 0.7 },
+        { at: 0.12, freq: 1400, decay: 90, gain: 0.45 },
+        { at: 0.28, freq: 480, decay: 40, gain: 0.35 },
+      ],
+      0xb0d1,
+    ),
+  );
 
   bank.set('ambience', renderAmbience(sampleRate, 0x4001));
 
