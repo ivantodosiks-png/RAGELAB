@@ -4,7 +4,6 @@ import { muzzleCoreTexture, muzzleStarTexture, collimatorDotTexture } from '../r
 import { buildWeaponMesh, ejectOffsetFor, muzzleOffsetFor } from './weaponMeshes';
 import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual, weaponModelUrl } from './weaponAssets';
 import { createPistolGripArms, preloadViewArms } from './viewHands';
-import { assetManager } from '../assets/assetManager';
 
 export { preloadViewArms };
 
@@ -34,9 +33,6 @@ export class WeaponViewModel {
   private redDot: THREE.Sprite | null = null;
   private redDotBloom: THREE.Sprite | null = null;
   private viewArms: THREE.Object3D | null = null;
-  private mixer: THREE.AnimationMixer | null = null;
-  private fireClip: THREE.AnimationAction | null = null;
-  private reloadClip: THREE.AnimationAction | null = null;
 
   /** 0 = hip, 1 = fully aimed. */
   private aimBlend = 0;
@@ -78,7 +74,6 @@ export class WeaponViewModel {
     this.slidePart = null;
     this.slideKick = 0;
     this.clearRedDot();
-    this.stopWeaponMixer();
 
     const built = buildWeaponMesh(def, this.disposables);
     this.model.add(built.root);
@@ -112,14 +107,6 @@ export class WeaponViewModel {
   startReload(durationMs: number): void {
     this.reloadDurationSec = durationMs / 1000;
     this.reloadProgress = 0.0001;
-    if (this.reloadClip) {
-      this.reloadClip.reset();
-      this.reloadClip.setLoop(THREE.LoopOnce, 1);
-      this.reloadClip.clampWhenFinished = true;
-      const clipDur = this.reloadClip.getClip().duration || 1;
-      this.reloadClip.timeScale = clipDur / Math.max(0.2, this.reloadDurationSec);
-      this.reloadClip.play();
-    }
   }
 
   get isReloading(): boolean {
@@ -132,12 +119,6 @@ export class WeaponViewModel {
     this.recoilPitch = Math.min(this.recoilPitch + strength * 3.2, 0.6);
     // Glock slide: hard rearward snap, fast return.
     if (this.slidePart) this.slideKick = 1;
-    if (this.fireClip) {
-      this.fireClip.reset().setLoop(THREE.LoopOnce, 1);
-      this.fireClip.clampWhenFinished = true;
-      this.fireClip.timeScale = 1.35;
-      this.fireClip.play();
-    }
   }
 
   /** Mouse movement drives a lagging sway; called with the frame's aim delta. */
@@ -241,7 +222,6 @@ export class WeaponViewModel {
       this.redDotBloom.scale.set(s * 2.6, s * 2.6, 1);
     }
     this.flash.update(dt);
-    this.mixer?.update(dt);
   }
 
   /** World-space muzzle transform, used to place flashes and shell ejection. */
@@ -276,20 +256,12 @@ export class WeaponViewModel {
 
   private disposeModel(): void {
     this.clearRedDot();
-    this.stopWeaponMixer();
     this.viewArms = null;
     for (const item of this.disposables) item.dispose();
     this.disposables.length = 0;
     this.model.clear();
     this.model.add(this.muzzlePoint);
     this.model.add(this.ejectPoint);
-  }
-
-  private stopWeaponMixer(): void {
-    this.mixer?.stopAllAction();
-    this.mixer = null;
-    this.fireClip = null;
-    this.reloadClip = null;
   }
 
   private attachGltf(def: WeaponDefinition): void {
@@ -315,7 +287,6 @@ export class WeaponViewModel {
       this.model.add(visual);
       this.bindAnimatedParts(visual, def);
       if (def.id === 'glock') this.attachPistolArms(visual);
-      this.bindWeaponClips(visual, def);
     };
     const ready = instantiateWeaponVisual(def.id, length, { lod: false, shadows: false });
     if (ready) {
@@ -336,11 +307,11 @@ export class WeaponViewModel {
     this.slidePart = slide ?? null;
     if (this.slidePart) this.slideRest.copy(this.slidePart.position);
 
-    // Magazine / bolt bones from Quaternius Animated Guns.
+    // Magazine / bolt for procedural reload dip.
     const magazine =
       visual.getObjectByName('magazine') ??
       visual.getObjectByName('Magazine');
-    if (magazine && def.id !== 'rifle') {
+    if (magazine) {
       this.magRestY = magazine.position.y;
       magazine.name = 'magazine';
     }
@@ -352,13 +323,14 @@ export class WeaponViewModel {
       const spanY = Math.max(0.01, box.max.y - box.min.y);
       const spanZ = Math.max(0.01, box.max.z - box.min.z);
       const muzzleZ = box.min.z - 0.004;
+      // Rifle barrel sits mid-height; optic (Visier) is above.
       const muzzleY =
-        def.id === 'rifle' ? box.min.y + spanY * 0.55 : box.min.y + spanY * 0.62;
+        def.id === 'rifle' ? box.min.y + spanY * 0.48 : box.min.y + spanY * 0.62;
       this.muzzlePoint.position.set(0, muzzleY, muzzleZ);
       this.ejectPoint.position.set(
         box.max.x * 0.45,
-        muzzleY + spanY * 0.05,
-        box.min.z + spanZ * (def.id === 'rifle' ? 0.45 : 0.15),
+        muzzleY + spanY * 0.08,
+        box.min.z + spanZ * (def.id === 'rifle' ? 0.42 : 0.15),
       );
     }
 
@@ -371,22 +343,6 @@ export class WeaponViewModel {
     this.viewArms?.removeFromParent();
     this.viewArms = arms;
     visual.add(arms);
-  }
-
-  private bindWeaponClips(visual: THREE.Object3D, def: WeaponDefinition): void {
-    this.stopWeaponMixer();
-    const url = weaponModelUrl(def.id);
-    if (!url) return;
-    const gltf = assetManager.peek(url);
-    if (!gltf || gltf.animations.length === 0) return;
-
-    this.mixer = new THREE.AnimationMixer(visual);
-    for (const clip of gltf.animations) {
-      const key = clip.name.toLowerCase();
-      const action = this.mixer.clipAction(clip);
-      if (key.includes('reload')) this.reloadClip = action;
-      else if (key.includes('firewbullet') || (key.includes('fire') && !this.fireClip)) this.fireClip = action;
-    }
   }
 
   private attachCollimatorDot(visual: THREE.Object3D): void {

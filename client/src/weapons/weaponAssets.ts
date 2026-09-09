@@ -93,7 +93,7 @@ export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   smg: { mass: 2.45, hx: 0.035, hy: 0.085, hz: 0.26, length: 0.52 },
   bizon: { mass: 2.7, hx: 0.038, hy: 0.09, hz: 0.28, length: 0.56 },
   assault: { mass: 3.2, hx: 0.04, hy: 0.09, hz: 0.39, length: 0.78 },
-  rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.4, length: 0.78 },
+  rifle: { mass: 3.35, hx: 0.042, hy: 0.095, hz: 0.42, length: 0.84 },
   ak: { mass: 3.55, hx: 0.042, hy: 0.092, hz: 0.4, length: 0.8 },
   shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
   autosg: { mass: 3.9, hx: 0.048, hy: 0.085, hz: 0.37, length: 0.74 },
@@ -119,8 +119,6 @@ const tmpVertex = new THREE.Vector3();
 const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: number; roll?: number }>> = {
   // FBX2glTF −90° X leaves the barrel on +Z after longest-axis fit.
   magnum: { yaw: Math.PI },
-  // Tip muzzle slightly up so the grip / rear sits lower in the view.
-  glock: { pitch: 0.14 },
 };
 
 /** Non-uniform stretch after length fit (e.g. thicker Glock frame). */
@@ -128,18 +126,29 @@ const WEAPON_STRETCH: Partial<Record<WeaponModelId, { x?: number; y?: number; z?
   glock: { x: 1.22, y: 1.08, z: 1.0 },
 };
 
-const AUTHORED_PBR: ReadonlySet<string> = new Set(['glock']);
+const AUTHORED_PBR: ReadonlySet<string> = new Set(['glock', 'rifle']);
 
 function tuneAuthoredPbr(mat: THREE.MeshStandardMaterial, id: string): void {
   if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
 
   if (id === 'glock') {
-    // Deep matte black polymer — almost no IBL so it never looks sun-bleached.
-    mat.envMapIntensity = 0.04;
-    mat.metalness = Math.min(mat.metalness, 0.08);
-    mat.roughness = Math.max(mat.roughness, 0.88);
-    mat.color.setRGB(0.07, 0.075, 0.08);
-    if (mat.map) mat.color.multiplyScalar(0.55);
+    // Lighter matte polymer — readable under FP lighting without washing out.
+    mat.envMapIntensity = 0.28;
+    mat.metalness = Math.min(mat.metalness, 0.18);
+    mat.roughness = Math.max(mat.roughness, 0.62);
+    mat.color.setRGB(0.28, 0.29, 0.31);
+    if (mat.map) mat.color.multiplyScalar(0.92);
+    mat.emissive.setHex(0x000000);
+    mat.emissiveIntensity = 0;
+    return;
+  }
+
+  if (id === 'rifle') {
+    const isOptic = /visier|optic|scope|glass/i.test(mat.name);
+    mat.envMapIntensity = isOptic ? 0.18 : 0.12;
+    mat.metalness = Math.min(mat.metalness, isOptic ? 0.45 : 0.28);
+    mat.roughness = Math.max(mat.roughness, isOptic ? 0.35 : 0.62);
+    mat.color.multiplyScalar(isOptic ? 0.55 : 0.48);
     mat.emissive.setHex(0x000000);
     mat.emissiveIntensity = 0;
     return;
@@ -373,9 +382,8 @@ export function preloadWeaponModels(): Promise<void> {
 function cloneWeaponScene(url: string, id: string): THREE.Group | null {
   const gltf = assetManager.peek(url);
   if (!gltf) return null;
-  const clone = (
-    id === 'glock' || id === 'rifle' ? cloneSkinned(gltf.scene) : gltf.scene.clone(true)
-  ) as THREE.Group;
+  // Glock keeps skins for the slide; M4 is a static mesh.
+  const clone = (id === 'glock' ? cloneSkinned(gltf.scene) : gltf.scene.clone(true)) as THREE.Group;
   clone.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;

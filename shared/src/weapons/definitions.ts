@@ -129,7 +129,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
 
   rifle: {
     id: 'rifle',
-    name: 'Assault Rifle',
+    name: 'M4 Colt',
     slot: 2,
     fireMode: FireMode.Auto,
     burstCount: 1,
@@ -151,10 +151,11 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     bodyMultiplier: 1,
     limbMultiplier: 0.5,
     moveSpeedMultiplier: 0.94,
-    aimMoveSpeedMultiplier: 0.55,
-    aimFovMultiplier: 0.72,
-    aimTimeMs: 170,
+    aimMoveSpeedMultiplier: 0.52,
+    aimFovMultiplier: 0.58,
+    aimTimeMs: 165,
     equipMs: 420,
+    collimator: true,
     recoil: {
       vertical: 0.72 * DEG,
       horizontal: 0.28 * DEG,
@@ -176,13 +177,14 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     visual: {
       color: 0x1c1e22,
       accentColor: 0x3a3f46,
-      size: [0.11, 0.2, 0.78],
-      muzzleFlashScale: 1.25,
+      size: [0.12, 0.24, 0.84],
+      muzzleFlashScale: 1.35,
       tracerWidth: 0.028,
       tracerColor: 0xfff0c0,
       shellEjection: true,
-      hipPosition: [0.22, -0.2, -0.52],
-      aimPosition: [0.0, -0.118, -0.32],
+      // Hip + optic ADS — red-dot sits in Visier / screen center on ADS.
+      hipPosition: [0.22, -0.2, -0.5],
+      aimPosition: [0.0, -0.132, -0.255],
     },
   },
 
@@ -359,8 +361,9 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.022,
       tracerColor: 0xffe0a0,
       shellEjection: true,
-      hipPosition: [0.21, -0.265, -0.4],
-      aimPosition: [0.0, -0.128, -0.3],
+      // Align iron sights (мушка) with screen center on ADS.
+      hipPosition: [0.21, -0.21, -0.4],
+      aimPosition: [0.0, -0.09, -0.29],
     },
   },
 
