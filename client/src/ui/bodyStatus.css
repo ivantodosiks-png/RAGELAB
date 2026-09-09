@@ -20,7 +20,7 @@
 
 .body-status-kicker {
   font-family: "Barlow Condensed", "Rajdhani", sans-serif;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.32em;
   color: rgba(176, 182, 158, 0.42);
@@ -31,8 +31,8 @@
 
 .body-status-sil {
   position: relative;
-  width: 64px;
-  height: 118px;
+  width: 92px;
+  height: 168px;
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55));
 }
 
@@ -120,9 +120,9 @@
 }
 
 .body-status--detail .body-status-sil {
-  width: min(168px, 38%);
+  width: min(190px, 40%);
   height: auto;
-  aspect-ratio: 319 / 652;
+  aspect-ratio: 366 / 771;
   flex-shrink: 0;
 }
 

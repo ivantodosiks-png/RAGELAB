@@ -29,6 +29,11 @@ const CONDITION_SWATCH: Record<BodyPartCondition, string> = {
 };
 
 const BASE = `${import.meta.env.BASE_URL}hud/body`;
+const BODY_ASSET_VER = '2';
+
+function partUrl(id: string): string {
+  return `${BASE}/${id}.png?v=${BODY_ASSET_VER}`;
+}
 
 /**
  * Shared limb status — HUD + TAB.
@@ -133,11 +138,11 @@ export class BodyStatusView {
       part.dataset.part = id;
       const tex = document.createElement('img');
       tex.className = 'bs-tex';
-      tex.src = `${BASE}/${id}.png`;
+      tex.src = partUrl(id);
       tex.alt = '';
       tex.draggable = false;
       const tint = el('span', 'bs-tint');
-      const mask = `url(${BASE}/${id}.png)`;
+      const mask = `url(${partUrl(id)})`;
       part.style.setProperty('--bs-mask', mask);
       tint.style.setProperty('--bs-mask', mask);
       part.append(tex, tint);

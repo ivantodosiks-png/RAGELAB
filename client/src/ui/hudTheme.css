@@ -398,7 +398,7 @@ input[type='range'] {
   z-index: 6;
   display: flex;
   align-items: flex-end;
-  gap: 14px;
+  gap: 16px;
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -416,14 +416,14 @@ input[type='range'] {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 7px;
-  min-width: 64px;
+  gap: 8px;
+  min-width: 92px;
 }
 
 /* Thin stamina under silhouette — existing system, visual only */
 .hud-stamina {
   width: 100%;
-  height: 2px;
+  height: 3px;
   background: rgba(255, 255, 255, 0.06);
   border: 0;
   overflow: hidden;
@@ -702,7 +702,8 @@ input[type='range'] {
   bottom: auto;
   transform: none;
   display: flex;
-  gap: 5px;
+  flex-direction: column;
+  gap: 4px;
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -711,35 +712,36 @@ input[type='range'] {
 }
 
 .weapon-slot {
-  width: 46px;
-  min-height: 50px;
-  padding: 5px 3px 6px;
-  border-radius: 1px;
-  border: 1px solid rgba(168, 174, 148, 0.16);
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(168, 174, 156, 0.5);
-  display: flex;
-  flex-direction: column;
+  width: 118px;
+  min-height: 36px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 0;
+  border: 1px solid rgba(168, 166, 152, 0.14);
+  border-left: 2px solid rgba(168, 166, 152, 0.18);
+  background: rgba(8, 9, 7, 0.42);
+  color: rgba(168, 174, 156, 0.48);
+  display: grid;
+  grid-template-columns: 14px 22px minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  gap: 8px;
   transition: border-color 0.1s ease, color 0.1s ease, background 0.1s ease;
 }
 
 .weapon-slot .slot-num {
   font-family: "Barlow Condensed", "Rajdhani", sans-serif;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  opacity: 0.8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
   line-height: 1;
+  text-align: center;
 }
 
 .weapon-slot .slot-icon {
-  width: 18px;
-  height: 13px;
+  width: 22px;
+  height: 14px;
   color: inherit;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .weapon-slot .slot-icon svg {
@@ -749,22 +751,32 @@ input[type='range'] {
 }
 
 .weapon-slot .slot-name {
-  font-size: 7px;
-  letter-spacing: 0.12em;
+  font-family: "Barlow Condensed", "Rajdhani", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.65;
+  opacity: 0.78;
+  text-align: left;
 }
 
 .weapon-slot.selected {
-  color: rgba(226, 230, 210, 0.95);
-  border-color: rgba(196, 204, 168, 0.55);
-  background: rgba(255, 255, 255, 0.07);
+  color: rgba(230, 228, 214, 0.96);
+  border-color: rgba(184, 134, 58, 0.45);
+  border-left-color: #b8863a;
+  background: rgba(18, 16, 12, 0.72);
   transform: none;
-  box-shadow: inset 0 0 0 1px rgba(196, 204, 168, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 58, 0.08);
+}
+
+.weapon-slot.selected .slot-num,
+.weapon-slot.selected .slot-name,
+.weapon-slot.selected .slot-icon {
+  opacity: 1;
 }
 
 .weapon-bar.switching .weapon-slot.selected {
@@ -1662,11 +1674,13 @@ input[type='range'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .weapon-slot {
-    width: 40px;
-    min-height: 42px;
+    width: 102px;
+    min-height: 32px;
+    padding: 5px 8px 5px 6px;
+    gap: 6px;
   }
   .hud-combat {
-    gap: 10px;
+    gap: 12px;
     padding: 0;
   }
   .toolgun-hud {
@@ -1698,12 +1712,17 @@ input[type='range'] {
     gap: 3px;
     padding: 0;
   }
+  .weapon-slot {
+    width: 44px;
+    min-height: 34px;
+    grid-template-columns: 12px 1fr;
+    padding: 5px 6px;
+  }
   .weapon-slot .slot-name {
     display: none;
   }
-  .weapon-slot {
-    width: 36px;
-    min-height: 40px;
+  .weapon-slot .slot-icon {
+    display: none;
   }
   .spawn-grid {
     grid-template-columns: 1fr;
