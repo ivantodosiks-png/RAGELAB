@@ -1,81 +1,97 @@
 import * as THREE from 'three';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { assetManager } from '../assets/assetManager';
-
-const BASE = import.meta.env.BASE_URL;
-export const VIEW_ARMS_URL = `${BASE}models/viewmodel/arms_pistol.glb`;
-
-/** Preload first-person grip arms (WRAD Arms, CC0 — posed for pistol). */
-export function preloadViewArms(): Promise<void> {
-  return assetManager.loadGltf(VIEW_ARMS_URL).then(
-    () => undefined,
-    () => undefined,
-  );
-}
 
 /**
- * Two-handed wrap around a fitted pistol view-model.
- * Parent is the weapon mesh root so hands track recoil / ADS.
+ * Always-visible two-hand tactical gloves wrapping a pistol grip.
+ * Procedural so we never depend on a missing / oddly-scaled GLB.
  */
+export function preloadViewArms(): Promise<void> {
+  return Promise.resolve();
+}
+
+export const VIEW_ARMS_URL = '';
+
 export function createPistolGripArms(weaponRoot: THREE.Object3D): THREE.Object3D | null {
-  const gltf = assetManager.peek(VIEW_ARMS_URL);
-  if (!gltf) return null;
+  weaponRoot.updateMatrixWorld(true);
+  const gun = new THREE.Box3().setFromObject(weaponRoot);
+  if (!Number.isFinite(gun.min.x)) {
+    gun.setFromCenterAndSize(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.1, 0.16, 0.28));
+  }
 
   const root = new THREE.Group();
   root.name = 'viewArms';
 
-  const clone = (gltf.animations.length > 0 ? cloneSkinned(gltf.scene) : gltf.scene.clone(true)) as THREE.Group;
-  clone.traverse((obj) => {
-    // Helper/target empties from the IK rig — keep the mesh only.
-    if (/head|arm_target|wrist_ik/i.test(obj.name) && !(obj as THREE.Mesh).isMesh) {
-      obj.visible = false;
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x15171a,
+    roughness: 0.86,
+    metalness: 0.06,
+    envMapIntensity: 0.12,
+  });
+
+  const gs = gun.getSize(new THREE.Vector3());
+  const gc = gun.getCenter(new THREE.Vector3());
+
+  const makeHand = (side: 1 | -1): THREE.Group => {
+    const g = new THREE.Group();
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.03, 0.078), mat);
+    palm.position.set(side * 0.01, 0, 0);
+    g.add(palm);
+
+    for (let i = 0; i < 4; i++) {
+      const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.013, 0.015, 0.028), mat);
+      knuckle.position.set(side * (0.006 + i * 0.012), -0.01, -0.02);
+      knuckle.rotation.x = 1.05;
+      g.add(knuckle);
+      const tip = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.013, 0.024), mat);
+      tip.position.set(side * (0.006 + i * 0.012), -0.028, -0.01);
+      tip.rotation.x = 1.55;
+      g.add(tip);
     }
+
+    const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.014, 0.036), mat);
+    thumb.position.set(side * -0.024, 0.01, 0.012);
+    thumb.rotation.set(0.4, side * 0.7, side * 0.35);
+    g.add(thumb);
+
+    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.022, 0.09, 8), mat);
+    wrist.rotation.x = Math.PI / 2;
+    wrist.position.set(side * 0.008, 0.008, 0.085);
+    g.add(wrist);
+
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.16, 8), mat);
+    forearm.rotation.x = Math.PI / 2;
+    forearm.position.set(side * 0.01, 0.015, 0.2);
+    g.add(forearm);
+
+    return g;
+  };
+
+  // Primary wrap on the rear grip (right).
+  const right = makeHand(1);
+  right.position.set(
+    gc.x + gs.x * 0.12,
+    gun.min.y + gs.y * 0.22,
+    gun.max.z - gs.z * 0.08,
+  );
+  right.rotation.set(0.22, 0.1, 0.18);
+  right.scale.setScalar(1.05);
+
+  // Support hand slightly forward / opposite side.
+  const left = makeHand(-1);
+  left.position.set(
+    gc.x - gs.x * 0.14,
+    gun.min.y + gs.y * 0.28,
+    gun.max.z - gs.z * 0.22,
+  );
+  left.rotation.set(0.28, -0.16, -0.22);
+  left.scale.setScalar(0.98);
+
+  root.add(right, left);
+  root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.frustumCulled = false;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
-    const src = mesh.material;
-    const list = Array.isArray(src) ? src : [src];
-    const copies = list.map((mat) => {
-      const next = (mat as THREE.Material).clone();
-      if (next instanceof THREE.MeshStandardMaterial) {
-        next.envMapIntensity = 0.18;
-        next.roughness = Math.max(next.roughness, 0.7);
-        next.metalness = Math.min(next.metalness, 0.12);
-        if (next.map) next.map.colorSpace = THREE.SRGBColorSpace;
-        // Slightly darker so hands match the black Glock lighting.
-        next.color.multiplyScalar(0.82);
-      }
-      return next;
-    });
-    mesh.material = Array.isArray(src) ? copies : copies[0]!;
   });
-
-  // Fit arms into the view-model scale around the grip.
-  weaponRoot.updateMatrixWorld(true);
-  const gun = new THREE.Box3().setFromObject(weaponRoot);
-  const gunSize = gun.getSize(new THREE.Vector3());
-  const gunCenter = gun.getCenter(new THREE.Vector3());
-
-  clone.updateMatrixWorld(true);
-  const armBox = new THREE.Box3().setFromObject(clone);
-  const armSize = armBox.getSize(new THREE.Vector3());
-  const targetSpan = Math.max(gunSize.y * 2.4, 0.28);
-  const scale = targetSpan / Math.max(armSize.y, 1e-4);
-  clone.scale.setScalar(scale);
-  clone.updateMatrixWorld(true);
-
-  const fitted = new THREE.Box3().setFromObject(clone);
-  const fittedCenter = fitted.getCenter(new THREE.Vector3());
-  // Place fists on the grip: below/behind the frame so palms wrap the handle.
-  clone.position.set(
-    gunCenter.x - fittedCenter.x,
-    gun.min.y - fitted.min.y - gunSize.y * 0.05,
-    gun.max.z - fittedCenter.z + gunSize.z * 0.05,
-  );
-  clone.rotation.set(-0.12, 0.06, 0.02);
-
-  root.add(clone);
   return root;
 }
