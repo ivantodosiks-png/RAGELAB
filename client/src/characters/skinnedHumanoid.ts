@@ -8,14 +8,14 @@ import type { NpcLook } from '../sandbox/npcModel';
 const BASE = import.meta.env.BASE_URL;
 
 /**
- * Shared characters: Mixamo Vanguard operator (players) + civilian humanoids (NPCs).
- * Facing is on an un-animated parent so Mixamo bind cannot overwrite game yaw (−Z).
+ * Shared characters: Quaternius SWAT operator (players) + civilian humanoids (NPCs).
+ * Facing is on an un-animated parent so bind pose cannot overwrite game yaw (−Z).
  */
 export const CHARACTER_KINDS = ['operator', 'man', 'woman'] as const;
 export type CharacterKind = (typeof CHARACTER_KINDS)[number];
 export type LocoClip = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'getup';
 
-/** Primary player mesh — Mixamo Vanguard tactical soldier (three.js Soldier.glb). */
+/** Primary player mesh — Quaternius SWAT (CC0) with Idle/Walk/Run clips. */
 export const PLAYER_CHARACTER_KIND: CharacterKind = 'operator';
 
 const KIND_FILE: Record<CharacterKind, string> = {
@@ -25,30 +25,30 @@ const KIND_FILE: Record<CharacterKind, string> = {
 };
 
 const CLIP_ALIASES: Record<LocoClip, string[]> = {
-  idle: ['idle', 'standing_idle', 'unarmed_idle'],
+  idle: ['idle', 'idle_neutral', 'idle_gun', 'standing_idle', 'unarmed_idle'],
   walk: ['walk', 'walking_a', 'walking_b'],
-  run: ['run', 'running_a'],
-  jump: ['jump', 'jump_start', 'walk_jump', 'idle'],
+  run: ['run', 'run_shoot', 'running_a'],
+  jump: ['jump', 'jump_start', 'walk_jump', 'roll', 'idle'],
   fall: ['fall', 'falling_idle', 'jump_idle', 'idle'],
   getup: ['getup', 'lie_standup', 'standup'],
 };
 
 const BONE_ALIASES: Record<NpcPartId, string[]> = {
   pelvis: ['hips', 'pelvis', 'hip'],
-  torso: ['chest', 'spine2', 'spine1', 'spine_02', 'spine_01', 'spine'],
+  torso: ['chest', 'torso', 'abdomen', 'spine2', 'spine1', 'spine_02', 'spine_01', 'spine'],
   head: ['head'],
-  upperArmL: ['upperarm.l', 'leftarm', 'upperarm_l', 'upper_arm.l'],
-  lowerArmL: ['lowerarm.l', 'leftforearm', 'lowerarm_l', 'forearm.l'],
-  handL: ['hand.l', 'lefthand', 'hand_l'],
-  upperArmR: ['upperarm.r', 'rightarm', 'upperarm_r', 'upper_arm.r'],
-  lowerArmR: ['lowerarm.r', 'rightforearm', 'lowerarm_r', 'forearm.r'],
-  handR: ['hand.r', 'righthand', 'hand_r'],
-  upperLegL: ['upperleg.l', 'leftupleg', 'thigh_l', 'upleg.l'],
-  lowerLegL: ['lowerleg.l', 'leftleg', 'calf_l', 'leg.l'],
-  footL: ['foot.l', 'leftfoot', 'foot_l'],
-  upperLegR: ['upperleg.r', 'rightupleg', 'thigh_r', 'upleg.r'],
-  lowerLegR: ['lowerleg.r', 'rightleg', 'calf_r', 'leg.r'],
-  footR: ['foot.r', 'rightfoot', 'foot_r'],
+  upperArmL: ['upperarml', 'upperarm.l', 'leftarm', 'upperarm_l', 'upper_arm.l'],
+  lowerArmL: ['lowerarml', 'lowerarm.l', 'leftforearm', 'lowerarm_l', 'forearm.l'],
+  handL: ['wristl', 'hand.l', 'lefthand', 'hand_l', 'handl'],
+  upperArmR: ['upperarmr', 'upperarm.r', 'rightarm', 'upperarm_r', 'upper_arm.r'],
+  lowerArmR: ['lowerarmr', 'lowerarm.r', 'rightforearm', 'lowerarm_r', 'forearm.r'],
+  handR: ['wristr', 'hand.r', 'righthand', 'hand_r', 'handr'],
+  upperLegL: ['upperlegl', 'upperleg.l', 'leftupleg', 'thigh_l', 'upleg.l'],
+  lowerLegL: ['lowerlegl', 'lowerleg.l', 'leftleg', 'calf_l', 'leg.l'],
+  footL: ['footl', 'foot.l', 'leftfoot', 'foot_l'],
+  upperLegR: ['upperlegr', 'upperleg.r', 'rightupleg', 'thigh_r', 'upleg.r'],
+  lowerLegR: ['lowerlegr', 'lowerleg.r', 'rightleg', 'calf_r', 'leg.r'],
+  footR: ['footr', 'foot.r', 'rightfoot', 'foot_r'],
 };
 
 const WEAPON_NAME = /sword|shield|knife|wand|staff|bow|axe|smokebomb|spellbook|crossbow|quiver/i;
@@ -216,7 +216,7 @@ export class SkinnedCharacter {
     this.setHeadVisible(!on);
   }
 
-  play(clip: LocoClip, fade = 0.18, timeScale = 1): void {
+  play(clip: LocoClip, fade = 0.28, timeScale = 1): void {
     if (!this.mixer) {
       this.current = clip;
       return;
@@ -256,7 +256,9 @@ export class SkinnedCharacter {
     }
     for (const alias of aliases) {
       for (const [key, action] of this.actions) {
-        if (key.includes(alias) && !key.includes('t-pose') && !key.includes('tpose')) return action;
+        // Prefer whole-token match so `run` does not steal `run_left` / `run_back`.
+        const token = key.split(/[|:/]/).pop() ?? key;
+        if (token === alias && !token.includes('t-pose') && !token.includes('tpose')) return action;
       }
     }
     return undefined;
@@ -271,7 +273,7 @@ export class SkinnedCharacter {
     if (this.mixer) {
       const step = camDist > 70 ? dt * 0.35 : camDist > 42 ? dt * 0.65 : dt;
       this.mixer.update(step);
-      // Soldier.glb has no Jump/Fall clips — bias the grounded mesh for airborne read.
+      // SWAT pack has no dedicated Jump/Fall — bias the grounded mesh for airborne read.
       if (this.meshRoot) {
         const air =
           this.current === 'jump' ? 0.05 : this.current === 'fall' ? 0.02 : 0;
@@ -319,8 +321,8 @@ export function instantiateCharacter(kind: CharacterKind, look: NpcLook): Skinne
 function detectModelYawOffset(rig: THREE.Object3D): number {
   const hips = findBone(rig, ['hips', 'pelvis']);
   const head = findBone(rig, ['head']);
-  const armL = findBone(rig, ['upperarm.l', 'leftarm', 'leftuparm']);
-  const armR = findBone(rig, ['upperarm.r', 'rightarm', 'rightuparm']);
+  const armL = findBone(rig, ['upperarml', 'upperarm.l', 'leftarm', 'leftuparm']);
+  const armR = findBone(rig, ['upperarmr', 'upperarm.r', 'rightarm', 'rightuparm']);
   if (!hips || !head || !armL || !armR) return 0;
   hips.getWorldPosition(tmpA);
   head.getWorldPosition(tmpB);

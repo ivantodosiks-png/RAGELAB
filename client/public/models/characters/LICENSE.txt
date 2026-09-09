@@ -2,16 +2,15 @@ RAGELAB character licenses
 ==========================
 
 operator.glb  (primary player character for all players)
-- Mesh + clips: Mixamo "Vanguard" / Soldier via three.js r172
-  https://github.com/mrdoob/three.js/blob/r172/examples/models/gltf/Soldier.glb
-  Adobe Mixamo content may be used in games.
-- Clips: Idle, Walk, Run (TPose unused). Jump/Fall fall back to Idle;
-  crouch uses vertical scale on the character controller stance.
+- Quaternius "SWAT" from Ultimate Modular Men / Characters (CC0 public domain)
+  https://quaternius.com/packs/ultimatemodularcharacters.html
+  https://poly.pizza/m/Btfn3G5Xv4
+- Clips used: Idle, Walk, Run (+ Idle_Neutral / Idle_Gun aliases).
+  Jump/Fall fall back toward Idle; crouch uses vertical scale on stance.
+- Hit volumes: shared/src/sim/bodyParts.ts (OPERATOR_PART_CAPSULES)
 
 man.glb  (sandbox NPCs)
 - Ready Player Me example avatar + RPM animation library clips
 
 woman.glb  (sandbox NPCs)
 - Mixamo Michelle + Mixamo locomotion clips
-
-Hit volumes: shared/src/sim/bodyParts.ts (OPERATOR_PART_CAPSULES)

@@ -65,7 +65,7 @@ export type BodyPartState = Record<BodyPartId, number>;
 /**
  * Vertical capsule in local operator space (feet origin).
  * +X = right, +Y = up, −Z = forward at yaw 0.
- * Tuned to Mixamo Vanguard / Soldier.glb at ~1.8 m.
+ * Tuned to Quaternius SWAT (`operator.glb`) at ~1.78 m fit height.
  */
 export interface OperatorPartCapsule {
   part: BodyPartId;
@@ -77,13 +77,13 @@ export interface OperatorPartCapsule {
 }
 
 export const OPERATOR_PART_CAPSULES: readonly OperatorPartCapsule[] = [
-  { part: BodyPart.Head, lx: 0, lz: 0.03, y0: 1.5, y1: 1.78, radius: 0.14 },
-  { part: BodyPart.Chest, lx: 0, lz: 0.04, y0: 1.12, y1: 1.5, radius: 0.2 },
-  { part: BodyPart.Stomach, lx: 0, lz: 0.03, y0: 0.8, y1: 1.12, radius: 0.18 },
-  { part: BodyPart.ArmL, lx: -0.36, lz: 0.01, y0: 0.88, y1: 1.42, radius: 0.1 },
-  { part: BodyPart.ArmR, lx: 0.36, lz: 0.01, y0: 0.88, y1: 1.42, radius: 0.1 },
-  { part: BodyPart.LegL, lx: -0.13, lz: 0.02, y0: 0.02, y1: 0.84, radius: 0.12 },
-  { part: BodyPart.LegR, lx: 0.13, lz: 0.02, y0: 0.02, y1: 0.84, radius: 0.12 },
+  { part: BodyPart.Head, lx: 0, lz: 0.04, y0: 1.48, y1: 1.78, radius: 0.13 },
+  { part: BodyPart.Chest, lx: 0, lz: 0.04, y0: 1.1, y1: 1.48, radius: 0.2 },
+  { part: BodyPart.Stomach, lx: 0, lz: 0.03, y0: 0.78, y1: 1.1, radius: 0.17 },
+  { part: BodyPart.ArmL, lx: -0.28, lz: 0.02, y0: 0.9, y1: 1.4, radius: 0.1 },
+  { part: BodyPart.ArmR, lx: 0.28, lz: 0.02, y0: 0.9, y1: 1.4, radius: 0.1 },
+  { part: BodyPart.LegL, lx: -0.12, lz: 0.02, y0: 0.02, y1: 0.82, radius: 0.11 },
+  { part: BodyPart.LegR, lx: 0.12, lz: 0.02, y0: 0.02, y1: 0.82, radius: 0.11 },
 ];
 
 export function createFullBodyParts(): BodyPartState {
