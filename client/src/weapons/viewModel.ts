@@ -111,7 +111,7 @@ export class WeaponViewModel {
     this.recoilOffset = Math.min(this.recoilOffset + strength, 0.22);
     this.recoilPitch = Math.min(this.recoilPitch + strength * 3.2, 0.6);
     // Glock slide cycles rearward along the barrel (+Z in fitted view space).
-    if (this.slidePart) this.slideKick = Math.min(1, this.slideKick + 0.85 + strength * 8);
+    if (this.slidePart) this.slideKick = Math.min(1, this.slideKick + 1.05 + strength * 10);
   }
 
   /** Mouse movement drives a lagging sway; called with the frame's aim delta. */
@@ -142,7 +142,7 @@ export class WeaponViewModel {
       this.slidePart.position.set(
         this.slideRest.x,
         this.slideRest.y,
-        this.slideRest.z + this.slideKick * 0.018,
+        this.slideRest.z + this.slideKick * 0.024,
       );
     }
 
@@ -371,7 +371,7 @@ class ViewMuzzleFlash {
 
     const jetGeo = new THREE.PlaneGeometry(1, 1);
     this.geometries.push(jetGeo);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 10; i++) {
       const mat = new THREE.MeshBasicMaterial({
         map: muzzleStarTexture(),
         color: 0xffd080,
@@ -390,14 +390,14 @@ class ViewMuzzleFlash {
       this.root.add(mesh);
     }
 
-    this.light = new THREE.PointLight(0xffd090, 0, 5.5, 1.6);
+    this.light = new THREE.PointLight(0xffd090, 0, 7.5, 1.45);
     this.light.visible = false;
 
     this.root.add(this.core, this.bloom, this.star, this.light);
   }
 
   trigger(scale: number): void {
-    this.strength = Math.max(0.85, scale);
+    this.strength = Math.max(0.95, scale);
     this.life = 1;
     this.core.visible = true;
     this.bloom.visible = true;
@@ -410,33 +410,33 @@ class ViewMuzzleFlash {
       mesh.visible = true;
       const a = spin + (i / this.jets.length) * Math.PI * 2;
       mesh.rotation.set(Math.PI / 2, 0, a);
-      mesh.position.set(Math.sin(a) * 0.01, Math.cos(a) * 0.01, -0.04);
+      mesh.position.set(Math.sin(a) * 0.014, Math.cos(a) * 0.014, -0.035);
     }
     for (const streak of this.streaks) streak.visible = true;
   }
 
   update(dt: number): void {
     if (this.life <= 0) return;
-    this.life = Math.max(0, this.life - dt * 10);
-    const pulse = Math.pow(this.life, 0.42);
+    this.life = Math.max(0, this.life - dt * 8.2);
+    const pulse = Math.pow(this.life, 0.38);
     const s = this.strength;
-    this.core.scale.setScalar((0.14 + (1 - this.life) * 0.08) * s);
-    this.bloom.scale.setScalar((0.34 + (1 - this.life) * 0.18) * s);
-    this.star.scale.setScalar((0.42 + (1 - this.life) * 0.16) * s);
-    (this.core.material as THREE.SpriteMaterial).opacity = Math.min(1, pulse * 1.15);
-    (this.bloom.material as THREE.SpriteMaterial).opacity = pulse * 0.7;
-    (this.star.material as THREE.SpriteMaterial).opacity = pulse * 0.95;
+    this.core.scale.setScalar((0.18 + (1 - this.life) * 0.12) * s);
+    this.bloom.scale.setScalar((0.46 + (1 - this.life) * 0.28) * s);
+    this.star.scale.setScalar((0.58 + (1 - this.life) * 0.24) * s);
+    (this.core.material as THREE.SpriteMaterial).opacity = Math.min(1, pulse * 1.25);
+    (this.bloom.material as THREE.SpriteMaterial).opacity = pulse * 0.85;
+    (this.star.material as THREE.SpriteMaterial).opacity = pulse * 1.05;
 
     for (const streak of this.streaks) {
-      streak.scale.set(0.07 * s, (0.55 + (1 - this.life) * 0.28) * s, 1);
-      (streak.material as THREE.MeshBasicMaterial).opacity = pulse * 0.9;
+      streak.scale.set(0.09 * s, (0.72 + (1 - this.life) * 0.38) * s, 1);
+      (streak.material as THREE.MeshBasicMaterial).opacity = pulse * 1.0;
     }
     for (const jet of this.jets) {
-      jet.scale.set(0.09 * s, (0.28 + (1 - this.life) * 0.12) * s, 1);
-      (jet.material as THREE.MeshBasicMaterial).opacity = pulse * 0.85;
+      jet.scale.set(0.11 * s, (0.36 + (1 - this.life) * 0.18) * s, 1);
+      (jet.material as THREE.MeshBasicMaterial).opacity = pulse * 0.95;
     }
 
-    this.light.intensity = 48 * pulse * s;
+    this.light.intensity = 72 * pulse * s;
     if (this.life <= 0) this.hide();
   }
 

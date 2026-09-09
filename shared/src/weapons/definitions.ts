@@ -334,11 +334,11 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     aimTimeMs: 145,
     equipMs: 340,
     recoil: {
-      vertical: 0.68 * DEG,
-      horizontal: 0.2 * DEG,
-      recovery: 12,
-      cameraPunch: 0.34,
-      viewKick: 0.016,
+      vertical: 0.85 * DEG,
+      horizontal: 0.26 * DEG,
+      recovery: 11,
+      cameraPunch: 0.52,
+      viewKick: 0.028,
     },
     spread: {
       base: 0.32 * DEG,
@@ -354,13 +354,14 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     visual: {
       color: 0x1c1e22,
       accentColor: 0x8a9099,
-      size: [0.085, 0.14, 0.205],
-      muzzleFlashScale: 0.62,
-      tracerWidth: 0.016,
-      tracerColor: 0xffd48a,
+      size: [0.095, 0.155, 0.245],
+      muzzleFlashScale: 1.15,
+      tracerWidth: 0.022,
+      tracerColor: 0xffe0a0,
       shellEjection: true,
-      hipPosition: [0.2, -0.22, -0.4],
-      aimPosition: [0.0, -0.115, -0.31],
+      // Higher Y lifts the iron sight into the sight picture.
+      hipPosition: [0.2, -0.2, -0.38],
+      aimPosition: [0.0, -0.088, -0.28],
     },
   },
 

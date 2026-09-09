@@ -84,7 +84,7 @@ export interface WeaponPhysDef {
 
 export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   pistol: { mass: 1.35, hx: 0.038, hy: 0.075, hz: 0.13, length: 0.26 },
-  glock: { mass: 0.95, hx: 0.032, hy: 0.065, hz: 0.1, length: 0.2 },
+  glock: { mass: 0.95, hx: 0.034, hy: 0.07, hz: 0.12, length: 0.245 },
   usp: { mass: 1.05, hx: 0.033, hy: 0.068, hz: 0.105, length: 0.21 },
   makarov: { mass: 0.85, hx: 0.03, hy: 0.06, hz: 0.095, length: 0.23 },
   magnum: { mass: 1.85, hx: 0.04, hy: 0.08, hz: 0.14, length: 0.28 },

@@ -449,7 +449,7 @@ export class EffectsManager {
       position.y + direction.y * 0.08,
       position.z + direction.z * 0.08,
     );
-    flash.sprite.scale.setScalar(1.15 * scale);
+    flash.sprite.scale.setScalar(1.45 * scale);
     flash.sprite.visible = true;
     const material = flash.sprite.material as THREE.SpriteMaterial;
     material.color.setHex(0xffffff);
@@ -457,24 +457,24 @@ export class EffectsManager {
 
     flash.light.position.copy(flash.sprite.position);
     flash.light.color.setHex(0xffc070);
-    flash.light.intensity = 90 * scale;
-    flash.light.distance = 22;
+    flash.light.intensity = 125 * scale;
+    flash.light.distance = 28;
     flash.light.visible = this.settings.quality !== QualityLevel.Low;
-    flash.life = 0.12;
+    flash.life = 0.15;
 
-    const sparkCount = Math.max(4, Math.round(10 * this.effectsScale * scale));
+    const sparkCount = Math.max(8, Math.round(18 * this.effectsScale * scale));
     for (let i = 0; i < sparkCount; i++) {
-      const dir = scatter(direction, 0.55);
-      const speed = 8 + Math.random() * 14;
+      const dir = scatter(direction, 0.7);
+      const speed = 10 + Math.random() * 18;
       this.particles.spawn({
         x: flash.sprite.position.x,
         y: flash.sprite.position.y,
         z: flash.sprite.position.z,
         vx: dir.x * speed,
-        vy: dir.y * speed + 1.5,
+        vy: dir.y * speed + 1.8,
         vz: dir.z * speed,
-        life: 0.08 + Math.random() * 0.1,
-        size: 0.03,
+        life: 0.09 + Math.random() * 0.12,
+        size: 0.035 + Math.random() * 0.02,
         sizeEnd: 0.004,
         color: 0xfff4c8,
         colorEnd: 0xff6a18,
@@ -488,18 +488,36 @@ export class EffectsManager {
         x: flash.sprite.position.x,
         y: flash.sprite.position.y,
         z: flash.sprite.position.z,
-        vx: direction.x * 1.2,
-        vy: direction.y * 1.2 + 0.35,
-        vz: direction.z * 1.2,
-        life: 0.45,
-        size: 0.1 * scale,
-        sizeEnd: 0.42 * scale,
+        vx: direction.x * 1.4,
+        vy: direction.y * 1.4 + 0.4,
+        vz: direction.z * 1.4,
+        life: 0.55,
+        size: 0.14 * scale,
+        sizeEnd: 0.55 * scale,
         color: 0xc8c2b4,
         colorEnd: 0x3a3834,
         gravity: 0,
-        drag: 2.4,
-        buoyancy: 0.45,
-        fadeIn: 0.12,
+        drag: 2.2,
+        buoyancy: 0.5,
+        fadeIn: 0.1,
+      });
+      // Extra secondary puff for punchier pistol shots.
+      this.particles.spawn({
+        x: flash.sprite.position.x + direction.x * 0.04,
+        y: flash.sprite.position.y + direction.y * 0.04,
+        z: flash.sprite.position.z + direction.z * 0.04,
+        vx: direction.x * 0.6,
+        vy: direction.y * 0.6 + 0.55,
+        vz: direction.z * 0.6,
+        life: 0.32,
+        size: 0.08 * scale,
+        sizeEnd: 0.28 * scale,
+        color: 0xffe2a8,
+        colorEnd: 0x6a5840,
+        gravity: 0,
+        drag: 2.8,
+        buoyancy: 0.35,
+        fadeIn: 0.05,
       });
     }
   }
