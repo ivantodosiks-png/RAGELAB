@@ -182,9 +182,9 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.028,
       tracerColor: 0xfff0c0,
       shellEjection: true,
-      // Hip + optic ADS — collimator red-dot sits in Visier at screen center.
-      hipPosition: [0.22, -0.205, -0.5],
-      aimPosition: [0.0, -0.128, -0.268],
+      // Hip + optic ADS — red-dot sits in Visier / screen center on ADS.
+      hipPosition: [0.22, -0.2, -0.5],
+      aimPosition: [0.0, -0.132, -0.255],
     },
   },
 
@@ -356,14 +356,13 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     visual: {
       color: 0x1c1e22,
       accentColor: 0x8a9099,
-      size: [0.095, 0.155, 0.245],
-      muzzleFlashScale: 1.15,
+      size: [0.125, 0.185, 0.3],
+      muzzleFlashScale: 1.2,
       tracerWidth: 0.022,
       tracerColor: 0xffe0a0,
       shellEjection: true,
-      // Higher Y lifts the iron sight into the sight picture.
-      hipPosition: [0.2, -0.2, -0.38],
-      aimPosition: [0.0, -0.088, -0.28],
+      hipPosition: [0.21, -0.21, -0.4],
+      aimPosition: [0.0, -0.095, -0.3],
     },
   },
 

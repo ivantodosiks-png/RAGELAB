@@ -70,6 +70,7 @@ import { ToolGunView } from '../sandbox/toolGunView';
 import { resolveJoinWsUrl } from '../supabase/client';
 import { assetManager } from '../assets/assetManager';
 import { preloadWeaponModels, createWeaponVisual } from '../weapons/weaponAssets';
+import { preloadViewArms } from '../weapons/viewHands';
 
 let rapierModule: Promise<typeof RAPIER> | null = null;
 
@@ -180,6 +181,7 @@ export class GameSession {
     await this.audio.resume();
     this.audio.warmCombatBuffers();
     await preloadWeaponModels();
+    await preloadViewArms();
 
     this.renderer = new GameRenderer(this.canvas, settingsStore.graphics);
     this.effects = new EffectsManager(settingsStore.graphics);

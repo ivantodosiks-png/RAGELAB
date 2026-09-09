@@ -1,0 +1,8 @@
+RAGELAB viewmodel licenses
+==========================
+
+arms.glb / arms_pistol.glb
+- WRAD ARMS by wriks — CC0 1.0
+  https://github.com/wwwriks/wrad-arms
+- arms_pistol.glb is a Blender-posed two-hand pistol grip export
+  (scripts/pose_arms_pistol.py).

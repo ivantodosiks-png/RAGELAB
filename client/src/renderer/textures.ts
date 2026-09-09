@@ -978,6 +978,39 @@ export function muzzleCoreTexture(): THREE.Texture {
   return texture;
 }
 
+/** Sharp Holosun-style red-dot for collimator optics. */
+export function collimatorDotTexture(): THREE.Texture {
+  const key = 'fx:collimator-dot';
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const cx = size / 2;
+  const cy = size / 2;
+  const bloom = ctx.createRadialGradient(cx, cy, 2, cx, cy, size * 0.42);
+  bloom.addColorStop(0, 'rgba(255,80,40,0.95)');
+  bloom.addColorStop(0.22, 'rgba(255,40,20,0.55)');
+  bloom.addColorStop(0.55, 'rgba(255,20,10,0.12)');
+  bloom.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = bloom;
+  ctx.fillRect(0, 0, size, size);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,1)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,36,18,1)';
+  ctx.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  cache.set(key, texture);
+  return texture;
+}
+
 /** Cross-shaped flash that reads as a real muzzle star. */
 export function muzzleStarTexture(): THREE.Texture {
   const key = 'fx:muzzle-star';

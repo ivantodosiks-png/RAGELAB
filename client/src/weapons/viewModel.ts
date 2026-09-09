@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 import { clamp, lerp, type Vec3, type WeaponDefinition } from '@ragelab/shared';
-import { muzzleCoreTexture, muzzleStarTexture } from '../renderer/textures';
+import { muzzleCoreTexture, muzzleStarTexture, collimatorDotTexture } from '../renderer/textures';
 import { buildWeaponMesh, ejectOffsetFor, muzzleOffsetFor } from './weaponMeshes';
 import { instantiateWeaponVisual, loadWeaponModel, prepareWeaponVisual, weaponModelUrl } from './weaponAssets';
+import { createPistolGripArms, preloadViewArms, VIEW_ARMS_URL } from './viewHands';
+import { assetManager } from '../assets/assetManager';
+
+export { preloadViewArms };
 
 /**
  * First-person weapon model.
@@ -29,6 +33,7 @@ export class WeaponViewModel {
   private slideKick = 0;
   private redDot: THREE.Sprite | null = null;
   private redDotBloom: THREE.Sprite | null = null;
+  private viewArms: THREE.Object3D | null = null;
 
   /** 0 = hip, 1 = fully aimed. */
   private aimBlend = 0;
@@ -208,14 +213,14 @@ export class WeaponViewModel {
     this.model.rotation.y = this.swayOffset.x * 2.2;
     if (this.redDot && this.redDotBloom) {
       // Brighten the collimator reticle as you settle into ADS.
-      const glow = 0.55 + this.aimBlend * 0.45;
+      const glow = 0.62 + this.aimBlend * 0.38;
       const core = this.redDot.material as THREE.SpriteMaterial;
       const bloom = this.redDotBloom.material as THREE.SpriteMaterial;
       core.opacity = glow;
-      bloom.opacity = glow * 0.55;
-      const s = 0.0065 + this.aimBlend * 0.0015;
-      this.redDot.scale.setScalar(s);
-      this.redDotBloom.scale.setScalar(s * 2.4);
+      bloom.opacity = glow * 0.42;
+      const s = 0.01 + this.aimBlend * 0.004;
+      this.redDot.scale.set(s, s, 1);
+      this.redDotBloom.scale.set(s * 2.6, s * 2.6, 1);
     }
     this.flash.update(dt);
   }
@@ -252,6 +257,7 @@ export class WeaponViewModel {
 
   private disposeModel(): void {
     this.clearRedDot();
+    this.viewArms = null;
     for (const item of this.disposables) item.dispose();
     this.disposables.length = 0;
     this.model.clear();
@@ -281,6 +287,7 @@ export class WeaponViewModel {
       visual.position.z -= 0.02;
       this.model.add(visual);
       this.bindAnimatedParts(visual, def);
+      if (def.id === 'glock') this.attachPistolArms(visual);
     };
     const ready = instantiateWeaponVisual(def.id, length, { lod: false, shadows: false });
     if (ready) {
@@ -331,6 +338,22 @@ export class WeaponViewModel {
     if (def.collimator) this.attachCollimatorDot(visual);
   }
 
+  private attachPistolArms(visual: THREE.Object3D): void {
+    const mount = (): void => {
+      if (this.def?.id !== 'glock') return;
+      const arms = createPistolGripArms(visual);
+      if (!arms) return;
+      this.viewArms?.removeFromParent();
+      this.viewArms = arms;
+      visual.add(arms);
+    };
+    if (assetManager.peek(VIEW_ARMS_URL)) {
+      mount();
+      return;
+    }
+    void preloadViewArms().then(mount);
+  }
+
   private attachCollimatorDot(visual: THREE.Object3D): void {
     this.clearRedDot();
     visual.updateMatrixWorld(true);
@@ -350,38 +373,43 @@ export class WeaponViewModel {
     });
 
     const gunBox = new THREE.Box3().setFromObject(visual);
-    const box = opticBox ?? gunBox;
+    const box = (opticBox as THREE.Box3 | null) ?? gunBox;
     const center = box.getCenter(new THREE.Vector3());
-    // Sit the reticle in the optic window, slightly toward the shooter so it reads through the glass.
     const local = visual.worldToLocal(center.clone());
     if (!opticBox) {
-      local.y = gunBox.max.y - (gunBox.max.y - gunBox.min.y) * 0.08;
-      local.z = gunBox.min.z + (gunBox.max.z - gunBox.min.z) * 0.58;
-      local.x = 0;
+      local.set(
+        0,
+        gunBox.max.y - (gunBox.max.y - gunBox.min.y) * 0.06,
+        gunBox.min.z + (gunBox.max.z - gunBox.min.z) * 0.62,
+      );
     } else {
-      local.z += 0.006;
+      // Pull the reticle slightly toward the shooter inside the optic window.
+      local.z += (gunBox.max.z - gunBox.min.z) * 0.02;
     }
 
+    const map = collimatorDotTexture();
     const makeDot = (color: number, size: number, opacity: number): THREE.Sprite => {
       const mat = new THREE.SpriteMaterial({
+        map,
         color,
         transparent: true,
         opacity,
-        depthTest: true,
+        depthTest: false,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         toneMapped: false,
       });
       const sprite = new THREE.Sprite(mat);
-      sprite.scale.setScalar(size);
+      sprite.scale.set(size, size, 1);
       sprite.position.copy(local);
-      sprite.renderOrder = 40;
+      sprite.renderOrder = 50;
       sprite.frustumCulled = false;
       return sprite;
     };
 
-    this.redDot = makeDot(0xff2a1a, 0.007, 0.9);
-    this.redDotBloom = makeDot(0xff5533, 0.017, 0.45);
+    // Sharp core + soft bloom — reads as a Holosun-style red dot in the optic.
+    this.redDot = makeDot(0xff1e12, 0.011, 0.98);
+    this.redDotBloom = makeDot(0xff6644, 0.028, 0.4);
     this.redDot.name = 'collimatorDot';
     this.redDotBloom.name = 'collimatorBloom';
     visual.add(this.redDot, this.redDotBloom);

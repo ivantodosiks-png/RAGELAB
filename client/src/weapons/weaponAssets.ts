@@ -84,7 +84,7 @@ export interface WeaponPhysDef {
 
 export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   pistol: { mass: 1.35, hx: 0.038, hy: 0.075, hz: 0.13, length: 0.26 },
-  glock: { mass: 0.95, hx: 0.034, hy: 0.07, hz: 0.12, length: 0.245 },
+  glock: { mass: 0.95, hx: 0.038, hy: 0.078, hz: 0.14, length: 0.3 },
   usp: { mass: 1.05, hx: 0.033, hy: 0.068, hz: 0.105, length: 0.21 },
   makarov: { mass: 0.85, hx: 0.03, hy: 0.06, hz: 0.095, length: 0.23 },
   magnum: { mass: 1.85, hx: 0.04, hy: 0.08, hz: 0.14, length: 0.28 },
@@ -118,6 +118,11 @@ const tmpVertex = new THREE.Vector3();
 const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: number; roll?: number }>> = {
   // FBX2glTF −90° X leaves the barrel on +Z after longest-axis fit.
   magnum: { yaw: Math.PI },
+};
+
+/** Non-uniform stretch after length fit (e.g. thicker Glock frame). */
+const WEAPON_STRETCH: Partial<Record<WeaponModelId, { x?: number; y?: number; z?: number }>> = {
+  glock: { x: 1.22, y: 1.08, z: 1.0 },
 };
 
 const AUTHORED_PBR: ReadonlySet<string> = new Set(['glock', 'rifle']);
@@ -177,6 +182,13 @@ export function fitWeaponModel(root: THREE.Object3D, targetLength: number, groun
   tmpBox.getSize(tmpSize);
   const longest = Math.max(tmpSize.x, tmpSize.y, tmpSize.z, 0.01);
   root.scale.multiplyScalar(targetLength / longest);
+
+  const stretch = id ? WEAPON_STRETCH[id as WeaponModelId] : undefined;
+  if (stretch) {
+    root.scale.x *= stretch.x ?? 1;
+    root.scale.y *= stretch.y ?? 1;
+    root.scale.z *= stretch.z ?? 1;
+  }
 
   root.updateMatrixWorld(true);
   tmpBox.setFromObject(root);
