@@ -126,24 +126,29 @@ function tuneAuthoredPbr(mat: THREE.MeshStandardMaterial, id: string): void {
   if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
 
   if (id === 'glock') {
-    // Matte black polymer — kill IBL glare that washed the pistol white.
-    mat.envMapIntensity = 0.12;
-    mat.metalness = Math.min(mat.metalness, 0.18);
-    mat.roughness = Math.max(mat.roughness, 0.72);
-    mat.color.multiplyScalar(0.42);
+    // Deep matte black polymer — almost no IBL so it never looks sun-bleached.
+    mat.envMapIntensity = 0.04;
+    mat.metalness = Math.min(mat.metalness, 0.08);
+    mat.roughness = Math.max(mat.roughness, 0.88);
+    mat.color.setRGB(0.07, 0.075, 0.08);
+    if (mat.map) mat.color.multiplyScalar(0.55);
     mat.emissive.setHex(0x000000);
     mat.emissiveIntensity = 0;
-    if (mat.metalnessMap) mat.metalness = Math.min(mat.metalness, 0.22);
     return;
   }
 
-  mat.envMapIntensity = Math.min(mat.envMapIntensity || 1, 0.85);
-  // Optic glass / metal bits named Visier look sharper with a touch more specular.
-  if (/visier|optic|scope|glass/i.test(mat.name)) {
-    mat.metalness = Math.min(1, Math.max(mat.metalness, 0.35));
-    mat.roughness = Math.min(mat.roughness, 0.28);
-    mat.envMapIntensity = Math.min(1.1, (mat.envMapIntensity || 0.85) + 0.2);
+  if (id === 'rifle') {
+    const isOptic = /visier|optic|scope|glass/i.test(mat.name);
+    mat.envMapIntensity = isOptic ? 0.18 : 0.12;
+    mat.metalness = Math.min(mat.metalness, isOptic ? 0.45 : 0.28);
+    mat.roughness = Math.max(mat.roughness, isOptic ? 0.35 : 0.62);
+    mat.color.multiplyScalar(isOptic ? 0.55 : 0.48);
+    mat.emissive.setHex(0x000000);
+    mat.emissiveIntensity = 0;
+    return;
   }
+
+  mat.envMapIntensity = Math.min(mat.envMapIntensity || 1, 0.35);
 }
 
 /**

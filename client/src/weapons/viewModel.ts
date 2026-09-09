@@ -27,6 +27,8 @@ export class WeaponViewModel {
   private slidePart: THREE.Object3D | null = null;
   private readonly slideRest = new THREE.Vector3();
   private slideKick = 0;
+  private redDot: THREE.Sprite | null = null;
+  private redDotBloom: THREE.Sprite | null = null;
 
   /** 0 = hip, 1 = fully aimed. */
   private aimBlend = 0;
@@ -67,6 +69,7 @@ export class WeaponViewModel {
     this.disposeModel();
     this.slidePart = null;
     this.slideKick = 0;
+    this.clearRedDot();
 
     const built = buildWeaponMesh(def, this.disposables);
     this.model.add(built.root);
@@ -203,6 +206,17 @@ export class WeaponViewModel {
 
     this.recoilPivot.rotation.x = this.recoilPitch;
     this.model.rotation.y = this.swayOffset.x * 2.2;
+    if (this.redDot && this.redDotBloom) {
+      // Brighten the collimator reticle as you settle into ADS.
+      const glow = 0.55 + this.aimBlend * 0.45;
+      const core = this.redDot.material as THREE.SpriteMaterial;
+      const bloom = this.redDotBloom.material as THREE.SpriteMaterial;
+      core.opacity = glow;
+      bloom.opacity = glow * 0.55;
+      const s = 0.0065 + this.aimBlend * 0.0015;
+      this.redDot.scale.setScalar(s);
+      this.redDotBloom.scale.setScalar(s * 2.4);
+    }
     this.flash.update(dt);
   }
 
@@ -237,6 +251,7 @@ export class WeaponViewModel {
   }
 
   private disposeModel(): void {
+    this.clearRedDot();
     for (const item of this.disposables) item.dispose();
     this.disposables.length = 0;
     this.model.clear();
@@ -312,6 +327,74 @@ export class WeaponViewModel {
         box.min.z + spanZ * (def.id === 'rifle' ? 0.42 : 0.15),
       );
     }
+
+    if (def.collimator) this.attachCollimatorDot(visual);
+  }
+
+  private attachCollimatorDot(visual: THREE.Object3D): void {
+    this.clearRedDot();
+    visual.updateMatrixWorld(true);
+
+    // Prefer the Visier / optic material bounds; fall back to top-forward of the gun.
+    let opticBox: THREE.Box3 | null = null;
+    visual.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const optic = mats.some((m) => m && /visier|optic|scope|glass/i.test((m as THREE.Material).name || ''));
+      if (!optic) return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      if (!mesh.geometry.boundingBox) return;
+      const b = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+      opticBox = opticBox ? opticBox.union(b) : b;
+    });
+
+    const gunBox = new THREE.Box3().setFromObject(visual);
+    const box = opticBox ?? gunBox;
+    const center = box.getCenter(new THREE.Vector3());
+    // Sit the reticle in the optic window, slightly toward the shooter so it reads through the glass.
+    const local = visual.worldToLocal(center.clone());
+    if (!opticBox) {
+      local.y = gunBox.max.y - (gunBox.max.y - gunBox.min.y) * 0.08;
+      local.z = gunBox.min.z + (gunBox.max.z - gunBox.min.z) * 0.58;
+      local.x = 0;
+    } else {
+      local.z += 0.006;
+    }
+
+    const makeDot = (color: number, size: number, opacity: number): THREE.Sprite => {
+      const mat = new THREE.SpriteMaterial({
+        color,
+        transparent: true,
+        opacity,
+        depthTest: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.setScalar(size);
+      sprite.position.copy(local);
+      sprite.renderOrder = 40;
+      sprite.frustumCulled = false;
+      return sprite;
+    };
+
+    this.redDot = makeDot(0xff2a1a, 0.007, 0.9);
+    this.redDotBloom = makeDot(0xff5533, 0.017, 0.45);
+    this.redDot.name = 'collimatorDot';
+    this.redDotBloom.name = 'collimatorBloom';
+    visual.add(this.redDot, this.redDotBloom);
+  }
+
+  private clearRedDot(): void {
+    for (const sprite of [this.redDot, this.redDotBloom]) {
+      if (!sprite) continue;
+      sprite.removeFromParent();
+      (sprite.material as THREE.SpriteMaterial).dispose();
+    }
+    this.redDot = null;
+    this.redDotBloom = null;
   }
 
   dispose(): void {

@@ -113,6 +113,8 @@ export interface WeaponDefinition {
   aimTimeMs: number;
   /** Full optical scope overlay while RMB is held. */
   scoped?: boolean;
+  /** Red-dot / Holosun-style reticle (HUD + optic glow) while ADS. */
+  collimator?: boolean;
   /** Time to raise the weapon after a switch. */
   equipMs: number;
   recoil: RecoilProfile;

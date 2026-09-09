@@ -66,17 +66,18 @@ export class GameRenderer {
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
 
-    // The view model needs its own light or it renders black.
-    const viewModelLight = new THREE.DirectionalLight(0xfff8ee, 4.2);
-    viewModelLight.position.set(0.4, 1.35, 1.1);
+    // The view model needs its own light or it renders black — keep it soft
+    // so polymer / black guns don't wash out like noon sun on chrome.
+    const viewModelLight = new THREE.DirectionalLight(0xf0ebe4, 1.15);
+    viewModelLight.position.set(0.55, 0.85, 1.2);
     this.viewModelScene.add(viewModelLight);
-    const fill = new THREE.DirectionalLight(0xc5dcff, 1.65);
-    fill.position.set(-0.7, 0.35, 0.55);
+    const fill = new THREE.DirectionalLight(0xa8b8c8, 0.55);
+    fill.position.set(-0.85, 0.25, 0.45);
     this.viewModelScene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe7c4, 1.1);
-    rim.position.set(0.1, 0.4, -0.8);
+    const rim = new THREE.DirectionalLight(0xd8c8b0, 0.28);
+    rim.position.set(0.15, 0.2, -0.9);
     this.viewModelScene.add(rim);
-    this.viewModelScene.add(new THREE.AmbientLight(0xe8eef6, 1.85));
+    this.viewModelScene.add(new THREE.AmbientLight(0xb8c0c8, 0.55));
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     const room = new RoomEnvironment();
@@ -85,7 +86,7 @@ export class GameRenderer {
     this.scene.environment = envMap;
     this.scene.environmentIntensity = 0.46;
     this.viewModelScene.environment = envMap;
-    this.viewModelScene.environmentIntensity = 0.85;
+    this.viewModelScene.environmentIntensity = 0.22;
     pmrem.dispose();
 
     this.sky = this.createSky();

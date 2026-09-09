@@ -155,6 +155,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
     aimFovMultiplier: 0.58,
     aimTimeMs: 165,
     equipMs: 420,
+    collimator: true,
     recoil: {
       vertical: 0.72 * DEG,
       horizontal: 0.28 * DEG,
@@ -181,9 +182,9 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       tracerWidth: 0.028,
       tracerColor: 0xfff0c0,
       shellEjection: true,
-      // Hip + optic ADS tuned for Visier on assets/m4/M4Colt.glb
+      // Hip + optic ADS — collimator red-dot sits in Visier at screen center.
       hipPosition: [0.22, -0.205, -0.5],
-      aimPosition: [0.0, -0.122, -0.275],
+      aimPosition: [0.0, -0.128, -0.268],
     },
   },
 

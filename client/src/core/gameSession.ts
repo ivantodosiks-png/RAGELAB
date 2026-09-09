@@ -1293,7 +1293,9 @@ export class GameSession {
       );
       this.ui.hud.setToolGun(false, 'NPC', true);
       this.ui.hud.setCrosshairMotion(speedRatio, Boolean(this.sandbox.aimedWeapon), false);
-      this.ui.hud.setScope(this.local.alive && def.scoped ? this.weapon.aimBlend : 0, def.scoped ? 'optic' : 'none');
+      const scopeKind = def.scoped ? 'optic' : def.collimator ? 'ads' : 'none';
+      const scopeAmt = this.local.alive && (def.scoped || def.collimator) ? this.weapon.aimBlend : 0;
+      this.ui.hud.setScope(scopeAmt, scopeKind);
     }
     this.ui.hud.setNet(this.fps, this.offline ? 0 : (this.net?.rttMs ?? 0), settingsStore.graphics.debugOverlay);
     this.ui.hud.setInteract(this.interactPrompt());
@@ -1307,7 +1309,8 @@ export class GameSession {
         !this.paused &&
         !this.ui.hud.weaponWheelOpen &&
         !this.spawnMenu?.isOpen &&
-        !scopedOut,
+        !scopedOut &&
+        !(Boolean(def.collimator) && this.weapon.aimBlend > 0.45),
     );
     this.ui.hud.setScoreboard(this.scoreRows(), false);
     this.ui.hud.setDebug(
