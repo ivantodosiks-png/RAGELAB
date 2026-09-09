@@ -183,7 +183,7 @@ const WEAPON_FALLBACK: Record<SandboxWeaponKind, { name: string; swatch: number 
   smg: { name: 'VX-4 Ripper', swatch: 0xff7a3d },
   bizon: { name: 'PP-19 Bizon', swatch: 0x8a9a6a },
   assault: { name: 'AR-C Assault', swatch: 0x5a8a4a },
-  rifle: { name: 'M4A1 Carbine', swatch: 0x3a3f46 },
+  rifle: { name: 'M4 Colt', swatch: 0x3a3f46 },
   ak: { name: 'AK-74', swatch: 0xb8863a },
   shotgun: { name: 'BR-12 Breaker', swatch: 0x9a6b3f },
   autosg: { name: 'AA-12 Storm', swatch: 0xe05040 },

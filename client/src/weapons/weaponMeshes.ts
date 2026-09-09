@@ -328,7 +328,7 @@ function buildSniper(def: WeaponDefinition, disposables: Array<{ dispose(): void
 export function muzzleOffsetFor(def: WeaponDefinition): [number, number, number] {
   switch (def.id) {
     case 'rifle':
-      return [0, 0.04, -0.67];
+      return [0, 0.035, -0.42];
     case 'pistol':
       return [0, 0.028, -0.22];
     case 'glock':
@@ -349,7 +349,7 @@ export function muzzleOffsetFor(def: WeaponDefinition): [number, number, number]
 export function ejectOffsetFor(def: WeaponDefinition): [number, number, number] {
   switch (def.id) {
     case 'rifle':
-      return [0.03, 0.05, -0.015];
+      return [0.028, 0.045, 0.02];
     case 'pistol':
     case 'glock':
     case 'magnum':

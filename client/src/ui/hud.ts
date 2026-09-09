@@ -863,7 +863,7 @@ function weaponBlurb(id: string): string {
     case 'assault':
       return 'AR-C Assault. Modern automatic.';
     case 'rifle':
-      return 'M4A1 Carbine. Balanced automatic.';
+      return 'M4 Colt. Optic-ready carbine.';
     case 'ak':
       return 'AK-74. Hard-hitting 5.45 rifle.';
     case 'shotgun':

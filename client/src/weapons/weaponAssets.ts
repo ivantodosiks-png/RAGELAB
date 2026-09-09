@@ -92,7 +92,7 @@ export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   smg: { mass: 2.45, hx: 0.035, hy: 0.085, hz: 0.26, length: 0.52 },
   bizon: { mass: 2.7, hx: 0.038, hy: 0.09, hz: 0.28, length: 0.56 },
   assault: { mass: 3.2, hx: 0.04, hy: 0.09, hz: 0.39, length: 0.78 },
-  rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.41, length: 0.82 },
+  rifle: { mass: 3.35, hx: 0.042, hy: 0.095, hz: 0.42, length: 0.84 },
   ak: { mass: 3.55, hx: 0.042, hy: 0.092, hz: 0.4, length: 0.8 },
   shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
   autosg: { mass: 3.9, hx: 0.048, hy: 0.085, hz: 0.37, length: 0.74 },
@@ -119,6 +119,32 @@ const WEAPON_ORIENT: Partial<Record<WeaponModelId, { yaw?: number; pitch?: numbe
   // FBX2glTF −90° X leaves the barrel on +Z after longest-axis fit.
   magnum: { yaw: Math.PI },
 };
+
+const AUTHORED_PBR: ReadonlySet<string> = new Set(['glock', 'rifle']);
+
+function tuneAuthoredPbr(mat: THREE.MeshStandardMaterial, id: string): void {
+  if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+
+  if (id === 'glock') {
+    // Matte black polymer — kill IBL glare that washed the pistol white.
+    mat.envMapIntensity = 0.12;
+    mat.metalness = Math.min(mat.metalness, 0.18);
+    mat.roughness = Math.max(mat.roughness, 0.72);
+    mat.color.multiplyScalar(0.42);
+    mat.emissive.setHex(0x000000);
+    mat.emissiveIntensity = 0;
+    if (mat.metalnessMap) mat.metalness = Math.min(mat.metalness, 0.22);
+    return;
+  }
+
+  mat.envMapIntensity = Math.min(mat.envMapIntensity || 1, 0.85);
+  // Optic glass / metal bits named Visier look sharper with a touch more specular.
+  if (/visier|optic|scope|glass/i.test(mat.name)) {
+    mat.metalness = Math.min(1, Math.max(mat.metalness, 0.35));
+    mat.roughness = Math.min(mat.roughness, 0.28);
+    mat.envMapIntensity = Math.min(1.1, (mat.envMapIntensity || 0.85) + 0.2);
+  }
+}
 
 /**
  * Align the longest axis to Z (view-model barrel direction), force muzzle toward
@@ -218,10 +244,8 @@ export function prepareWeaponVisual(
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
-      if (options.id === 'glock') {
-        // Authored PBR maps from assets/glock17 — keep them, only tame env specular.
-        mat.envMapIntensity = Math.min(mat.envMapIntensity || 1, 0.7);
-        if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      if (options.id && AUTHORED_PBR.has(options.id)) {
+        tuneAuthoredPbr(mat, options.id);
         continue;
       }
       if (options.id === 'magnum') {

@@ -110,8 +110,8 @@ export class WeaponViewModel {
   kick(strength: number): void {
     this.recoilOffset = Math.min(this.recoilOffset + strength, 0.22);
     this.recoilPitch = Math.min(this.recoilPitch + strength * 3.2, 0.6);
-    // Glock slide cycles rearward along the barrel (+Z in fitted view space).
-    if (this.slidePart) this.slideKick = Math.min(1, this.slideKick + 1.05 + strength * 10);
+    // Glock slide: hard rearward snap, fast return.
+    if (this.slidePart) this.slideKick = 1;
   }
 
   /** Mouse movement drives a lagging sway; called with the frame's aim delta. */
@@ -136,13 +136,13 @@ export class WeaponViewModel {
 
     this.recoilOffset = lerp(this.recoilOffset, 0, 1 - Math.exp(-14 * dt));
     this.recoilPitch = lerp(this.recoilPitch, 0, 1 - Math.exp(-12 * dt));
-    this.slideKick = lerp(this.slideKick, 0, 1 - Math.exp(-18 * dt));
+    this.slideKick = lerp(this.slideKick, 0, 1 - Math.exp(-42 * dt));
     if (this.slidePart) {
-      // Travel ~18 mm at full kick (model is fitted to ~0.2 m length).
+      // Travel ~22 mm — snappy cycle reads better than a slow crawl.
       this.slidePart.position.set(
         this.slideRest.x,
         this.slideRest.y,
-        this.slideRest.z + this.slideKick * 0.024,
+        this.slideRest.z + this.slideKick * 0.022,
       );
     }
 
@@ -293,14 +293,24 @@ export class WeaponViewModel {
       magazine.name = 'magazine';
     }
 
-    // Nudge muzzle/eject to the fitted mesh tip for the authored Glock.
-    if (def.id === 'glock') {
+    // Nudge muzzle/eject to the fitted mesh tip for authored pistols / rifles.
+    if (def.id === 'glock' || def.id === 'rifle') {
       visual.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(visual);
-      const muzzleZ = box.min.z - 0.002;
-      const muzzleY = box.min.y + (box.max.y - box.min.y) * 0.62;
+      const spanY = box.max.y - box.min.y;
+      const spanZ = box.max.z - box.min.z;
+      const muzzleZ = box.min.z - 0.004;
+      // Rifle barrel sits mid-height; optic (Visier) is above.
+      const muzzleY =
+        def.id === 'rifle'
+          ? box.min.y + spanY * 0.48
+          : box.min.y + spanY * 0.62;
       this.muzzlePoint.position.set(0, muzzleY, muzzleZ);
-      this.ejectPoint.position.set(box.max.x * 0.55, muzzleY * 0.9, (box.min.z + box.max.z) * 0.15);
+      this.ejectPoint.position.set(
+        box.max.x * 0.45,
+        muzzleY + spanY * 0.08,
+        box.min.z + spanZ * (def.id === 'rifle' ? 0.42 : 0.15),
+      );
     }
   }
 

@@ -23,3 +23,7 @@ Thumbs.db
 
 # Local asset scratch (downloads, gltf-transform, FBX sources)
 tmp-assets/
+assets/_dl/
+
+# Oversized source masters (optimize into client/public/models — GitHub 100MB limit)
+assets/m4/*.glb
