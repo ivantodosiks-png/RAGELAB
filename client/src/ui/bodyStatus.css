@@ -1,4 +1,4 @@
-/* Body status — SVG tactical operator (HUD + TAB) */
+/* Body status — photographic operator silhouette (HUD + TAB) */
 
 .body-status {
   display: flex;
@@ -31,30 +31,80 @@
 
 .body-status-sil {
   position: relative;
-  width: 58px;
-  height: 108px;
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.45));
+  width: 64px;
+  height: 118px;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55));
 }
 
-.body-status-svg {
+.body-status-figure {
+  position: relative;
   width: 100%;
   height: 100%;
-  display: block;
-  overflow: visible;
 }
 
 .bs-part {
-  transition: fill 0.08s linear, stroke 0.08s linear;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.bs-part.is-hit {
-  stroke: rgba(255, 236, 190, 0.95) !important;
-  stroke-width: 1.8px;
+.bs-tex {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  display: block;
+  image-rendering: auto;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
-.bs-part.is-destroyed {
-  stroke: rgba(90, 90, 90, 0.55) !important;
-  opacity: 0.92;
+.bs-tint {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  opacity: 1;
+  mix-blend-mode: color;
+  pointer-events: none;
+  -webkit-mask-image: var(--bs-mask);
+  mask-image: var(--bs-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  transition: background 0.1s linear;
+}
+
+.bs-part.is-destroyed .bs-tex {
+  filter: brightness(0.35) saturate(0.2);
+}
+
+.bs-part.is-destroyed .bs-tint {
+  mix-blend-mode: multiply;
+}
+
+.bs-part.is-hit .bs-tex {
+  filter: brightness(1.18) contrast(1.05);
+}
+
+.bs-part.is-hit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 230, 160, 0.35);
+  pointer-events: none;
+  -webkit-mask-image: var(--bs-mask);
+  mask-image: var(--bs-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
 }
 
 /* TAB detail */
@@ -70,9 +120,9 @@
 }
 
 .body-status--detail .body-status-sil {
-  width: min(148px, 34%);
+  width: min(168px, 38%);
   height: auto;
-  aspect-ratio: 120 / 140;
+  aspect-ratio: 319 / 652;
   flex-shrink: 0;
 }
 
