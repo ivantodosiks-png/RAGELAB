@@ -24,6 +24,9 @@ export class WeaponViewModel {
   private def: WeaponDefinition | null = null;
   private readonly disposables: Array<{ dispose(): void }> = [];
   private magRestY = 0;
+  private slidePart: THREE.Object3D | null = null;
+  private readonly slideRest = new THREE.Vector3();
+  private slideKick = 0;
 
   /** 0 = hip, 1 = fully aimed. */
   private aimBlend = 0;
@@ -62,6 +65,8 @@ export class WeaponViewModel {
   equip(def: WeaponDefinition): void {
     this.def = def;
     this.disposeModel();
+    this.slidePart = null;
+    this.slideKick = 0;
 
     const built = buildWeaponMesh(def, this.disposables);
     this.model.add(built.root);
@@ -105,6 +110,8 @@ export class WeaponViewModel {
   kick(strength: number): void {
     this.recoilOffset = Math.min(this.recoilOffset + strength, 0.22);
     this.recoilPitch = Math.min(this.recoilPitch + strength * 3.2, 0.6);
+    // Glock slide cycles rearward along the barrel (+Z in fitted view space).
+    if (this.slidePart) this.slideKick = Math.min(1, this.slideKick + 0.85 + strength * 8);
   }
 
   /** Mouse movement drives a lagging sway; called with the frame's aim delta. */
@@ -129,6 +136,15 @@ export class WeaponViewModel {
 
     this.recoilOffset = lerp(this.recoilOffset, 0, 1 - Math.exp(-14 * dt));
     this.recoilPitch = lerp(this.recoilPitch, 0, 1 - Math.exp(-12 * dt));
+    this.slideKick = lerp(this.slideKick, 0, 1 - Math.exp(-18 * dt));
+    if (this.slidePart) {
+      // Travel ~18 mm at full kick (model is fitted to ~0.2 m length).
+      this.slidePart.position.set(
+        this.slideRest.x,
+        this.slideRest.y,
+        this.slideRest.z + this.slideKick * 0.018,
+      );
+    }
 
     this.equipProgress = Math.min(1, this.equipProgress + dt / Math.max(0.05, this.equipDurationSec));
 
@@ -249,6 +265,7 @@ export class WeaponViewModel {
       // the near plane without rotating the barrel toward the camera.
       visual.position.z -= 0.02;
       this.model.add(visual);
+      this.bindAnimatedParts(visual, def);
     };
     const ready = instantiateWeaponVisual(def.id, length, { lod: false, shadows: false });
     if (ready) {
@@ -259,6 +276,32 @@ export class WeaponViewModel {
       if (!clone) return;
       apply(prepareWeaponVisual(clone, length, { lod: false, shadows: false, id: def.id }));
     });
+  }
+
+  private bindAnimatedParts(visual: THREE.Object3D, def: WeaponDefinition): void {
+    const slide =
+      visual.getObjectByName('slide') ??
+      visual.getObjectByName('Slide') ??
+      visual.getObjectByName('Glock17 Slide');
+    this.slidePart = slide ?? null;
+    if (this.slidePart) this.slideRest.copy(this.slidePart.position);
+
+    const magazine = visual.getObjectByName('magazine') ?? visual.getObjectByName('Magazine');
+    if (magazine) {
+      this.magRestY = magazine.position.y;
+      // Keep the canonical name so the reload dip finds it.
+      magazine.name = 'magazine';
+    }
+
+    // Nudge muzzle/eject to the fitted mesh tip for the authored Glock.
+    if (def.id === 'glock') {
+      visual.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(visual);
+      const muzzleZ = box.min.z - 0.002;
+      const muzzleY = box.min.y + (box.max.y - box.min.y) * 0.62;
+      this.muzzlePoint.position.set(0, muzzleY, muzzleZ);
+      this.ejectPoint.position.set(box.max.x * 0.55, muzzleY * 0.9, (box.min.z + box.max.z) * 0.15);
+    }
   }
 
   dispose(): void {

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { getWeapon, isWeaponId } from '@ragelab/shared';
 import { assetManager } from '../assets/assetManager';
 import { buildWeaponMesh } from './weaponMeshes';
@@ -211,7 +210,6 @@ export function prepareWeaponVisual(
   const content = source;
   content.name = 'weaponMesh';
   content.traverse((obj) => {
-    if (obj.name === 'Glock19.001') obj.visible = false;
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.castShadow = options.shadows !== false;
@@ -221,9 +219,9 @@ export function prepareWeaponVisual(
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
       if (options.id === 'glock') {
-        mat.metalness = Math.min(mat.metalness, 0.22);
-        mat.roughness = Math.max(mat.roughness, 0.5);
-        mat.envMapIntensity = 0.35;
+        // Authored PBR maps from assets/glock17 — keep them, only tame env specular.
+        mat.envMapIntensity = Math.min(mat.envMapIntensity || 1, 0.7);
+        if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
         continue;
       }
       if (options.id === 'magnum') {
@@ -242,10 +240,7 @@ export function prepareWeaponVisual(
       mat.roughness = Math.max(mat.roughness, 0.28);
     }
   });
-  const size =
-    options.id === 'glock'
-      ? fitByGeometry(content, targetLength, options.ground === true)
-      : fitWeaponModel(content, targetLength, options.ground === true, options.id);
+  const size = fitWeaponModel(content, targetLength, options.ground === true, options.id);
 
   if (!options.lod) return content;
 
@@ -314,7 +309,7 @@ export function instantiateWeaponVisual(
   if (!url) return null;
   const clone = cloneWeaponScene(url, id);
   if (!clone) return null;
-  return prepareWeaponVisual(clone, targetLength, { ...options, lod: id === 'glock' ? false : options.lod, id });
+  return prepareWeaponVisual(clone, targetLength, { ...options, id });
 }
 
 export function loadWeaponModel(id: string): Promise<THREE.Group | null> {
@@ -345,7 +340,7 @@ export function preloadWeaponModels(): Promise<void> {
 function cloneWeaponScene(url: string, id: string): THREE.Group | null {
   const gltf = assetManager.peek(url);
   if (!gltf) return null;
-  const clone = (id === 'glock' ? cloneSkinned(gltf.scene) : gltf.scene.clone(true)) as THREE.Group;
+  const clone = gltf.scene.clone(true) as THREE.Group;
   clone.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;

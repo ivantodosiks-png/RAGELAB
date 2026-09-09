@@ -1,6 +1,11 @@
-newmtl aiStandardSurface1SG
-illum 4
-Kd 0.00 0.00 0.00
-Ka 0.00 0.00 0.00
-Tf 1.00 1.00 1.00
-Ni 0.00
+newmtl Glock17_PBR
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ns 96.0
+d 1.0
+illum 2
+map_Kd Textures/Glock17_BaseColor.png
+map_Bump Textures/Glock17_Normal.png
+map_Pm Textures/Glock17_Metalness.png
+map_Pr Textures/Glock17_Roughness.png

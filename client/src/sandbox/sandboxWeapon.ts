@@ -211,7 +211,7 @@ export class SandboxWeapon {
   private attachVisual(): void {
     const kind = this.kind;
     const phys = weaponPhysics(kind);
-    const ready = createWeaponVisual(kind, phys.length, { lod: kind !== 'glock', ground: false, shadows: true });
+    const ready = createWeaponVisual(kind, phys.length, { lod: true, ground: false, shadows: true });
     if (ready) {
       this.setVisual(ready);
       return;

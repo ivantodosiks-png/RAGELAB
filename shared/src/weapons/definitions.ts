@@ -350,17 +350,17 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
       aimMultiplier: 0.42,
       crouchMultiplier: 0.72,
     },
-    audio: { fire: 'pistol', reload: 'pistol_reload', pitch: 1.02, maxDistance: 90 },
+    audio: { fire: 'pistol', reload: 'pistol_reload', pitch: 1.05, maxDistance: 90 },
     visual: {
       color: 0x1c1e22,
       accentColor: 0x8a9099,
-      size: [0.1, 0.16, 0.3],
-      muzzleFlashScale: 0.65,
+      size: [0.085, 0.14, 0.205],
+      muzzleFlashScale: 0.62,
       tracerWidth: 0.016,
       tracerColor: 0xffd48a,
       shellEjection: true,
-      hipPosition: [0.19, -0.24, -0.38],
-      aimPosition: [0.0, -0.118, -0.3],
+      hipPosition: [0.2, -0.22, -0.4],
+      aimPosition: [0.0, -0.115, -0.31],
     },
   },
 
@@ -959,7 +959,7 @@ export const WEAPON_DEFINITIONS: Record<WeaponId, WeaponDefinition> = {
 export const WEAPON_IDS: WeaponId[] = Object.keys(WEAPON_DEFINITIONS);
 
 /** The loadout every player spawns with, in slot order (hotbar 1–3). */
-export const DEFAULT_LOADOUT: WeaponId[] = ['pistol', 'rifle'];
+export const DEFAULT_LOADOUT: WeaponId[] = ['glock', 'rifle'];
 
 export function getWeapon(id: WeaponId): WeaponDefinition {
   const def = WEAPON_DEFINITIONS[id];

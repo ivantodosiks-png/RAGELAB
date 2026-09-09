@@ -332,7 +332,7 @@ export function muzzleOffsetFor(def: WeaponDefinition): [number, number, number]
     case 'pistol':
       return [0, 0.028, -0.22];
     case 'glock':
-      return [0, 0.02, -0.19];
+      return [0, 0.022, -0.105];
     case 'magnum':
       return [0, 0.028, -0.27];
     case 'smg':
@@ -353,7 +353,7 @@ export function ejectOffsetFor(def: WeaponDefinition): [number, number, number] 
     case 'pistol':
     case 'glock':
     case 'magnum':
-      return [0.02, 0.03, 0.0];
+      return [0.018, 0.028, 0.0];
     default:
       return [0.04, 0.04, 0.0];
   }
