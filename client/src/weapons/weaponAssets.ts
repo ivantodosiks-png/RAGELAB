@@ -93,7 +93,7 @@ export const WEAPON_PHYSICS: Record<SandboxWeaponKind, WeaponPhysDef> = {
   smg: { mass: 2.45, hx: 0.035, hy: 0.085, hz: 0.26, length: 0.52 },
   bizon: { mass: 2.7, hx: 0.038, hy: 0.09, hz: 0.28, length: 0.56 },
   assault: { mass: 3.2, hx: 0.04, hy: 0.09, hz: 0.39, length: 0.78 },
-  rifle: { mass: 3.35, hx: 0.042, hy: 0.095, hz: 0.42, length: 0.84 },
+  rifle: { mass: 3.35, hx: 0.04, hy: 0.09, hz: 0.41, length: 0.82 },
   ak: { mass: 3.55, hx: 0.042, hy: 0.092, hz: 0.4, length: 0.8 },
   shotgun: { mass: 3.55, hx: 0.045, hy: 0.08, hz: 0.38, length: 0.78 },
   autosg: { mass: 3.9, hx: 0.048, hy: 0.085, hz: 0.37, length: 0.74 },
@@ -126,7 +126,7 @@ const WEAPON_STRETCH: Partial<Record<WeaponModelId, { x?: number; y?: number; z?
   glock: { x: 1.22, y: 1.08, z: 1.0 },
 };
 
-const AUTHORED_PBR: ReadonlySet<string> = new Set(['glock', 'rifle']);
+const AUTHORED_PBR: ReadonlySet<string> = new Set(['glock']);
 
 function tuneAuthoredPbr(mat: THREE.MeshStandardMaterial, id: string): void {
   if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
@@ -138,17 +138,6 @@ function tuneAuthoredPbr(mat: THREE.MeshStandardMaterial, id: string): void {
     mat.roughness = Math.max(mat.roughness, 0.62);
     mat.color.setRGB(0.28, 0.29, 0.31);
     if (mat.map) mat.color.multiplyScalar(0.92);
-    mat.emissive.setHex(0x000000);
-    mat.emissiveIntensity = 0;
-    return;
-  }
-
-  if (id === 'rifle') {
-    const isOptic = /visier|optic|scope|glass/i.test(mat.name);
-    mat.envMapIntensity = isOptic ? 0.18 : 0.12;
-    mat.metalness = Math.min(mat.metalness, isOptic ? 0.45 : 0.28);
-    mat.roughness = Math.max(mat.roughness, isOptic ? 0.35 : 0.62);
-    mat.color.multiplyScalar(isOptic ? 0.55 : 0.48);
     mat.emissive.setHex(0x000000);
     mat.emissiveIntensity = 0;
     return;

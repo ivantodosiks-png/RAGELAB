@@ -60,8 +60,10 @@ export const CITY_MODELS: Record<string, { file: string; scale?: number; dir?: s
   'grenade-prop': { file: 'grenade-a.glb', dir: 'aimpit', scale: 1 },
   // Full-map GLB (FPS playground arena) — replaces Test Box
   arena: { file: 'arena.glb', dir: 'maps', scale: 1 },
-  // Desert Arena low-poly environment
+  // Glen Canyon Dam (GT Racing 2) — replaces Dust Bowl under the desert playlist id
   desert: { file: 'desert.glb', dir: 'maps', scale: 1 },
+  // Classic CS $2000$ fight yard (GoldSrc BSP → GLB)
+  fy2000: { file: 'fy2000.glb', dir: 'maps', scale: 1 },
 };
 
 export function cityModelUrl(id: string): string {

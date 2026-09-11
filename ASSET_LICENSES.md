@@ -24,12 +24,20 @@ Full-map mesh for the **CS Arena** playlist entry (replaces the old Test Box).
 - **File:** `fps_shooter_game_arena_map_v4.glb` (source under `assets/map cs/`)
 - **Use:** Client-only scenery. Invisible brush hulls in `shared/src/maps/arena.ts` provide collision.
 
-## Desert Arena — `client/public/models/maps/desert.glb`
+## Glen Canyon — `client/public/models/maps/desert.glb`
 
-Full-map mesh for the **Desert Arena** playlist entry.
+Full-map mesh for the **Glen Canyon** playlist entry (map id `desert`).
 
-- **File:** `desert_arena_environment__low_poly_game_asset.glb` (source under `assets/map cs/`)
-- **Use:** Client-only scenery. Invisible brush hulls in `shared/src/maps/desert.ts` provide collision.
+- **Source:** `gt_racing_2_-_glen_canyon_dam.glb` under `assets/map cs/`
+- **Use:** Client-only scenery (skybox stripped, textures compressed). Invisible brush hulls in `shared/src/maps/desert.ts` provide collision.
+
+## $2000$ — `client/public/models/maps/fy2000.glb`
+
+Classic Counter-Strike fight-yard map for the **$2000$** playlist entry.
+
+- **Source:** GoldSrc `$2000$.bsp` (Calou, fy_2000 family) under `assets/map cs/_2000/`
+- **Convert:** `hlbsp-converter` → glTF, then packed GLB for the browser
+- **Use:** Client-only scenery. Invisible brush hulls in `shared/src/maps/fy2000.ts` provide collision.
 
 ## Aim Pit props — `client/public/models/aimpit/*.glb`
 

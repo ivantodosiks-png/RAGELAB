@@ -27,3 +27,8 @@ assets/_dl/
 
 # Oversized source masters (optimize into client/public/models — GitHub 100MB limit)
 assets/m4/*.glb
+
+# BSP>GLB conversion scratch
+tools/hlbsp/
+assets/map cs/_2000/out/
+

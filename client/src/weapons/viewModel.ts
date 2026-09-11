@@ -323,14 +323,12 @@ export class WeaponViewModel {
       const spanY = Math.max(0.01, box.max.y - box.min.y);
       const spanZ = Math.max(0.01, box.max.z - box.min.z);
       const muzzleZ = box.min.z - 0.004;
-      // Rifle barrel sits mid-height; optic (Visier) is above.
-      const muzzleY =
-        def.id === 'rifle' ? box.min.y + spanY * 0.48 : box.min.y + spanY * 0.62;
+      const muzzleY = box.min.y + spanY * (def.id === 'rifle' ? 0.55 : 0.62);
       this.muzzlePoint.position.set(0, muzzleY, muzzleZ);
       this.ejectPoint.position.set(
         box.max.x * 0.45,
         muzzleY + spanY * 0.08,
-        box.min.z + spanZ * (def.id === 'rifle' ? 0.42 : 0.15),
+        box.min.z + spanZ * (def.id === 'rifle' ? 0.35 : 0.15),
       );
     }
 

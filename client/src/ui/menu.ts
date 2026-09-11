@@ -352,6 +352,7 @@ export class MainMenu {
     const layouts: Array<{ id: string; x: number; y: number; sector: string }> = [
       { id: 'arena', x: 32, y: 46, sector: 'SECTOR A' },
       { id: 'desert', x: 68, y: 54, sector: 'SECTOR B' },
+      { id: 'fy2000', x: 48, y: 28, sector: 'SECTOR C' },
     ];
     for (const layout of layouts) {
       if (!RAID_MAPS.includes(layout.id)) continue;
