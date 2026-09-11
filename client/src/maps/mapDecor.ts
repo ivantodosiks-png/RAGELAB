@@ -103,10 +103,20 @@ export class MapDecor {
         // reads as blown-out white once the texture is actually loaded.
         // Full-map GLBs keep a bit more env response.
         const kenneyLike = id !== 'arena' && id !== 'desert' && id !== 'fy2000';
-        mat.envMapIntensity = kenneyLike ? 0.18 : 0.45;
+        mat.envMapIntensity = kenneyLike ? 0.18 : id === 'fy2000' ? 0.22 : 0.45;
         if (kenneyLike) {
           mat.metalness = 0;
           mat.roughness = Math.max(0.58, mat.roughness);
+        }
+        if (id === 'fy2000') {
+          // GoldSrc lightmaps aren't loaded — keep stone readable and hide backfaces
+          // that used to read as a black "floating roof".
+          mat.metalness = 0;
+          mat.roughness = Math.max(0.72, mat.roughness);
+          mat.side = THREE.FrontSide;
+          mat.color.multiplyScalar(1.15);
+          mat.emissive.setHex(0x1a1814);
+          mat.emissiveIntensity = 0.12;
         }
         if (mat.map) {
           mat.map.colorSpace = THREE.SRGBColorSpace;
